@@ -1,0 +1,2 @@
+# CovSel.jl
+Covariance selection
