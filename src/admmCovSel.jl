@@ -32,7 +32,7 @@ end
 
 
 # inimize  trace(S*X) - log det X + lambda*||X||_1
-function solve!{T<:FloatingPoint}(
+function solve!{T<:AbstractFloat}(
     solver::ADMMSolver,
     X::StridedMatrix{T},
     Z::StridedMatrix{T},
