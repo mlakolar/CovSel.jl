@@ -13,11 +13,11 @@ ADMMOptions(;ρ::Float64=1.,
            abstol::Float64=1e-4,
            reltol::Float64=1e-2) = ADMMOptions(ρ, α, maxiter, abstol, reltol)
 
-function covselpath(data::AbstractMatrix,
+function covselpath{T<:AbstractFloat}(S::StridedMatrix{T},
                     λarr;
                     options::ADMMOptions = ADMMOptions(),
-                    penalize_diag::Bool=true)
-  S = cov(data)
+                    penalize_diag::Bool=true,
+                    verbose::Bool=false)
   p = size(S, 1)
 
   solutionpath = Array(Array{Float64, 2}, length(λarr))
@@ -26,6 +26,9 @@ function covselpath(data::AbstractMatrix,
   U = zeros(p, p)
 
   for i=1:length(λarr)
+    if verbose
+      @printf("lambda = %d/%d\n", i, length(λarr))
+    end
     covsel!(X, Z, U, S, λarr[i]; options=options, penalize_diag=penalize_diag)
     solutionpath[i] = copy(Z)
   end
