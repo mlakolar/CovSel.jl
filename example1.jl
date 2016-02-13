@@ -29,5 +29,5 @@ U = zeros(Float64, (p,p))
 
 
 non_zero_set = find( abs(precM) .> 1e-4 )
-@time CovSel.covsel_refit!(X, Z, U, S, non_zero_set; penalize_diag=false)
+@time CovSel.covsel_refit!(X, Z, U, S, non_zero_set)
 

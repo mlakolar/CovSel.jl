@@ -35,6 +35,29 @@ function covselpath{T<:AbstractFloat}(S::StridedMatrix{T},
   solutionpath
 end
 
+function covselpath_refit{T<:AbstractFloat}(S::StridedMatrix{T},
+                    solutionpath;
+                    options::ADMMOptions = ADMMOptions(),
+                    verbose::Bool=false)
+  p = size(S, 1)
+  lenPath = length(solutionpath)
+  solutionpath_refit = Array(Array{Float64, 2}, length(λarr))
+  X = zeros(p, p)
+  Z = zeros(p, p)
+  U = zeros(p, p)
+
+  for i=1:lenPath
+    if verbose
+      @printf("refit = %d/%d\n", i, lenPath)
+    end
+    non_zero_set = find( abs(solutionpath[i]) .> 1e-4 )
+    covsel_refit!(X, Z, U, S, non_zero_set; options=options)
+    solutionpath_refit[i] = copy(Z)
+  end
+  solutionpath_refit
+end
+
+
 # inimize  trace(S*X) - log det X   subject to support(X) ⊆ non_zero_set
 function covsel_refit!{T<:AbstractFloat}(
     X::StridedMatrix{T},
@@ -42,8 +65,7 @@ function covsel_refit!{T<:AbstractFloat}(
     U::StridedMatrix{T},
     S::StridedMatrix{T},
     non_zero_set::Vector{Int64};
-    options::ADMMOptions = ADMMOptions(),
-    penalize_diag::Bool=true
+    options::ADMMOptions = ADMMOptions()
     )
 
   maxiter = options.maxiter

@@ -5,7 +5,9 @@ using ProximalOPT: shrink, ProxL1L2, ProximableFunction
 export
   ADMMOptions,
   covsel!,
-  covsel_refit!
+  covsel_refit!,
+  covselpath,
+  covselpath_refit
 
 include("admmCovSel.jl")
 include("utils.jl")
