@@ -41,7 +41,7 @@ function covselpath_refit{T<:AbstractFloat}(S::StridedMatrix{T},
                     verbose::Bool=false)
   p = size(S, 1)
   lenPath = length(solutionpath)
-  solutionpath_refit = Array(Array{Float64, 2}, length(λarr))
+  solutionpath_refit = Array(Array{Float64, 2}, lenPath)
   X = zeros(p, p)
   Z = zeros(p, p)
   U = zeros(p, p)
