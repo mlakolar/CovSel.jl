@@ -6,3 +6,4 @@ function _normdiff{T<:AbstractFloat}(A::StridedMatrix{T}, B::StridedMatrix{T})
   end
   sqrt(v)
 end
+

@@ -1,10 +1,11 @@
 module CovSel
 
-using ProximalOPT: shrink, ProxL1L2, prox!
+using ProximalOPT: shrink, ProxL1L2, ProximableFunction
 
 export
-  ADMMSolver,
-  solve!
+  ADMMOptions,
+  covsel!,
+  covsel_refit!
 
 include("admmCovSel.jl")
 include("utils.jl")
