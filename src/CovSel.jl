@@ -6,8 +6,12 @@ export
   ADMMOptions,
   covsel!, covselpath,
   #covsel_refit!, covselpath_refit
+
+  # difference estimation
+  #
   fusedGraphicalLasso,
-  fusedNeighborhoodSelection
+  fusedNeighborhoodSelection, 
+  differencePrecisionActiveShooting
 
 include("admmCovSel.jl")
 include("diffEstim.jl")
