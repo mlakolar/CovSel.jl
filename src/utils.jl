@@ -7,3 +7,10 @@ function _normdiff{T<:AbstractFloat}(A::StridedMatrix{T}, B::StridedMatrix{T})
   sqrt(v)
 end
 
+function _normdiff{T<:AbstractFloat}(A::StridedVector{T}, B::StridedVector{T})
+  v = zero(T)
+  @inbounds @simd for i in eachindex(A)
+    v += abs2( A[i] - B[i] )
+  end
+  sqrt(v)
+end

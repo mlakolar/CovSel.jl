@@ -1,4 +1,4 @@
-abstract CovSelSolver
+abstract type CovSelSolver end
 
 struct ADMMOptions <: CovSelSolver
   ρ::Float64
@@ -13,6 +13,71 @@ ADMMOptions(;ρ::Float64=1.,
            maxiter::Int64=1000,
            abstol::Float64=1e-4,
            reltol::Float64=1e-2) = ADMMOptions(ρ, α, maxiter, abstol, reltol)
+
+
+
+
+
+#########################################################
+# minimize  trace(S*X) - log det X + lambda*||X||_1
+#########################################################
+
+function covsel!{T<:AbstractFloat}(
+  X::StridedMatrix{T},
+  Z::StridedMatrix{T},
+  U::StridedMatrix{T},
+  Σ::StridedMatrix{T},
+  λ::T;
+  options::ADMMOptions = ADMMOptions(),
+  penalize_diag::Bool=true
+  )
+
+  maxiter = options.maxiter
+  ρ = options.ρ
+  α = options.α
+  abstol = options.abstol
+  reltol = options.reltol
+  γ = one(T) / ρ
+  λρ = λ * γ
+
+  p = size(Σ, 1)
+  g = ProxGaussLikelihood(Σ)
+
+  tmpStorage = zeros(T, (p, p))
+  Zold = copy(Z)
+
+  for iter=1:maxiter
+    # x-update
+    @. tmpStorage = Z - U
+    prox!(g, X, tmpStorage, γ)
+
+    # z-update with relaxation
+    copy!(Zold, Z)
+    @. tmpStorage = α*X + (one(T)-α)*Z + U
+    @inbounds for c=1:p
+      for r=1:c-1
+        t = shrink(tmpStorage[r, c], λρ)
+        Z[c, r] = t
+        Z[r, c] = t
+      end
+      Z[c, c] = penalize_diag ? shrink(tmpStorage[c, c], λρ) : tmpStorage[c, c]
+    end
+
+    # u-update
+    @. U = tmpStorage - Z
+
+    # check convergence
+    r_norm = _normdiff(X, Z)
+    s_norm = _normdiff(Z, Zold) * sqrt(ρ)
+    eps_pri = p*abstol + reltol * max( vecnorm(X), vecnorm(Z) )
+    eps_dual = p*abstol + reltol * ρ * vecnorm(U)
+    if r_norm < eps_pri && s_norm < eps_dual
+      break
+    end
+  end
+  Z
+end
+
 
 function covselpath{T<:AbstractFloat}(S::StridedMatrix{T},
                     λarr;
@@ -36,164 +101,101 @@ function covselpath{T<:AbstractFloat}(S::StridedMatrix{T},
   solutionpath
 end
 
-function covselpath_refit{T<:AbstractFloat}(S::StridedMatrix{T},
-                    solutionpath;
-                    options::ADMMOptions = ADMMOptions(),
-                    verbose::Bool=false)
-  p = size(S, 1)
-  lenPath = length(solutionpath)
-  solutionpath_refit = Array(Array{Float64, 2}, lenPath)
-  X = zeros(p, p)
-  Z = zeros(p, p)
-  U = zeros(p, p)
-
-  for i=1:lenPath
-    if verbose
-      @printf("refit = %d/%d\n", i, lenPath)
-    end
-    non_zero_set = find( abs(solutionpath[i]) .> 1e-4 )
-    covsel_refit!(X, Z, U, S, non_zero_set; options=options)
-    solutionpath_refit[i] = copy(Z)
-  end
-  solutionpath_refit
-end
 
 
-# inimize  trace(S*X) - log det X   subject to support(X) ⊆ non_zero_set
-function covsel_refit!{T<:AbstractFloat}(
-    X::StridedMatrix{T},
-    Z::StridedMatrix{T},
-    U::StridedMatrix{T},
-    S::StridedMatrix{T},
-    non_zero_set::Vector{Int64};
-    options::ADMMOptions = ADMMOptions()
-    )
 
-  maxiter = options.maxiter
-  ρ = options.ρ
-  α = options.α
-  abstol = options.abstol
-  reltol = options.reltol
+#########################################################
+##
+## covsel refit
+##
+#########################################################
 
-  p = size(S, 1)
-  tmpStorage = zeros(T, (p, p))
-  Zold = copy(Z)
 
-  for iter=1:maxiter
-    # x-update
-    @simd for i=1:length(tmpStorage)
-      @inbounds tmpStorage[i] = ρ * (Z[i] - U[i]) - S[i]
-    end
-    ef = eigfact(Symmetric(tmpStorage))
-    efVectors = ef[:vectors]::Array{T, 2}
-    efValues = ef[:values]::Array{T, 1}
-    @simd for i=1:p
-      @inbounds t = efValues[i]
-      @inbounds efValues[i] = (t + sqrt(t^2. + 4.*ρ)) / (2.*ρ)
-    end
-    @inbounds for c=1:p, r=1:p
-      X[r, c] = zero(T)
-      for i=1:p
-        X[r, c] = X[r, c] + efVectors[r,i] * efValues[i] * efVectors[c, i]
-      end
-    end
-
-    # z-update with relaxation
-    copy!(Zold, Z)
-    fill!(Z, zero(T))
-    for i in non_zero_set
-      @inbounds Z[i] = α*X[i] + (one(T)-α)*Z[i] + U[i]
-    end
-
-    # u-update
-    @simd for i in eachindex(X)
-      @inbounds U[i] = U[i] + X[i] - Z[i]
-    end
-
-    # check convergence
-    r_norm = _normdiff(X, Z)
-    s_norm = _normdiff(Z, Zold) * sqrt(ρ)
-    eps_pri = p*abstol + reltol * max( vecnorm(X), vecnorm(Z) )
-    eps_dual = p*abstol + reltol * ρ * vecnorm(U)
-    if r_norm < eps_pri && s_norm < eps_dual
-      break
-    end
-  end
-  Z
-end
-
-# inimize  trace(S*X) - log det X + lambda*||X||_1
-function covsel!{T<:AbstractFloat}(
-    X::StridedMatrix{T},
-    Z::StridedMatrix{T},
-    U::StridedMatrix{T},
-    S::StridedMatrix{T},
-    λ::T;
-    options::ADMMOptions = ADMMOptions(),
-    penalize_diag::Bool=true
-    )
-
-  maxiter = options.maxiter
-  ρ = options.ρ
-  α = options.α
-  abstol = options.abstol
-  reltol = options.reltol
-  λρ = λ/ρ
-
-  p = size(S, 1)
-  tmpStorage = zeros(T, (p, p))
-  Zold = copy(Z)
-
-  for iter=1:maxiter
-    # x-update
-    @simd for i=1:length(tmpStorage)
-      @inbounds tmpStorage[i] = ρ * (Z[i] - U[i]) - S[i]
-    end
-    ef = eigfact(Symmetric(tmpStorage))
-    efVectors = ef[:vectors]::Array{T, 2}
-    efValues = ef[:values]::Array{T, 1}
-    @simd for i=1:p
-      @inbounds t = efValues[i]
-      @inbounds efValues[i] = (t + sqrt(t^2. + 4.*ρ)) / (2.*ρ)
-    end
-    @inbounds for c=1:p, r=1:p
-      X[r, c] = zero(T)
-      for i=1:p
-        X[r, c] = X[r, c] + efVectors[r,i] * efValues[i] * efVectors[c, i]
-      end
-    end
-
-    # z-update with relaxation
-    copy!(Zold, Z)
-    @simd for i=1:length(tmpStorage)
-      @inbounds tmpStorage[i] = α*X[i] + (one(T)-α)*Z[i] + U[i]
-    end
-    @inbounds for c=1:p
-      for r=1:c-1
-        t = shrink(tmpStorage[r, c], λρ)
-        Z[c, r] = t
-        Z[r, c] = t
-      end
-      Z[c, c] = penalize_diag ? shrink(tmpStorage[c, c], λρ) : tmpStorage[c, c]
-    end
-
-    # u-update
-    @simd for i in eachindex(tmpStorage)
-      @inbounds U[i] = tmpStorage[i] - Z[i]
-    end
-
-    # check convergence
-    r_norm = _normdiff(X, Z)
-    s_norm = _normdiff(Z, Zold) * sqrt(ρ)
-    eps_pri = p*abstol + reltol * max( vecnorm(X), vecnorm(Z) )
-    eps_dual = p*abstol + reltol * ρ * vecnorm(U)
-    if r_norm < eps_pri && s_norm < eps_dual
-      break
-    end
-  end
-  Z
-end
-
+# function covselpath_refit{T<:AbstractFloat}(S::StridedMatrix{T},
+#                     solutionpath;
+#                     options::ADMMOptions = ADMMOptions(),
+#                     verbose::Bool=false)
+#   p = size(S, 1)
+#   lenPath = length(solutionpath)
+#   solutionpath_refit = Array(Array{Float64, 2}, lenPath)
+#   X = zeros(p, p)
+#   Z = zeros(p, p)
+#   U = zeros(p, p)
+#
+#   for i=1:lenPath
+#     if verbose
+#       @printf("refit = %d/%d\n", i, lenPath)
+#     end
+#     non_zero_set = find( abs(solutionpath[i]) .> 1e-4 )
+#     covsel_refit!(X, Z, U, S, non_zero_set; options=options)
+#     solutionpath_refit[i] = copy(Z)
+#   end
+#   solutionpath_refit
+# end
+#
+#
+# # inimize  trace(S*X) - log det X   subject to support(X) ⊆ non_zero_set
+# function covsel_refit!{T<:AbstractFloat}(
+#     X::StridedMatrix{T},
+#     Z::StridedMatrix{T},
+#     U::StridedMatrix{T},
+#     S::StridedMatrix{T},
+#     non_zero_set::Vector{Int64};
+#     options::ADMMOptions = ADMMOptions()
+#     )
+#
+#   maxiter = options.maxiter
+#   ρ = options.ρ
+#   α = options.α
+#   abstol = options.abstol
+#   reltol = options.reltol
+#
+#   p = size(S, 1)
+#   tmpStorage = zeros(T, (p, p))
+#   Zold = copy(Z)
+#
+#   for iter=1:maxiter
+#     # x-update
+#     @simd for i=1:length(tmpStorage)
+#       @inbounds tmpStorage[i] = ρ * (Z[i] - U[i]) - S[i]
+#     end
+#     ef = eigfact(Symmetric(tmpStorage))
+#     efVectors = ef[:vectors]::Array{T, 2}
+#     efValues = ef[:values]::Array{T, 1}
+#     @simd for i=1:p
+#       @inbounds t = efValues[i]
+#       @inbounds efValues[i] = (t + sqrt(t^2. + 4.*ρ)) / (2.*ρ)
+#     end
+#     @inbounds for c=1:p, r=1:p
+#       X[r, c] = zero(T)
+#       for i=1:p
+#         X[r, c] = X[r, c] + efVectors[r,i] * efValues[i] * efVectors[c, i]
+#       end
+#     end
+#
+#     # z-update with relaxation
+#     copy!(Zold, Z)
+#     fill!(Z, zero(T))
+#     for i in non_zero_set
+#       @inbounds Z[i] = α*X[i] + (one(T)-α)*Z[i] + U[i]
+#     end
+#
+#     # u-update
+#     @simd for i in eachindex(X)
+#       @inbounds U[i] = U[i] + X[i] - Z[i]
+#     end
+#
+#     # check convergence
+#     r_norm = _normdiff(X, Z)
+#     s_norm = _normdiff(Z, Zold) * sqrt(ρ)
+#     eps_pri = p*abstol + reltol * max( vecnorm(X), vecnorm(Z) )
+#     eps_dual = p*abstol + reltol * ρ * vecnorm(U)
+#     if r_norm < eps_pri && s_norm < eps_dual
+#       break
+#     end
+#   end
+#   Z
+# end
 
 # # inimize  sum_i trace(S_i*X_i) - log det X_i + lambda * sum_ab (sum_i X_i,ab ^2)
 # function solve!{T<:FloatingPoint}(
