@@ -186,66 +186,79 @@ end
 #
 ####################################
 
+struct ActiveShootingOptions <: CovSelSolver
+  maxIter::Int64
+  maxInnerIter::Int64
+  maxChangeTol::Float64
+  kktTol::Float64
+end
 
-function updateDelta!(Delta, hSx, hSy, A, lambda; maxIter=2000, optTol=1e-7)
+ActiveShootingOptions(
+  ;maxIter::Int64=1000,
+  maxInnerIter::Int64=2000,
+  maxChangeTol::Float64=1e-7,
+  kktTol::Float64=1e-7) = ActiveShootingOptions(maxIter, maxInnerIter, maxChangeTol, kktTol)
+
+
+function updateDelta!{T<:AbstractFloat}(
+  Δ::SparseMatrixCSC{T},
+  A::StridedMatrix{T}, Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
+  λ::T, Ups::StridedMatrix{T};
+  options::ActiveShootingOptions = ActiveShootingOptions())
   # Delta is a sparse matrix stored in CSC format
   # only diagonal and lower triangular elements are used
 
   # extract fields from sparse matrix Delta
-  colptr = Delta.colptr
-  nzval = Delta.nzval
-  rowval = Delta.rowval
+  rows = rowvals(Δ)
+  vals = nonzeros(Δ)
 
-  p = size(Delta, 1)
+  maxInnerIter = options.maxInnerIter
+  maxChangeTol = options.maxChangeTol
 
-  iter = 1
-  while iter <= maxIter
+  p = size(Δ, 1)
+
+  for iter=1:maxInnerIter
     fDone = true
     for colInd=1:p
-      for j=colptr[colInd]:colptr[colInd+1]-1
-        rowInd = rowval[j]
-
-        # a sanity check in
-        if rowInd < colInd
-          continue
-        end
+      for j in nzrange(Δ, colInd)
+        rowInd = rows[j]
 
         if rowInd==colInd
           # diagonal elements
-          x0 = hSx[rowInd,rowInd]*hSy[rowInd,rowInd]/2
-          x1 = A[rowInd,rowInd] - hSy[rowInd,rowInd] + hSx[rowInd,rowInd]
-          tmp = shrink(-x1/x0/2 + nzval[j], lambda[rowInd,colInd] / 2 / x0)
+          ix0 = one(T) / (Σx[rowInd,rowInd] * Σy[rowInd,rowInd])
+          x1 = A[rowInd,rowInd] - Σy[rowInd,rowInd] + Σx[rowInd,rowInd]
+          tmp = shrink(-x1*ix0 + vals[j], λ*Ups[rowInd,colInd]*ix0)
         else
           # off-diagonal elements
-          x0 = (hSx[rowInd,rowInd]*hSy[colInd,colInd] + hSx[colInd,colInd]*hSy[rowInd,rowInd])/2
-          + hSx[rowInd,colInd]*hSy[rowInd,colInd]
-          x1 = A[rowInd,colInd] + A[colInd,rowInd] - 2*(hSy[rowInd,colInd] - hSx[rowInd,colInd])
-          tmp = shrink(-x1/x0/2 + nzval[j], lambda[rowInd,colInd] / x0)
+          ix0 = one(T) / ((Σx[rowInd,rowInd]*Σy[colInd,colInd] + Σx[colInd,colInd]*Σy[rowInd,rowInd])/2.
+                            + Σx[rowInd,colInd]*Σy[rowInd,colInd])
+          x1 = A[rowInd,colInd] + A[colInd,rowInd] - 2.*(Σy[rowInd,colInd] - Σx[rowInd,colInd])
+          tmp = shrink(-x1*ix0/2. + vals[j], λ*Ups[rowInd,colInd] * ix0)
         end
 
         # size of update
-        h = tmp - nzval[j]
+        h = tmp - vals[j]
         # update is too big -- not done
-        if abs(h) > optTol
+        if abs(h) > maxChangeTol
           fDone = false
         end
-        # update Delta
-        nzval[j] = tmp
+        # update Δ
+        vals[j] = tmp
 
         # update A -- only active set
         for ci=1:p
-          for k=colptr[ci]:colptr[ci+1]-1
-            ri = rowval[k]
+          for k in nzrange(Δ, ci)
+            ri = rows[k]
 
             if rowInd == colInd
-              A[ri,ci] = A[ri,ci] + h * hSx[ri,rowInd]*hSy[rowInd,ci]
+              A[ri,ci] = A[ri,ci] + h * Σx[ri,rowInd]*Σy[rowInd,ci]
               if ri != ci
-                A[ci,ri] = A[ci,ri] + h * hSx[ci,rowInd]*hSy[rowInd,ri]
+                A[ci,ri] = A[ci,ri] + h * Σx[ci,rowInd]*Σy[rowInd,ri]
               end
             else
-              A[ri,ci] = A[ri,ci] + h * (hSx[ri,colInd]*hSy[rowInd,ci] + hSx[ri,rowInd]*hSy[colInd,ci])
+              A[ri,ci] = A[ri,ci] + h * (Σx[ri,colInd]*Σy[rowInd,ci] + Σx[ri,rowInd]*Σy[colInd,ci])
               if ri != ci
-                A[ci,ri] = A[ci,ri] + h * (hSx[ci,colInd]*hSy[rowInd,ri] + hSx[ci,rowInd]*hSy[colInd,ri])
+                A[ci,ri] = A[ci,ri] + h * (Σx[ci,colInd]*Σy[rowInd,ri] + Σx[ci,rowInd]*Σy[colInd,ri])
               end
             end
           end
@@ -253,84 +266,126 @@ function updateDelta!(Delta, hSx, hSy, A, lambda; maxIter=2000, optTol=1e-7)
       end
     end
 
-    iter = iter + 1;
     if fDone
       break
     end
-
   end  # while
 
-  sparse(Delta)
+  sparse(Δ)
 end
 
-function findViolator!(active_set, Delta, A, hSx, hSy, lambda; kktTol=1e-7)
-  p = size(hSx, 1)
+function findViolator!{T<:AbstractFloat}(
+  Δ::SparseMatrixCSC{T},
+  A::StridedMatrix{T}, Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
+  λ::T, Ups::StridedMatrix{T};
+  options::ActiveShootingOptions = ActiveShootingOptions())
 
-  tmp = abs((A + A') / 2 - (hSy - hSx)) - lambda
-  ind = indmax(tmp)
-  if tmp[ind] > kktTol
-    push!(active_set, ind)
-    Delta[ind] = eps()
-  else
-    ind = 0
-  end
+  p = size(Σx, 1)
 
-  return ind
-end
-
-function differencePrecisionActiveShooting(hSx, hSy, lambda; maxIter=1000, maxInnerIter=1000, optTol=1e-7, Delta = [])
-  p = size(hSx, 1)
-
-  if isempty(Delta)
-    Delta = spzeros(p, p)
-    A = zeros(p, p)
-
-    active_set = Array(Integer, 0)
-    indAdd = findViolator!(active_set, Delta, A, hSx, hSy, lambda)
-    if indAdd == 0
-      return Delta
+  vmax = zero(T)
+  im = 0
+  for c=1:p
+    for r=c:p
+      t = abs((A[r,c] + A[c,r]) / 2. - (Σy[r,c] - Σx[r,c])) - λ * Ups[r,c]
+      if t > vmax
+        vmax = t
+        im = (c-1)*p+r
+      end
     end
+  end
+  if vmax > options.kktTol
+    Δ[im] = eps(T)
   else
-    lDelta = tril(Delta, -1)
-    dDelta = spdiagm(diag(Delta))
-    A = hSx * (lDelta + lDelta' + dDelta) * hSy
+    im = 0
+  end
+  im
+end
 
-    # make sure Delta is lower triangular
-    Delta = lDelta + dDelta
-    active_set = find(Delta)
+
+function updateA!{T<:AbstractFloat}(
+  A::StridedMatrix{T},
+  Δ::SparseMatrixCSC{T},
+  Σx::StridedMatrix{T}, Σy::StridedMatrix{T})
+
+  p = size(A, 1)
+
+  rows = rowvals(Δ)
+  vals = nonzeros(Δ)
+
+  for ac=1:p
+    for ar=1:p
+      v = zero(T)
+      #
+      for ci=1:p
+        for j in nzrange(Δ, ci)
+          ri = rows[j]
+          if ri == ci
+            v += Σx[ri, ar] * Σy[ci, ac] * vals[j]
+          else
+            v += (Σx[ri, ar] * Σy[ci, ac] + Σx[ci, ar] * Σy[ri, ac]) * vals[j]
+          end
+        end
+      end
+      #
+      A[ar,ac] = v
+    end
+  end
+  A
+end
+
+
+
+differencePrecisionActiveShooting{T<:AbstractFloat}(
+  Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
+  λ::T, Ups::StridedMatrix{T};
+  options::ActiveShootingOptions = ActiveShootingOptions()) =
+    differencePrecisionActiveShooting!(spzeros(size(Σx)...), Σx, Σy, λ, Ups; options=options)
+
+function differencePrecisionActiveShooting!{T<:AbstractFloat}(
+  Δ::SparseMatrixCSC{T},
+  Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
+  λ::T, Ups::StridedMatrix{T};
+  options::ActiveShootingOptions = ActiveShootingOptions())
+
+  maxIter = options.maxIter
+  p = size(Σx, 1)
+  A = zeros(p,p)
+  tril!(Δ)
+
+  # lDelta = tril(Δ, -1)
+  # dDelta = spdiagm(diag(Δ))
+  # A = Σx * (lDelta + lDelta' + dDelta) * Σy
+  updateA!(A, Δ, Σx, Σy)
+  if iszero(Δ)
+    ind = findViolator!(Δ, A, Σx, Σy, λ, Ups; options=options)
   end
 
-  iter = 1;
-  while iter < maxIter
-    old_active_set = copy(active_set)
-    updateDelta!(Delta, hSx, hSy, A, lambda; maxIter=maxInnerIter, optTol=optTol)
-    active_set = find(Delta)
+  for iter=1:maxIter
+    updateDelta!(Δ, A, Σx, Σy, λ, Ups; options=options)
 
     # update A
-    lDelta = tril(Delta, -1)
-    dDelta = spdiagm(diag(Delta))
-    A = hSx * (lDelta + lDelta' + dDelta) * hSy
-    # add violating element into active set
-    indAdd = findViolator!(active_set, Delta, A, hSx, hSy, lambda)
+    # lDelta = tril(Δ, -1)
+    # dDelta = spdiagm(diag(Δ))
+    # A = Σx * (lDelta + lDelta' + dDelta) * Σy
+    updateA!(A, Δ, Σx, Σy)
 
-    if old_active_set == active_set
+    if findViolator!(Δ, A, Σx, Σy, λ, Ups; options=options) == 0
       break
-    else
     end
-
-    iter = iter + 1;
-
   end
-  lDelta = tril(Delta, -1)
-  dDelta = spdiagm(diag(Delta))
-  (lDelta + lDelta') + dDelta
+
+  lDelta = tril(Δ, -1)
+  dDelta = spdiagm(diag(Δ))
+  Δ = (lDelta + lDelta') + dDelta
 end
 
 
-function differencePrecisionNaive(hSx, hSy, lambda, Ups; maxIter=2000, optTol=1e-7)
-  p = size(hSx, 1)
+function differencePrecisionNaive(Σx, Σy, λ, Ups; options::ActiveShootingOptions = ActiveShootingOptions())
+  maxIter = options.maxIter
+  maxChangeTol = options.maxChangeTol
+  p = size(Σx, 1)
 
-  Delta = zeros(p, p)
+  Δ = zeros(p, p)
   A = zeros(p, p)
 
   iter = 1;
@@ -340,28 +395,28 @@ function differencePrecisionNaive(hSx, hSy, lambda, Ups; maxIter=2000, optTol=1e
       for b=a:p
         if a==b
           # diagonal elements
-          x0 = hSx[a,a]*hSy[a,a] / 2.
-          x1 = A[a,a] - hSy[a,a] + hSx[a,a]
-          tmp = shrink(-x1/x0/2. + Delta[a,b], lambda*Ups[a,b] / 2. / x0)
+          x0 = Σx[a,a]*Σy[a,a] / 2.
+          x1 = A[a,a] - Σy[a,a] + Σx[a,a]
+          tmp = shrink(-x1/x0/2. + Δ[a,b], λ*Ups[a,b] / 2. / x0)
         else
           # off-diagonal elements
-          x0 = (hSx[a,a]*hSy[b,b] + hSx[b,b]*hSy[a,a])/2. + hSx[a,b]*hSy[a,b]
-          x1 = A[a,b] + A[b,a] - 2.*(hSy[a,b] - hSx[a,b])
-          tmp = shrink(-x1/x0/2. + Delta[a,b], lambda*Ups[a,b] / x0)
+          x0 = (Σx[a,a]*Σy[b,b] + Σx[b,b]*Σy[a,a])/2. + Σx[a,b]*Σy[a,b]
+          x1 = A[a,b] + A[b,a] - 2.*(Σy[a,b] - Σx[a,b])
+          tmp = shrink(-x1/x0/2. + Δ[a,b], λ*Ups[a,b] / x0)
         end
 
-        h = tmp - Delta[a,b]
-        Delta[a,b] = tmp
-        Delta[b,a] = tmp
-        if abs(h) > optTol
+        h = tmp - Δ[a,b]
+        Δ[a,b] = tmp
+        Δ[b,a] = tmp
+        if abs(h) > maxChangeTol
           fDone = false
         end
         for j=1:p
           for k=1:p
             if a == b
-              A[j,k] = A[j,k] + h * hSx[j,a]*hSy[a,k]
+              A[j,k] = A[j,k] + h * Σx[j,a]*Σy[a,k]
             else
-              A[j,k] = A[j,k] + h * (hSx[j,a]*hSy[b,k] + hSx[j,b]*hSy[a,k])
+              A[j,k] = A[j,k] + h * (Σx[j,a]*Σy[b,k] + Σx[j,b]*Σy[a,k])
             end
           end
         end
@@ -373,5 +428,5 @@ function differencePrecisionNaive(hSx, hSy, lambda, Ups; maxIter=2000, optTol=1e
       break
     end
   end
-  Delta
+  Δ
 end
