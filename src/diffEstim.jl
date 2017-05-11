@@ -430,3 +430,209 @@ function differencePrecisionNaive(Σx, Σy, λ, Ups; options::ActiveShootingOpti
   end
   Δ
 end
+
+
+
+####################################
+#
+# Direct difference estimation using iterative hard thresholding
+#
+####################################
+
+
+
+function differencePrecisionIHT_objective{T<:AbstractFloat}(
+  Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
+  Δ::StridedMatrix{T}, L::StridedMatrix{T})
+
+  A = Δ + L
+  trace((Σx*A*Σy / 2 - (Σy - Σx)) * A)
+end
+
+differencePrecisionIHT_objective{T<:AbstractFloat}(
+  Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
+  Δ::StridedMatrix{T}) =
+    trace((Σx*Δ*Σy / 2 - (Σy - Σx)) * Δ)
+
+
+function differencePrecisionIHT_grad_delta!{T<:AbstractFloat}(
+  grad_out::StridedMatrix{T},
+  Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
+  Δ::StridedMatrix{T}, L::StridedMatrix{T})
+  p = size(Σx, 1)
+
+  # (a, b) indices of updated grad_out[a,b] element
+  for a=1:p
+    for b=a:p
+      grad_out[a,b] = zero(T)
+
+      for j=1:p, k=1:p
+        grad_out[a,b] += (Σx[j, a] * Σy[k, b] + Σy[j, a] * Σx[k, b]) * ( Δ[j, k] + L[j,k] ) / 2.
+      end
+      grad_out[a,b] += Σx[a,b] - Σy[a,b]
+
+      # update the other symmetric element
+      if a != b
+        grad_out[b,a] = grad_out[a,b]
+      end
+    end
+  end
+
+  grad_out
+end
+
+function differencePrecisionIHT_grad_delta!{T<:AbstractFloat}(
+  grad_out::StridedMatrix{T},
+  Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
+  Δ::StridedMatrix{T})
+  p = size(Σx, 1)
+
+  # (a, b) indices of updated grad_out[a,b] element
+  for a=1:p
+    for b=a:p
+      grad_out[a,b] = zero(T)
+
+      for j=1:p, k=1:p
+        grad_out[a,b] += (Σx[j, a] * Σy[k, b] + Σy[j, a] * Σx[k, b]) * Δ[j, k] / 2.
+      end
+      grad_out[a,b] += Σx[a,b] - Σy[a,b]
+
+      # update the other symmetric element
+      if a != b
+        grad_out[b,a] = grad_out[a,b]
+      end
+    end
+  end
+
+  grad_out
+end
+
+
+function differencePrecisionIHT_grad_u!(grad_out_u, grad_out_delta, Σx, Σy, Delta, L, U)
+  differencePrecisionIHT_grad_delta!(grad_out_delta, Σx, Σy, Delta, L)
+  scale!(grad_out_delta, 2.)
+  grad_out_u = grad_out_delta * U
+end
+
+
+# η is the step size
+# s is the target sparsity
+function differencePrecisionIHT{T<:AbstractFloat}(
+  Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
+  η::T, s::Int64;
+  epsTol=1e-5, maxIter=1000)
+
+  assert(size(Σx,1) == size(Σx,2) == size(Σy,1) == size(Σy,2))
+
+  p = size(Σx, 1)
+
+  gD = zeros(p, p)
+  Δ = zeros(p, p)
+  L = zeros(p, p)
+
+  fvals = []
+  # gradient descent
+  #
+  fv = differencePrecisionIHT_objective(Σx, Σy, Δ, L)
+  push!(fvals, fv)
+  for iter=1:maxIter
+    # update Δ
+    differencePrecisionIHT_grad_delta!(gD, Σx, Σy, Δ, L)
+    Δ .-= η .* gD
+    HardThreshold!(Δ, s)
+
+    # check for convergence
+    fv_new = differencePrecisionIHT_objective(Σx, Σy, Δ, L)
+    push!(fvals, fv_new)
+    if abs(fv_new - fv) <= epsTol
+      break
+    end
+    fv = fv_new
+  end
+
+  (Δ, fvals)
+end
+
+
+####################################
+#
+# Direct difference estimation using iterative hard thresholding
+#
+#  now with low rank
+#
+####################################
+
+
+
+# η is the step size
+# s is the target sparsity
+# r is the target rank
+function differenceLatentPrecisionIHT{T<:AbstractFloat}(
+  Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
+  η::T, s::Int64, r::Int64;
+  epsTol=1e-5, maxIter=1000)
+
+  assert(size(Σx,1) == size(Σx,2) == size(Σy,1) == size(Σy,2))
+
+  p = size(Σx, 1)
+
+  gD = zeros(p, p)
+  gU = zeros(p, r)
+  Δ = zeros(p, p)
+  L = zeros(p, p)
+
+  # initialize Δ, L, U
+  #
+  tmp = inv(Σx) - inv(Σy)
+  HardThreshold!(Δ, tmp, s)
+  tmp .= tmp - Δ
+  U, d, V = svd(tmp)
+  U = U[:,1:r] .* sqrt.(d[1:r])
+  L = U * U'
+
+  fvals = []
+  # gradient descent
+  #
+  fv = differencePrecisionIHT_objective(Σx, Σy, Δ, L)
+  push!(fvals, fv)
+  for iter=1:maxIter
+    # update Δ
+    differencePrecisionIHT_grad_delta!(gD, Σx, Σy, Δ, L)
+    @. Δ -= η * gD
+    HardThreshold!(Δ, s)
+
+    # update U and L
+    differencePrecisionIHT_grad_u!(gU, gD, Σx, Σy, Δ, L, U)
+    @. U -= η * gU
+    L = U * U'
+
+    # check for convergence
+    fv_new = differencePrecisionIHT_objective(Σx, Σy, Δ, L)
+    push!(fvals, fv_new)
+    if abs(fv_new - fv) <= epsTol
+      break
+    end
+    fv = fv_new
+  end
+
+  (Δ, L, U, fvals)
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##

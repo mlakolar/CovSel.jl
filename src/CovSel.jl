@@ -1,6 +1,7 @@
 module CovSel
 
 using ProximalBase: shrink, ProximableFunction, ProxGaussLikelihood, prox!, proxL1Fused
+using DataStructures: binary_maxheap
 
 export
   ADMMOptions,
@@ -10,8 +11,10 @@ export
   # difference estimation
   #
   fusedGraphicalLasso,
-  fusedNeighborhoodSelection, 
-  differencePrecisionActiveShooting
+  fusedNeighborhoodSelection,
+  differencePrecisionActiveShooting,
+  differencePrecisionIHT,
+  differenceLatentPrecisionIHT
 
 include("admmCovSel.jl")
 include("diffEstim.jl")
