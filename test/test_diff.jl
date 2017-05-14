@@ -108,6 +108,59 @@ facts("fused_neighborhood_selection") do
 
 end
 
+
+function differencePrecisionNaive(Σx, Σy, λ, Ups; options::HD.CDOptions = HD.CDOptions())
+  maxIter = options.maxIter
+  optTol = options.optTol
+  p = size(Σx, 1)
+
+  Δ = zeros(p, p)
+  A = zeros(p, p)
+
+  iter = 1;
+  while iter < maxIter
+    fDone = true
+    for a=1:p
+      for b=a:p
+        if a==b
+          # diagonal elements
+          x0 = Σx[a,a]*Σy[a,a] / 2.
+          x1 = A[a,a] - Σy[a,a] + Σx[a,a]
+          tmp = shrink(-x1/x0/2. + Δ[a,b], λ*Ups[a,b] / 2. / x0)
+        else
+          # off-diagonal elements
+          x0 = (Σx[a,a]*Σy[b,b] + Σx[b,b]*Σy[a,a])/2. + Σx[a,b]*Σy[a,b]
+          x1 = A[a,b] + A[b,a] - 2.*(Σy[a,b] - Σx[a,b])
+          tmp = shrink(-x1/(2.*x0) + Δ[a,b], λ*Ups[a,b] / x0)
+        end
+
+        h = tmp - Δ[a,b]
+        Δ[a,b] = tmp
+        Δ[b,a] = tmp
+        if abs(h) > optTol
+          fDone = false
+        end
+        for j=1:p
+          for k=1:p
+            if a == b
+              A[j,k] = A[j,k] + h * Σx[j,a]*Σy[a,k]
+            else
+              A[j,k] = A[j,k] + h * (Σx[j,a]*Σy[b,k] + Σx[j,b]*Σy[a,k])
+            end
+          end
+        end
+      end
+    end
+
+    iter = iter + 1;
+    if fDone
+      break
+    end
+  end
+  Δ
+end
+
+
 facts("direct_difference_estimation") do
 
   context("small") do
@@ -140,15 +193,15 @@ facts("direct_difference_estimation") do
         # λ = 0.2
         λ = rand(Uniform(0.05, 0.3))
 
-        solShoot = CovSel.differencePrecisionNaive(hSx, hSy, λ, tmp)
-        solShoot1 = CovSel.differencePrecisionActiveShooting(hSx, hSy, λ, tmp)
+        solShoot = differencePrecisionNaive(hSx, hSy, λ, tmp)
+        solShoot1 = CovSel.differencePrecisionActiveShooting(hSx, hSy, λ*ones(div(p*(p+1), 2)))
 
         prob = Convex.minimize(Convex.quadform(vec(Delta), kron(hSy,hSx)) / 2 - trace((hSy-hSx)*Delta) +  λ * norm(vec(Delta), 1))
         prob.constraints += [Delta == Delta']
         Convex.solve!(prob)
 
-        @fact maximum(abs.(Delta.value - solShoot)) --> roughly(0.; atol=2e-3)
-        @fact maximum(abs.(solShoot1 - solShoot)) --> roughly(0.; atol=1e-5)
+        @fact maximum(abs.(tril(Delta.value - solShoot))) --> roughly(0.; atol=2e-3)
+        @fact maximum(abs.(tril(vec2tril(solShoot1) - solShoot))) --> roughly(0.; atol=1e-5)
       end
 
     end

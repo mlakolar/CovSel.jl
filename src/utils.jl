@@ -51,3 +51,35 @@ function HardThreshold!{T<:AbstractFloat}(out::StridedMatrix{T}, X::StridedMatri
 end
 
 HardThreshold!(X, s) = HardThreshold!(X, X, s)
+
+#####
+#
+# functions to operate with sparse lower triangular
+#
+
+function ind2subLowerTriangular{T<:Integer}(p::T, ind::T)
+  rvLinear = div(p*(p+1), 2) - ind
+  k = trunc(T, (sqrt(1+8*rvLinear)-1.)/2. )
+  j = rvLinear - div(k*(k+1), 2)
+  (p-j, p-k)
+end
+
+function vec2tril(x::SparseVector, p::Int64)
+  nx = nnz(x)
+  nzval = nonzeros(x)
+  nzind = nonzeroinds(x)
+
+  I = zeros(Int64, nx)
+  J = zeros(Int64, nx)
+  for i=1:nx
+    I[i], J[i] = ind2subLowerTriangular(p, nzind[i])
+  end
+
+  sparse(I,J,nzval)
+end
+
+function tril2symmetric(Δ::SparseMatrixCSC)
+  lDelta = tril(Δ, -1)
+  dDelta = spdiagm(diag(Δ))
+  (lDelta + lDelta') + dDelta
+end

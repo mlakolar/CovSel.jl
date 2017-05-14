@@ -2,6 +2,7 @@ module CovSel
 
 using ProximalBase: shrink, ProximableFunction, ProxGaussLikelihood, prox!, proxL1Fused
 using DataStructures: binary_maxheap
+import HD
 
 export
   ADMMOptions,
@@ -18,6 +19,7 @@ export
 
 include("admmCovSel.jl")
 include("diffEstim.jl")
+include("directDifference.jl")
 include("utils.jl")
 
 end
