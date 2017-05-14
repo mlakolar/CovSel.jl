@@ -2,6 +2,7 @@ using FactCheck
 
 import CovSel
 using Distributions
+using ProximalBase: shrink
 
 function try_import(name::Symbol)
     try
@@ -19,7 +20,7 @@ cvx = try_import(:Convex)
 
 
 tests = [
-	"test_covsel",
+	# "test_covsel",
   "test_diff"
 ]
 

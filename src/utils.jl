@@ -66,8 +66,8 @@ end
 
 function vec2tril(x::SparseVector, p::Int64)
   nx = nnz(x)
-  nzval = nonzeros(x)
-  nzind = nonzeroinds(x)
+  nzval = SparseArrays.nonzeros(x)
+  nzind = SparseArrays.nonzeroinds(x)
 
   I = zeros(Int64, nx)
   J = zeros(Int64, nx)
