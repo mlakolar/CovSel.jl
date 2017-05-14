@@ -75,7 +75,7 @@ function vec2tril(x::SparseVector, p::Int64)
     I[i], J[i] = ind2subLowerTriangular(p, nzind[i])
   end
 
-  sparse(I,J,nzval)
+  sparse(I,J,nzval, p, p)
 end
 
 function tril2symmetric(Δ::SparseMatrixCSC)

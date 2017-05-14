@@ -20,7 +20,7 @@ function _mul_Σx_Δ_Σy{T<:AbstractFloat, I<:Integer}(
   rowval = SparseArrays.nonzeroinds(x)
 
   v = zero(T)
-  for j in length(nzval)
+  for j=1:length(nzval)
     ri, ci = ind2subLowerTriangular(p, rowval[j])
     if ri == ci
       @inbounds v += Σx[ri, ar] * Σy[ci, ac] * nzval[j]
@@ -80,8 +80,7 @@ function HD.gradient{T <: AbstractFloat}(
   p = f.p
 
   ri, ci = ind2subLowerTriangular(p, j)
-  @inbounds r = (A[ri,ci] + A[ci,ri]) / 2. - (Σy[ri, ci] - Σx[ri, ci])
-  return r
+  @inbounds return (A[ri,ci] + A[ci,ri]) / 2. - (Σy[ri, ci] - Σx[ri, ci])
 end
 
 function HD.quadraticApprox{T<:AbstractFloat}(
@@ -110,7 +109,7 @@ function HD.quadraticApprox{T<:AbstractFloat}(
   (a, b)
 end
 
-function HD.update!{T<:AbstractFloat}(
+function HD.updateSingle!{T<:AbstractFloat}(
   f::CDDirectDifferenceLoss{T},
   x::SparseVector{T},
   h::T,
@@ -135,6 +134,10 @@ function HD.update!{T<:AbstractFloat}(
   nothing
 end
 
+HD.updateAfterActive!{T<:AbstractFloat}(
+  f::CDDirectDifferenceLoss{T},
+  x::SparseVector{T}) = nothing
+
 
 #####################################################
 #
@@ -142,19 +145,19 @@ end
 #
 #####################################################
 
-differencePrecisionActiveShooting!{T<:AbstractFloat}(
-  x::SparseVector{T},
-  Σx::StridedMatrix{T},
-  Σy::StridedMatrix{T},
-  λ::StridedVector{T},
+differencePrecisionActiveShooting!(
+  x::SparseVector,
+  Σx::StridedMatrix,
+  Σy::StridedMatrix,
+  λ::StridedVector,
   options::HD.CDOptions=HD.CDOptions()) =
   HD.coordinateDescent!(x, CDDirectDifferenceLoss(Σx, Σy), λ, options)
 
 
-function differencePrecisionActiveShooting{T<:AbstractFloat}(
-  Σx::StridedMatrix{T},
-  Σy::StridedMatrix{T},
-  λ::StridedVector{T},
+function differencePrecisionActiveShooting(
+  Σx::StridedMatrix,
+  Σy::StridedMatrix,
+  λ::StridedVector,
   options::HD.CDOptions=HD.CDOptions())
 
   f = CDDirectDifferenceLoss(Σx, Σy)

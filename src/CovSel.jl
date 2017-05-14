@@ -22,4 +22,7 @@ include("diffEstim.jl")
 include("directDifference.jl")
 include("utils.jl")
 
+# alternative implementations
+include("altImplementation.jl")
+
 end

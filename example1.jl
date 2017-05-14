@@ -24,52 +24,19 @@ hSy = cov(Y)
 tmp = ones(p,p)
 
 # λ = 0.2
-λ = rand(Uniform(0.05, 0.3))
+λ = rand(Uniform(0.15, 0.2))
+λvec = λ*ones(div(p*(p+1), 2))
 
 reload("HD")
 reload("CovSel")
 
-solShoot = CovSel.differencePrecisionNaive(hSx, hSy, λ, tmp)
-@time solShoot1 = CovSel.differencePrecisionActiveShooting(hSx, hSy, λ, tmp)
-@time solShoot2 = CovSel.differencePrecision1(hSx, hSy, λ*tmp)
+@time o1 = CovSel.Alt.differencePrecisionNaive(hSx, hSy, λ, tmp)
+@time o2 = CovSel.Alt.differencePrecisionActiveShooting(hSx, hSy, λ, tmp)
 
-maximum(abs.(solShoot1 - solShoot))
-
-vs2 = zeros(p, p)
-ind = 0
-for ci=1:p, ri=ci:p
-  ind += 1
-  vs2[ri,ci] = solShoot2[ind]
-end
-maximum(abs.(vs2 - tril(solShoot1)))
-
-##################################
-##################################
-Δ = spzeros(p,p)
-A = zeros(p,p)
-ind1 = CovSel.findViolator!(Δ, A, hSx, hSy, λ, tmp)
-ind2sub((p,p), ind1)
-CovSel.updateDelta!(Δ, A, hSx, hSy, λ, tmp)
-
-##################################
-##################################
-f = CovSel.CDDirectDifferenceLoss(hSx, hSy)
-p = f.p
-λnew = ones(zeros(HD.numCoordinates(f))) * λ
-x = spzeros(HD.numCoordinates(f))
-ind2 = HD.add_violating_index!(x, f, λnew)
-CovSel.ind2subLowerTriangular(ind2, p)
-HD.minimize_active_set!(x, f, λnew)
-
-@show CovSel.ind2subLowerTriangular(p, 14)
-@show CovSel.ind2subLowerTriangular(p,  7)
-@show CovSel.ind2subLowerTriangular(p,  6)
-@show CovSel.ind2subLowerTriangular(p,  1)
-@show CovSel.ind2subLowerTriangular(p,  13)
-@show CovSel.ind2subLowerTriangular(p,  10)
-@show CovSel.ind2subLowerTriangular(p,  15)
-
-
+@time o3 = CovSel.differencePrecisionActiveShooting(hSx, hSy, λvec, HD.CDOptions(;kktTol=1e-3))
+@time o4 = CovSel.differencePrecisionActiveShooting1(hSx, hSy, λvec)
+@show maximum(abs.(CovSel.vec2tril(o2, p) - tril(o1)))
+@show maximum(abs.(CovSel.vec2tril(o3, p) - tril(o1)))
 
 
 # non_zero_set = find( abs(precM) .> 1e-4 )
