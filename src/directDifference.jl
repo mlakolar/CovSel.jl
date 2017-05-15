@@ -36,7 +36,7 @@ end
 # loss tr(Σx⋅Δ⋅Σy⋅Δ)/2 + tr(Δ(Σy-Σx))
 #
 ####################################
-struct CDDirectDifferenceLoss{T<:AbstractFloat, S} <: HD.CoordinateDifferentiableFunction{T}
+struct CDDirectDifferenceLoss{T<:AbstractFloat, S} <: CoordinateDifferentiableFunction
   Σx::S
   Σy::S
   A::Matrix{T}    #Σx⋅Δ⋅Σy
@@ -54,7 +54,7 @@ end
 
 HD.numCoordinates(f::CDDirectDifferenceLoss) = div(f.p * (f.p + 1), 2)
 
-function HD.initialize!{T<:AbstractFloat}(f::CDDirectDifferenceLoss{T}, x::SparseVector{T})
+function HD.initialize!{T<:AbstractFloat}(f::CDDirectDifferenceLoss{T}, x::SparseIterate{T})
   # compute residuals for the loss
 
   Σx = f.Σx
@@ -71,7 +71,7 @@ end
 
 function HD.gradient{T <: AbstractFloat}(
   f::CDDirectDifferenceLoss{T},
-  x::SparseVector{T},
+  x::SparseIterate{T},
   j::Int64)
 
   Σx = f.Σx
@@ -85,7 +85,7 @@ end
 
 function HD.quadraticApprox{T<:AbstractFloat}(
   f::CDDirectDifferenceLoss{T},
-  x::SparseVector{T},
+  x::SparseIterate{T},
   j::Int64)
 
   Σx = f.Σx
@@ -111,7 +111,7 @@ end
 
 function HD.updateSingle!{T<:AbstractFloat}(
   f::CDDirectDifferenceLoss{T},
-  x::SparseVector{T},
+  x::SparseIterate{T},
   h::T,
   j::Int64)
 
@@ -122,21 +122,14 @@ function HD.updateSingle!{T<:AbstractFloat}(
 
   ri, ci = ind2subLowerTriangular(p, j)
 
-  if ri == ci
-    for ac=1:p, ar=1:p
-      @inbounds A[ar, ac] += h * Σx[ar, ri] * Σy[ac, ri]
-    end
-  else
-    for ac=1:p, ar=1:p
-      @inbounds A[ar, ac] += h * (Σx[ar, ri] * Σy[ci, ac] + Σx[ar, ci] * Σy[ri, ac])
-    end
+
+  for ac=1:p, ar=1:p
+    @inbounds A[ar, ac] += (ri == ci) ? (h * Σx[ar, ri] * Σy[ac, ri]) :
+          (h * (Σx[ar, ri] * Σy[ci, ac] + Σx[ar, ci] * Σy[ri, ac]))
   end
   nothing
 end
 
-HD.updateAfterActive!{T<:AbstractFloat}(
-  f::CDDirectDifferenceLoss{T},
-  x::SparseVector{T}) = nothing
 
 
 #####################################################
@@ -146,20 +139,20 @@ HD.updateAfterActive!{T<:AbstractFloat}(
 #####################################################
 
 differencePrecisionActiveShooting!(
-  x::SparseVector,
+  x::SparseIterate,
   Σx::StridedMatrix,
   Σy::StridedMatrix,
   λ::StridedVector,
-  options::HD.CDOptions=HD.CDOptions()) =
-  HD.coordinateDescent!(x, CDDirectDifferenceLoss(Σx, Σy), λ, options)
+  options=CDOptions()) =
+  coordinateDescent!(x, CDDirectDifferenceLoss(Σx, Σy), λ, options)
 
 
-function differencePrecisionActiveShooting(
+@inline function differencePrecisionActiveShooting(
   Σx::StridedMatrix,
   Σy::StridedMatrix,
   λ::StridedVector,
-  options::HD.CDOptions=HD.CDOptions())
+  options=CDOptions())
 
   f = CDDirectDifferenceLoss(Σx, Σy)
-  HD.coordinateDescent!(spzeros(HD.numCoordinates(f)), f, λ, options)
+  HD.coordinateDescent!(SparseIterate(HD.numCoordinates(f)), f, λ, options)
 end

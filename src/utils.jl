@@ -78,6 +78,19 @@ function vec2tril(x::SparseVector, p::Int64)
   sparse(I,J,nzval, p, p)
 end
 
+function vec2tril(x::SparseIterate, p::Int64)
+  nx = nnz(x)
+
+  I = zeros(Int64, nx)
+  J = zeros(Int64, nx)
+  for i=1:nx
+    I[i], J[i] = ind2subLowerTriangular(p, x.nzval2full[i])
+  end
+
+  sparse(I,J,x.nzval[1:nx], p, p)
+end
+
+
 function tril2symmetric(Δ::SparseMatrixCSC)
   lDelta = tril(Δ, -1)
   dDelta = spdiagm(diag(Δ))

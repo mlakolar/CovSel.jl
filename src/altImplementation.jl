@@ -68,7 +68,7 @@ function updateDelta!{T<:AbstractFloat}(
   rows = rowvals(Δ)
   vals = nonzeros(Δ)
 
-  maxInnerIter = options.maxInnerIter
+  maxInnerIter = options.maxIter
   maxChangeTol = options.optTol
 
   p = size(Δ, 1)
@@ -149,7 +149,7 @@ function findViolator!{T<:AbstractFloat}(
       end
     end
   end
-  if vmax > options.kktTol
+  if vmax > options.optTol
     Δ[im] = eps(T)
   else
     im = 0

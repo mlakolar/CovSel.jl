@@ -5,7 +5,7 @@ import HD
 # simple model that differes in only one edge
 srand(123)
 
-p = 50
+p = 20
 Sigmax = eye(p,p)
 Sigmay = zeros(p,p)
 rho = 0.7
@@ -32,11 +32,17 @@ reload("CovSel")
 
 @time o1 = CovSel.Alt.differencePrecisionNaive(hSx, hSy, λ, tmp)
 @time o2 = CovSel.Alt.differencePrecisionActiveShooting(hSx, hSy, λ, tmp)
+@time o3 = CovSel.differencePrecisionActiveShooting(hSx, hSy, λvec)
 
-@time o3 = CovSel.differencePrecisionActiveShooting(hSx, hSy, λvec, HD.CDOptions(;kktTol=1e-3))
-@time o4 = CovSel.differencePrecisionActiveShooting1(hSx, hSy, λvec)
-@show maximum(abs.(CovSel.vec2tril(o2, p) - tril(o1)))
+@show maximum(abs.(o1 - o2))
 @show maximum(abs.(CovSel.vec2tril(o3, p) - tril(o1)))
+
+
+
+@show trace(hSx * o1 * hSy * o1) / 2 - trace(o1*(hSy-hSx))
+o3 = CovSel.tril2symmetric(CovSel.vec2tril(o3, p))
+@show trace(hSx * o3 * hSy * o3) / 2 - trace(o3*(hSy-hSx))
+
 
 
 # non_zero_set = find( abs(precM) .> 1e-4 )
