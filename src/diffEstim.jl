@@ -188,8 +188,7 @@ end
 ########################################################################
 
 
-
-function differencePrecisionIHT_objective{T<:AbstractFloat}(
+function differencePrecision_objective{T<:AbstractFloat}(
   Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
   Δ::StridedMatrix{T}, L::StridedMatrix{T})
 
@@ -197,7 +196,7 @@ function differencePrecisionIHT_objective{T<:AbstractFloat}(
   trace((Σx*A*Σy / 2 - (Σy - Σx)) * A)
 end
 
-differencePrecisionIHT_objective{T<:AbstractFloat}(
+differencePrecision_objective{T<:AbstractFloat}(
   Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
   Δ::StridedMatrix{T}) =
     trace((Σx*Δ*Σy / 2 - (Σy - Σx)) * Δ)
@@ -260,7 +259,7 @@ end
 function differencePrecisionIHT_grad_u!(grad_out_u, grad_out_delta, Σx, Σy, Delta, L, U)
   differencePrecisionIHT_grad_delta!(grad_out_delta, Σx, Σy, Delta, L)
   scale!(grad_out_delta, 2.)
-  grad_out_u = grad_out_delta * U
+  A_mul_B!(grad_out_u, grad_out_delta, U)
 end
 
 
@@ -282,16 +281,16 @@ function differencePrecisionIHT{T<:AbstractFloat}(
   fvals = []
   # gradient descent
   #
-  fv = differencePrecisionIHT_objective(Σx, Σy, Δ, L)
+  fv = differencePrecision_objective(Σx, Σy, Δ)
   push!(fvals, fv)
   for iter=1:maxIter
     # update Δ
-    differencePrecisionIHT_grad_delta!(gD, Σx, Σy, Δ, L)
+    differencePrecisionIHT_grad_delta!(gD, Σx, Σy, Δ)
     Δ .-= η .* gD
     HardThreshold!(Δ, s)
 
     # check for convergence
-    fv_new = differencePrecisionIHT_objective(Σx, Σy, Δ, L)
+    fv_new = differencePrecision_objective(Σx, Σy, Δ)
     push!(fvals, fv_new)
     if abs(fv_new - fv) <= epsTol
       break
@@ -316,12 +315,49 @@ end
 # η is the step size
 # s is the target sparsity
 # r is the target rank
-function differenceLatentPrecisionIHT{T<:AbstractFloat}(
-  Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
-  η::T, s::Int64, r::Int64;
-  epsTol=1e-5, maxIter=1000)
+function differenceLatentPrecisionIHT!(
+  Δ, L, U, gD, gU,   # these are pre-allocated
+  Σx, Σy,
+  η, s, r;
+  epsTol=1e-2, maxIter=500, checkEvery=10)
 
-  assert(size(Σx,1) == size(Σx,2) == size(Σy,1) == size(Σy,2))
+  fvals = []
+  # gradient descent
+  #
+  fv = differencePrecision_objective(Σx, Σy, Δ, L)
+  push!(fvals, fv)
+  for iter=1:maxIter
+    # update Δ
+    differencePrecisionIHT_grad_delta!(gD, Σx, Σy, Δ, L)
+    @. Δ -= η * gD
+    HardThreshold!(Δ, s)
+    max_gD = maximum( abs.(gD) )
+
+    # update U and L
+    differencePrecisionIHT_grad_u!(gU, gD, Σx, Σy, Δ, L, U)
+    @. U -= η * gU
+    A_mul_Bt!(L, U, U)
+    max_gU = maximum( abs.(gU) )
+
+    done = max(max_gD, max_gU) < epsTol
+    # check for convergence
+    if mod(iter, checkEvery) == 0
+      fv_new = differencePrecision_objective(Σx, Σy, Δ, L)
+      push!(fvals, fv_new)
+      done = abs(fv_new - fv) <= epsTol
+      fv = fv_new
+    end
+    done && break
+  end
+
+  (Δ, L, U, fvals, iter)
+end
+
+
+
+function differenceLatentPrecisionIHT_init(
+  Σx::StridedMatrix, Σy::StridedMatrix,
+  s::Int64, r::Int64)
 
   p = size(Σx, 1)
 
@@ -336,42 +372,11 @@ function differenceLatentPrecisionIHT{T<:AbstractFloat}(
   HardThreshold!(Δ, tmp, s)
   tmp .= tmp - Δ
   U, d, V = svd(tmp)
-  U = U[:,1:r] .* sqrt.(d[1:r])
+  U = U[:,1:r] .* sqrt.(d[1:r])'
   L = U * U'
 
-  fvals = []
-  # gradient descent
-  #
-  fv = differencePrecisionIHT_objective(Σx, Σy, Δ, L)
-  push!(fvals, fv)
-  for iter=1:maxIter
-    # update Δ
-    differencePrecisionIHT_grad_delta!(gD, Σx, Σy, Δ, L)
-    @. Δ -= η * gD
-    HardThreshold!(Δ, s)
-
-    # update U and L
-    differencePrecisionIHT_grad_u!(gU, gD, Σx, Σy, Δ, L, U)
-    @. U -= η * gU
-    L = U * U'
-
-    # check for convergence
-    fv_new = differencePrecisionIHT_objective(Σx, Σy, Δ, L)
-    push!(fvals, fv_new)
-    if abs(fv_new - fv) <= epsTol
-      break
-    end
-    fv = fv_new
-  end
-
-  (Δ, L, U, fvals)
+  (Δ, L, U, gD, gU)
 end
-
-
-
-
-
-
 
 
 
