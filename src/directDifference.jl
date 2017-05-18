@@ -2,34 +2,71 @@
 
 ####################################
 #
-# utils
+# loss function evaluation
 #
 ####################################
 
-function _mul_Σx_Δ_Σy{T<:AbstractFloat, I<:Integer}(
+"""
+  Computes vecnorm(Σx⋅Δ⋅Σy - Σy + Σx, p)
+"""
+function diffLoss{T<:AbstractFloat}(
   Σx::StridedMatrix{T},
-  x::SparseVector{T},
+  x::SparseIterate{T},
   Σy::StridedMatrix{T},
-  ar::I,
-  ac::I
-  )
+  p::Real)
 
-  p = size(Σx, 1)
-
-  nzval = SparseArrays.nonzeros(x)
-  rowval = SparseArrays.nonzeroinds(x)
-
-  v = zero(T)
-  for j=1:length(nzval)
-    ri, ci = ind2subLowerTriangular(p, rowval[j])
-    if ri == ci
-      @inbounds v += Σx[ri, ar] * Σy[ci, ac] * nzval[j]
-    else
-      @inbounds v += (Σx[ri, ar] * Σy[ci, ac] + Σx[ci, ar] * Σy[ri, ac]) * nzval[j]
+  d = size(Σx, 1)
+  if p == 2.
+    v = zero(T)
+    for c=1:d, r=1:d
+      v += abs2( _mul_Σx_Δ_Σy(Σx, Δ, Σy, r, c) - Σy[r, c] + Σy[r, c] )
     end
+    return sqrt(v)
+  elseif p==Inf
+    v = zero(T)
+    for c=1:d, r=1:d
+      t = abs( _mul_Σx_Δ_Σy(Σx, Δ, Σy, r, c) - Σy[r, c] + Σy[r, c] )
+      if t > v
+        v = t
+      end
+    end
+  else
+    throw(ArgumentError("p should be 2 or Inf"))
   end
-  v
 end
+
+"""
+  Computes vecnorm(Σx⋅(Δ+UU')⋅Σy - Σy + Σx, p)
+"""
+function diffLoss{T<:AbstractFloat}(
+  Σx::StridedMatrix{T},
+  x::SparseIterate{T},
+  U::StridedMatrix{T},
+  Σy::StridedMatrix{T},
+  p::Real)
+
+  d = size(Σx, 1)
+  if p == 2.
+    v = zero(T)
+    for c=1:d, r=1:d
+      v += abs2( _mul_Σx_Δ_Σy(Σx, Δ, Σy, r, c) - Σy[r, c] + Σy[r, c] )
+    end
+    return sqrt(v)
+  elseif p==Inf
+    v = zero(T)
+    for c=1:d, r=1:d
+      t = abs( _mul_Σx_Δ_Σy(Σx, Δ, Σy, r, c) - Σy[r, c] + Σy[r, c] )
+      if t > v
+        v = t
+      end
+    end
+  else
+    throw(ArgumentError("p should be 2 or Inf"))
+  end
+end
+
+
+
 
 ####################################
 #

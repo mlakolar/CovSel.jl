@@ -2,7 +2,7 @@ module CovSel
 
 using ProximalBase: shrink, ProximableFunction, ProxGaussLikelihood, prox!, proxL1Fused
 using DataStructures: binary_maxheap
-using HD
+using HD, Distributions
 
 export
   ADMMOptions,
@@ -21,6 +21,9 @@ include("admmCovSel.jl")
 include("diffEstim.jl")
 include("directDifference.jl")
 include("utils.jl")
+include("generate.jl")
+include("evaluation.jl")
+
 
 # alternative implementations
 include("altImplementation.jl")

@@ -189,11 +189,28 @@ end
 
 
 function differencePrecision_objective{T<:AbstractFloat}(
+  A::StridedMatrix{T},
   Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
-  Δ::StridedMatrix{T}, L::StridedMatrix{T})
+  Δ::SparseIterate{T}, U::StridedMatrix{T})
 
-  A = Δ + L
-  trace((Σx*A*Σy / 2 - (Σy - Σx)) * A)
+  p, r = size(U)
+  v = zero(T)
+  # add sparse part
+  for c=1:p
+    for j=1:p
+      t = Δ[sub2indLowerTriangular(p, max(j,c), min(j,c))]
+      v += (A[j,c]/2. + Σx[j,c] - Σy[j,c])*t
+    end
+  end
+
+  # add low rank part
+  for c=1:r
+    for a=1:p, b=1:p
+      v += (A[a,b] / 2. + Σx[a,b] - Σy[a,b])*U[a,c]*U[b,c]
+    end
+  end
+
+  v
 end
 
 differencePrecision_objective{T<:AbstractFloat}(
@@ -202,53 +219,18 @@ differencePrecision_objective{T<:AbstractFloat}(
     trace((Σx*Δ*Σy / 2 - (Σy - Σx)) * Δ)
 
 
-function differencePrecisionIHT_grad_delta!{T<:AbstractFloat}(
+function diffPrecision_grad_delta!{T<:AbstractFloat}(
   grad_out::StridedMatrix{T},
-  Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
-  Δ::StridedMatrix{T}, L::StridedMatrix{T})
+  A::StridedMatrix{T},
+  Σx::StridedMatrix{T}, Σy::StridedMatrix{T})
   p = size(Σx, 1)
 
   # (a, b) indices of updated grad_out[a,b] element
-  for a=1:p
-    for b=a:p
-      grad_out[a,b] = zero(T)
-
-      for j=1:p, k=1:p
-        grad_out[a,b] += (Σx[j, a] * Σy[k, b] + Σy[j, a] * Σx[k, b]) * ( Δ[j, k] + L[j,k] ) / 2.
-      end
-      grad_out[a,b] += Σx[a,b] - Σy[a,b]
-
-      # update the other symmetric element
-      if a != b
-        grad_out[b,a] = grad_out[a,b]
-      end
-    end
-  end
-
-  grad_out
-end
-
-function differencePrecisionIHT_grad_delta!{T<:AbstractFloat}(
-  grad_out::StridedMatrix{T},
-  Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
-  Δ::StridedMatrix{T})
-
-  p = size(Σx, 1)
-
-  # (a, b) indices of updated grad_out[a,b] element
-  for a=1:p
-    for b=a:p
-      grad_out[a,b] = zero(T)
-
-      for j=1:p, k=1:p
-        grad_out[a,b] += (Σx[j, a] * Σy[k, b] + Σy[j, a] * Σx[k, b]) * Δ[j, k] / 2.
-      end
-      grad_out[a,b] += Σx[a,b] - Σy[a,b]
-
-      # update the other symmetric element
-      if a != b
-        grad_out[b,a] = grad_out[a,b]
-      end
+  for a=1:p, b=a:p
+    grad_out[a,b] = (A[a,b] + A[b,a])/2. + Σx[a,b] - Σy[a,b]
+    # update the other symmetric element
+    if a != b
+      grad_out[b,a] = grad_out[a,b]
     end
   end
 
@@ -256,10 +238,10 @@ function differencePrecisionIHT_grad_delta!{T<:AbstractFloat}(
 end
 
 
-function differencePrecisionIHT_grad_u!(grad_out_u, grad_out_delta, Σx, Σy, Delta, L, U)
-  differencePrecisionIHT_grad_delta!(grad_out_delta, Σx, Σy, Delta, L)
-  scale!(grad_out_delta, 2.)
-  A_mul_B!(grad_out_u, grad_out_delta, U)
+function differencePrecisionIHT_grad_u!(grad_U, grad_Δ, A, Σx, Σy, U)
+  diffPrecision_grad_delta!(grad_Δ, A, Σx, Σy)
+  scale!(grad_Δ, 2.)
+  A_mul_B!(grad_U, grad_Δ, U)
 end
 
 
@@ -285,7 +267,7 @@ function differencePrecisionIHT{T<:AbstractFloat}(
   push!(fvals, fv)
   for iter=1:maxIter
     # update Δ
-    differencePrecisionIHT_grad_delta!(gD, Σx, Σy, Δ)
+    diffPrecision_grad_delta!(gD, Σx, Σy, Δ)
     Δ .-= η .* gD
     HardThreshold!(Δ, s)
 
@@ -315,34 +297,55 @@ end
 # η is the step size
 # s is the target sparsity
 # r is the target rank
-function differenceLatentPrecisionIHT!(
-  Δ, L, U, gD, gU,   # these are pre-allocated
-  Σx, Σy,
-  η, s, r;
-  epsTol=1e-2, maxIter=500, checkEvery=10)
+function differenceLatentPrecisionIHT!{T<:AbstractFloat}(
+  Δ::SparseIterate{T}, L::StridedMatrix{T},                          # these are pre-allocated
+  U::StridedMatrix{T}, gD::StridedMatrix{T}, gU::StridedMatrix{T},   # these are pre-allocated
+  Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
+  ηΔ, ηU, s, r;
+  epsTol=1e-2, maxIter=500, checkEvery=10, callback=nothing)
+
+  p = size(Σx, 1)
+  A = _mul_Σx_L_Σy(Σx, U, Σy)
+  for c=1:p, r=1:p
+    A[r,c] += _mul_Σx_Δ_Σy(Σx, Δ, Σy, r, c)
+  end
 
   fvals = []
   # gradient descent
   #
-  fv = differencePrecision_objective(Σx, Σy, Δ, L)
+  fv = differencePrecision_objective(A, Σx, Σy, Δ, U)
   push!(fvals, fv)
   for iter=1:maxIter
     # update Δ
-    differencePrecisionIHT_grad_delta!(gD, Σx, Σy, Δ, L)
-    @. Δ -= η * gD
-    HardThreshold!(Δ, s)
+    diffPrecision_grad_delta!(gD, A, Σx, Σy)
     max_gD = maximum( abs.(gD) )
+    for c=1:p, r=1:p
+      Δ[sub2indLowerTriangular(p,r,c)] = Δ[sub2indLowerTriangular(p,r,c)]  - ηΔ * gD[r,c]
+    end
+    HardThreshold!(Δ, s)
+    # update A
+    for c=1:p, r=1:p
+      A[r,c] = _mul_Σx_Δ_Σy(Σx, Δ, Σy, r, c) + _mul_Σx_L_Σy(Σx, U, Σy, r, c)
+    end
 
     # update U and L
-    differencePrecisionIHT_grad_u!(gU, gD, Σx, Σy, Δ, L, U)
-    @. U -= η * gU
+    differencePrecisionIHT_grad_u!(gU, gD, A, Σx, Σy, U)
+    @. U -= ηU * gU
     A_mul_Bt!(L, U, U)
     max_gU = maximum( abs.(gU) )
+    # update A
+    for c=1:p, r=1:p
+      A[r,c] = _mul_Σx_Δ_Σy(Σx, Δ, Σy, r, c) + _mul_Σx_L_Σy(Σx, U, Σy, r, c)
+    end
+
+    if callback != nothing
+      callback(Δ, L)
+    end
 
     done = max(max_gD, max_gU) < epsTol
     # check for convergence
     if mod(iter, checkEvery) == 0
-      fv_new = differencePrecision_objective(Σx, Σy, Δ, L)
+      fv_new = differencePrecision_objective(A, Σx, Σy, Δ, U)
       push!(fvals, fv_new)
       done = abs(fv_new - fv) <= epsTol
       fv = fv_new
@@ -363,14 +366,19 @@ function differenceLatentPrecisionIHT_init(
 
   gD = zeros(p, p)
   gU = zeros(p, r)
-  Δ = zeros(p, p)
+  Δ = SparseIterate(div(p*(p+1),2))
   L = zeros(p, p)
 
   # initialize Δ, L, U
   #
   tmp = inv(Σx) - inv(Σy)
   HardThreshold!(Δ, tmp, s)
-  tmp .= tmp - Δ
+  for colInd=1:p, rowInd=colInd:p
+    tmp[rowInd,colInd] = tmp[rowInd,colInd] - Δ[sub2indLowerTriangular(p, rowInd, colInd)]
+    if rowInd != colInd
+      tmp[colInd,rowInd] = tmp[rowInd,colInd]
+    end
+  end
   U, d, V = svd(tmp)
   U = U[:,1:r] .* sqrt.(d[1:r])'
   L = U * U'
