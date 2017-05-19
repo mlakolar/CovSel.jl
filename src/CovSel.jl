@@ -11,7 +11,7 @@ export
 
   # difference estimation
   #
-  fusedGraphicalLasso,
+  fusedGraphicalLasso, fusedGraphicalLasso!,   # Danaher et al.
   fusedNeighborhoodSelection,
   differencePrecisionActiveShooting,
   differencePrecisionIHT,

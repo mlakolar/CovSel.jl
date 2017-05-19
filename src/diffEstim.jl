@@ -7,10 +7,16 @@
 ###############################
 
 
-function fusedGraphicalLasso(X, Y, λ1, λ2;
-        options::ADMMOptions = ADMMOptions(),
-        penalize_diag::Bool=true
-        )
+
+function fusedGraphicalLasso!{T<:AbstractFloat}(
+    Θx::StridedMatrix{T}, Θy::StridedMatrix{T},
+    Zx::StridedMatrix{T}, Zy::StridedMatrix{T},
+    Ux::StridedMatrix{T}, Uy::StridedMatrix{T},
+    Σx::StridedMatrix{T}, nx::Int,
+    Σy::StridedMatrix{T}, ny::Int,
+    λ1::Real, λ2::Real;
+    options::ADMMOptions = ADMMOptions(),
+    penalize_diag::Bool=true)
 
     maxiter = options.maxiter
     ρ = options.ρ
@@ -18,28 +24,15 @@ function fusedGraphicalLasso(X, Y, λ1, λ2;
     abstol = options.abstol
     reltol = options.reltol
 
-    assert(size(X, 2) == size(Y, 2))
-
-    nx = size(X, 1)
-    ny = size(Y, 1)
     n = nx + ny
     γ = 1./ρ
     γx = nx * γ / n
     γy = ny * γ / n
 
-    p = size(X, 2)
+    p = size(Σx, 1)
 
-    Σx = cov(X)
-    Σy = cov(Y)
     gx = ProxGaussLikelihood(Σx)
     gy = ProxGaussLikelihood(Σy)
-
-    Θx = eye(p)
-    Θy = eye(p)
-    Zx = zeros(p, p)
-    Zy = zeros(p, p)
-    Ux = zeros(p, p)
-    Uy = zeros(p, p)
 
     Tx = zeros(p, p)  # temp storage
     Ty = zeros(p, p)  # temp storage
@@ -90,6 +83,32 @@ function fusedGraphicalLasso(X, Y, λ1, λ2;
     end
     (Zx, Zy)
 end
+
+
+function fusedGraphicalLasso{T<:AbstractFloat}(
+    Σx::StridedMatrix{T}, nx::Int,
+    Σy::StridedMatrix{T}, ny::Int,
+    λ1::Real, λ2::Real;
+    options::ADMMOptions = ADMMOptions(),
+    penalize_diag::Bool=true)
+
+    p = size(Σx, 1)
+
+    Θx = eye(p)
+    Θy = eye(p)
+    Zx = zeros(p, p)
+    Zy = zeros(p, p)
+    Ux = zeros(p, p)
+    Uy = zeros(p, p)
+
+    fusedGraphicalLasso!(
+        Θx, Θy,
+        Zx, Zy,
+        Ux, Uy,
+        Σx, nx, Σy, ny,
+        λ1, λ2; options=options, penalize_diag=penalize_diag)
+end
+
 
 
 ####################################
