@@ -1,6 +1,6 @@
 module CovSel
 
-using ProximalBase: shrink, ProximableFunction, ProxGaussLikelihood, prox!, proxL1Fused
+using ProximalBase
 using DataStructures: binary_maxheap
 using HD, Distributions
 

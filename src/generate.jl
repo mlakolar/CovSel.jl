@@ -1,14 +1,12 @@
 
 # generate guassian data from a precision matrix
-# returns covariance
-function genData(Ω, n)
+function generateData(Ω, n)
   p = size(Ω, 1)
   d, U = eig(Ω)
   for i=1:p
     d[i] = 1. / sqrt(d[i])
   end
   X = randn(n, p) * (U * diagm(d) * U')
-  cov(X)
 end
 
 
