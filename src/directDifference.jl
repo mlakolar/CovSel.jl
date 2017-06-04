@@ -10,22 +10,22 @@
   Computes vecnorm(Σx⋅Δ⋅Σy - Σy + Σx, p)
 """
 function diffLoss{T<:AbstractFloat}(
-  Σx::StridedMatrix{T},
-  x::SparseIterate{T},
-  Σy::StridedMatrix{T},
+  Σx::Symmetric{T},
+  Δ::SymmetricSparseIterate{T},
+  Σy::Symmetric{T},
   p::Real)
 
   d = size(Σx, 1)
   if p == 2.
     v = zero(T)
     for c=1:d, r=1:d
-      v += abs2( _mul_Σx_Δ_Σy(Σx, Δ, Σy, r, c) - Σy[r, c] + Σy[r, c] )
+      v += abs2( A_mul_X_mul_B_rc(Σx, Δ, Σy, r, c) - Σy[r, c] + Σy[r, c] )
     end
     return sqrt(v)
   elseif p==Inf
     v = zero(T)
     for c=1:d, r=1:d
-      t = abs( _mul_Σx_Δ_Σy(Σx, Δ, Σy, r, c) - Σy[r, c] + Σy[r, c] )
+      t = abs( A_mul_X_mul_B_rc(Σx, Δ, Σy, r, c) - Σy[r, c] + Σy[r, c] )
       if t > v
         v = t
       end
@@ -39,23 +39,23 @@ end
   Computes vecnorm(Σx⋅(Δ+UU')⋅Σy - Σy + Σx, p)
 """
 function diffLoss{T<:AbstractFloat}(
-  Σx::StridedMatrix{T},
-  x::SparseIterate{T},
+  Σx::Symmetric{T},
+  Δ::SparseIterate{T},
   U::StridedMatrix{T},
-  Σy::StridedMatrix{T},
+  Σy::Symmetric{T},
   p::Real)
 
   d = size(Σx, 1)
   if p == 2.
     v = zero(T)
     for c=1:d, r=1:d
-      v += abs2( _mul_Σx_Δ_Σy(Σx, Δ, Σy, r, c) - Σy[r, c] + Σy[r, c] )
+      v += abs2( A_mul_X_mul_B_rc(Σx, Δ, Σy, r, c) + A_mul_UUt_mul_B_rc(Σx, U, Σy, r, c) - Σy[r, c] + Σy[r, c] )
     end
     return sqrt(v)
   elseif p==Inf
     v = zero(T)
     for c=1:d, r=1:d
-      t = abs( _mul_Σx_Δ_Σy(Σx, Δ, Σy, r, c) - Σy[r, c] + Σy[r, c] )
+      t = abs( A_mul_X_mul_B_rc(Σx, Δ, Σy, r, c) + A_mul_UUt_mul_B_rc(Σx, U, Σy, r, c) - Σy[r, c] + Σy[r, c] )
       if t > v
         v = t
       end
@@ -73,25 +73,22 @@ end
 # loss tr(Σx⋅Δ⋅Σy⋅Δ)/2 + tr(Δ(Σy-Σx))
 #
 ####################################
-struct CDDirectDifferenceLoss{T<:AbstractFloat, S} <: CoordinateDifferentiableFunction
-  Σx::S
-  Σy::S
-  A::Matrix{T}    #Σx⋅Δ⋅Σy
+struct CDDirectDifferenceLoss{T<:AbstractFloat} <: CoordinateDifferentiableFunction
+  Σx::Symmetric{T}
+  Σy::Symmetric{T}
+  A::Matrix{T}    # stores Σx⋅Δ⋅Σy
   p::Int64
-
-  CDDirectDifferenceLoss{T, S}(Σx::AbstractMatrix{T}, Σy::AbstractMatrix{T}, A::Matrix{T}, p) where {T,S} =
-    new(Σx, Σy, A, p)
 end
 
-function CDDirectDifferenceLoss{T<:AbstractFloat}(Σx::AbstractMatrix{T}, Σy::AbstractMatrix{T})
+function CDDirectDifferenceLoss(Σx::Symmetric{T}, Σy::Symmetric{T}) where {T<:AbstractFloat}
   (issymmetric(Σx) && issymmetric(Σy)) || throw(DimensionMismatch())
   (p = size(Σx, 1)) == size(Σy, 1) || throw(DimensionMismatch())
-  CDDirectDifferenceLoss{T, typeof(Σx)}(Σx, Σy, zeros(T, p, p), p)
+  CDDirectDifferenceLoss{T}(Σx, Σy, zeros(T, p, p), p)
 end
 
-HD.numCoordinates(f::CDDirectDifferenceLoss) = div(f.p * (f.p + 1), 2)
+CoordinateDescent.numCoordinates(f::CDDirectDifferenceLoss) = div(f.p * (f.p + 1), 2)
 
-function HD.initialize!{T<:AbstractFloat}(f::CDDirectDifferenceLoss{T}, x::SparseIterate{T})
+function CoordinateDescent.initialize!{T<:AbstractFloat}(f::CDDirectDifferenceLoss{T}, x::SparseIterate{T})
   # compute residuals for the loss
 
   Σx = f.Σx

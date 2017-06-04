@@ -2,7 +2,7 @@ module CovSel
 
 using ProximalBase
 using DataStructures: binary_maxheap
-using HD, Distributions
+using CoordinateDescent, Distributions
 
 export
   ADMMOptions,

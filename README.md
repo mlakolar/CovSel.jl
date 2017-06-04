@@ -1,2 +1,3 @@
 # CovSel.jl
-Covariance selection
+
+Various methods for learning high-dimensional graphical models

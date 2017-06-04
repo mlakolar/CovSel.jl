@@ -1,6 +1,4 @@
-abstract type CovSelSolver end
-
-struct ADMMOptions <: CovSelSolver
+struct ADMMOptions
   ρ::Float64
   α::Float64
   maxiter::Int64
@@ -14,6 +12,15 @@ ADMMOptions(;ρ::Float64=1.,
            abstol::Float64=1e-4,
            reltol::Float64=1e-2) = ADMMOptions(ρ, α, maxiter, abstol, reltol)
 
+
+struct IHTOptions
+ epsTol::Float64
+ maxIter::Int64
+ checkEvery::Int64
+end
+
+IHTOptions(;epsTol::Float64=1e-2, maxIter::Int64=500, checkEvery::Int64=10) =
+  IHTOptions(epsTol, maxIter, checkEvery)
 
 
 
