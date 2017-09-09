@@ -140,16 +140,17 @@ facts("direct_difference_estimation") do
 
         # λ = 0.2
         λ = rand(Uniform(0.05, 0.3))
+        g = ProximalBase.ProxL1(λ)
 
         solShoot = CovSel.Alt.differencePrecisionNaive(hSx, hSy, λ, tmp)
-        solShoot1 = CovSel.differencePrecisionActiveShooting(hSx, hSy, λ*ones(div(p*(p+1), 2)))
+        solShoot1 = CovSel.differencePrecisionActiveShooting(hSx, hSy, g)
 
         prob = Convex.minimize(Convex.quadform(vec(Delta), kron(hSy,hSx)) / 2 - trace((hSy-hSx)*Delta) +  λ * norm(vec(Delta), 1))
         prob.constraints += [Delta == Delta']
         Convex.solve!(prob)
 
         @fact maximum(abs.(tril(Delta.value - solShoot))) --> roughly(0.; atol=2e-3)
-        @fact maximum(abs.(tril(CovSel.vec2tril(solShoot1, p) - solShoot))) --> roughly(0.; atol=1e-5)
+        @fact maximum(abs.(full(solShoot1) - solShoot)) --> roughly(0.; atol=1e-5)
       end
 
     end

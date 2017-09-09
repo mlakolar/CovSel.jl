@@ -40,7 +40,7 @@ end
 """
 function diffLoss{T<:AbstractFloat}(
   Σx::Symmetric{T},
-  Δ::SparseIterate{T},
+  Δ::SymmetricSparseIterate{T},
   U::StridedMatrix{T},
   Σy::Symmetric{T},
   p::Real)
@@ -88,7 +88,7 @@ end
 
 CoordinateDescent.numCoordinates(f::CDDirectDifferenceLoss) = div(f.p * (f.p + 1), 2)
 
-function CoordinateDescent.initialize!{T<:AbstractFloat}(f::CDDirectDifferenceLoss{T}, x::SparseIterate{T})
+function CoordinateDescent.initialize!{T<:AbstractFloat}(f::CDDirectDifferenceLoss{T}, x::SymmetricSparseIterate{T})
   # compute residuals for the loss
 
   Σx = f.Σx
@@ -97,15 +97,15 @@ function CoordinateDescent.initialize!{T<:AbstractFloat}(f::CDDirectDifferenceLo
   p = f.p
 
   for ac=1:p, ar=1:p
-      @inbounds A[ar,ac] = _mul_Σx_Δ_Σy(Σx, x, Σy, ar, ac)
+      @inbounds A[ar,ac] = A_mul_X_mul_B_rc(Σx, x, Σy, ar, ac)
   end
 
   nothing
 end
 
-function HD.gradient{T <: AbstractFloat}(
+function CoordinateDescent.gradient{T <: AbstractFloat}(
   f::CDDirectDifferenceLoss{T},
-  x::SparseIterate{T},
+  x::SymmetricSparseIterate{T},
   j::Int64)
 
   Σx = f.Σx
@@ -117,53 +117,42 @@ function HD.gradient{T <: AbstractFloat}(
   @inbounds return (A[ri,ci] + A[ci,ri]) / 2. - (Σy[ri, ci] - Σx[ri, ci])
 end
 
-# function HD.quadraticApprox{T<:AbstractFloat}(
-#   f::CDDirectDifferenceLoss{T},
-#   x::SparseIterate{T},
-#   j::Int64)
-#
-#   Σx = f.Σx
-#   Σy = f.Σy
-#   A = f.A
-#   p = f.p
-#
-#   ri, ci = ind2subLowerTriangular(p, j)
-#
-#   a = zero(T)
-#   b = zero(T)
-#   if ri == ci
-#     @inbounds a = Σx[ri,ri] * Σy[ri,ri]
-#     @inbounds b = A[ri,ri] + Σx[ri,ri] - Σy[ri,ri]
-#     b = b / a
-#   else
-#     @inbounds a = (Σx[ri,ri]*Σy[ci,ci] + Σx[ci,ci]*Σy[ri,ri]) / 2. + Σx[ri,ci]*Σy[ri,ci]
-#     @inbounds b = A[ri,ci] + A[ci,ri] - 2.*(Σy[ri,ci] - Σx[ri,ci])
-#     b = b / (2. * a)
-#   end
-#   (a, b)
-# end
-#
-# function HD.updateSingle!{T<:AbstractFloat}(
-#   f::CDDirectDifferenceLoss{T},
-#   x::SparseIterate{T},
-#   h::T,
-#   j::Int64)
-#
-#   Σx = f.Σx
-#   Σy = f.Σy
-#   A = f.A
-#   p = f.p
-#
-#   ri, ci = ind2subLowerTriangular(p, j)
-#
-#
-#   for ac=1:p, ar=1:p
-#     @inbounds A[ar, ac] += (ri == ci) ? (h * Σx[ar, ri] * Σy[ac, ri]) :
-#           (h * (Σx[ar, ri] * Σy[ci, ac] + Σx[ar, ci] * Σy[ri, ac]))
-#   end
-#   nothing
-# end
 
+function CoordinateDescent.descendCoordinate!{T <: AbstractFloat}(
+  f::CDDirectDifferenceLoss{T},
+  g::ProxL1{T},
+  x::SymmetricSparseIterate{T},
+  j::Int64)
+
+  Σx = f.Σx
+  Σy = f.Σy
+  A = f.A
+  p = f.p
+
+  ri, ci = ind2subLowerTriangular(p, j)
+
+  a = zero(T)
+  b = zero(T)
+  if ri == ci
+    @inbounds a = Σx[ri,ri] * Σy[ri,ri]
+    @inbounds b = Σy[ri,ri] - Σx[ri,ri] - A[ri,ri]
+  else
+    @inbounds a = (Σx[ri,ri]*Σy[ci,ci] + Σx[ci,ci]*Σy[ri,ri]) + 2.*Σx[ri,ci]*Σy[ri,ci]
+    @inbounds b = 2.*(Σy[ri,ci] - Σx[ri,ci]) - A[ri,ci] - A[ci,ri]
+    # compute h
+  end
+  oldVal = x[ri, ci]
+  x[ri, ci] += b / a
+  newVal = cdprox!(g, x, j, ri == ci ? 1. / a : 2. / a)
+  h = newVal - oldVal
+
+  # update internals
+  for ac=1:p, ar=1:p
+    @inbounds A[ar, ac] += (ri == ci) ? (h * Σx[ar, ri] * Σy[ac, ri]) :
+          (h * (Σx[ar, ri] * Σy[ci, ac] + Σx[ar, ci] * Σy[ri, ac]))
+  end
+  h
+end
 
 
 #####################################################
@@ -173,20 +162,20 @@ end
 #####################################################
 
 differencePrecisionActiveShooting!(
-  x::SparseIterate,
+  x::SymmetricSparseIterate,
   Σx::StridedMatrix,
   Σy::StridedMatrix,
-  λ::StridedVector,
+  g::ProxL1,
   options=CDOptions()) =
-  coordinateDescent!(x, CDDirectDifferenceLoss(Σx, Σy), λ, options)
+  CoordinateDescent.coordinateDescent!(x, CDDirectDifferenceLoss(Symmetric(Σx), Symmetric(Σy)), g, options)
 
 
 @inline function differencePrecisionActiveShooting(
   Σx::StridedMatrix,
   Σy::StridedMatrix,
-  λ::StridedVector,
+  g::ProxL1,
   options=CDOptions())
 
-  f = CDDirectDifferenceLoss(Σx, Σy)
-  HD.coordinateDescent!(SparseIterate(HD.numCoordinates(f)), f, λ, options)
+  f = CDDirectDifferenceLoss(Symmetric(Σx), Symmetric(Σy))
+  CoordinateDescent.coordinateDescent!(SymmetricSparseIterate(f.p), f, g, options)
 end

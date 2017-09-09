@@ -1,7 +1,7 @@
 module Alt
 
 using ProximalBase: shrink
-using HD: CDOptions
+using CoordinateDescent: CDOptions
 
 function differencePrecisionNaive(Σx, Σy, λ, Ups, options = CDOptions())
   maxIter = options.maxIter

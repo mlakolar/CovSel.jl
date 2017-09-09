@@ -17,10 +17,11 @@ export
   differencePrecisionIHT,
   differenceLatentPrecisionIHT
 
+include("utils.jl")
+
 include("admmCovSel.jl")
 include("diffEstim.jl")
 include("directDifference.jl")
-include("utils.jl")
 include("generate.jl")
 include("evaluation.jl")
 
