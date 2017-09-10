@@ -70,20 +70,20 @@ end
 
 ####################################
 #
-# loss tr(Σx⋅Δ⋅Σy⋅Δ)/2 + tr(Δ(Σy-Σx))
+# loss tr(Σx⋅Δ⋅Σy⋅Δ)/2 - tr(Δ(Σy-Σx))
 #
 ####################################
-struct CDDirectDifferenceLoss{T<:AbstractFloat} <: CoordinateDifferentiableFunction
-  Σx::Symmetric{T}
-  Σy::Symmetric{T}
+struct CDDirectDifferenceLoss{T<:AbstractFloat, S} <: CoordinateDifferentiableFunction
+  Σx::Symmetric{T, S}
+  Σy::Symmetric{T, S}
   A::Matrix{T}    # stores Σx⋅Δ⋅Σy
   p::Int64
 end
 
-function CDDirectDifferenceLoss(Σx::Symmetric{T}, Σy::Symmetric{T}) where {T<:AbstractFloat}
+function CDDirectDifferenceLoss(Σx::Symmetric{T,S}, Σy::Symmetric{T,S}) where {T<:AbstractFloat} where S
   (issymmetric(Σx) && issymmetric(Σy)) || throw(DimensionMismatch())
   (p = size(Σx, 1)) == size(Σy, 1) || throw(DimensionMismatch())
-  CDDirectDifferenceLoss{T}(Σx, Σy, zeros(T, p, p), p)
+  CDDirectDifferenceLoss{T,S}(Σx, Σy, zeros(T, p, p), p)
 end
 
 CoordinateDescent.numCoordinates(f::CDDirectDifferenceLoss) = div(f.p * (f.p + 1), 2)
@@ -139,7 +139,6 @@ function CoordinateDescent.descendCoordinate!{T <: AbstractFloat}(
   else
     @inbounds a = (Σx[ri,ri]*Σy[ci,ci] + Σx[ci,ci]*Σy[ri,ri]) + 2.*Σx[ri,ci]*Σy[ri,ci]
     @inbounds b = 2.*(Σy[ri,ci] - Σx[ri,ci]) - A[ri,ci] - A[ci,ri]
-    # compute h
   end
   oldVal = x[ri, ci]
   x[ri, ci] += b / a
@@ -163,19 +162,125 @@ end
 
 differencePrecisionActiveShooting!(
   x::SymmetricSparseIterate,
-  Σx::StridedMatrix,
-  Σy::StridedMatrix,
+  Σx::Symmetric,
+  Σy::Symmetric,
   g::ProxL1,
   options=CDOptions()) =
-  CoordinateDescent.coordinateDescent!(x, CDDirectDifferenceLoss(Symmetric(Σx), Symmetric(Σy)), g, options)
+  coordinateDescent!(x, CDDirectDifferenceLoss(Σx, Σy), g, options)
 
 
 @inline function differencePrecisionActiveShooting(
-  Σx::StridedMatrix,
-  Σy::StridedMatrix,
+  Σx::Symmetric,
+  Σy::Symmetric,
   g::ProxL1,
   options=CDOptions())
 
-  f = CDDirectDifferenceLoss(Symmetric(Σx), Symmetric(Σy))
-  CoordinateDescent.coordinateDescent!(SymmetricSparseIterate(f.p), f, g, options)
+  f = CDDirectDifferenceLoss(Σx, Σy)
+  coordinateDescent!(SymmetricSparseIterate(f.p), f, g, options)
+end
+
+function differencePrecisionRefit(
+  Σx::Symmetric{T},
+  Σy::Symmetric{T},
+  S::Vector{Int64},
+  options=CDOptions()
+  ) where T
+
+  f = CDDirectDifferenceLoss(Σx, Σy)
+  t = CoordinateDescent.numCoordinates(f)
+  ω = ones(T, t) * 1e10
+  for i=S
+    r,c = ind2sub(Σx, i)
+    if r >= c
+      ind = sub2indLowerTriangular(f.p, r, c)
+      ω[ind] = 0.
+    end
+  end
+  g = ProxL1(one(T), ω)
+  x = SymmetricSparseIterate(f.p)
+  coordinateDescent!(x, f, g, options)
+end
+
+
+
+####################################
+#
+# loss tr(Σx⋅θ⋅Σy⋅θ)/2 - tr(Θ⋅E_ab)    ---> computes inverse of \
+#
+####################################
+struct CDInverseKroneckerLoss{T<:AbstractFloat, S} <: CoordinateDifferentiableFunction
+  Σx::Symmetric{T, S}
+  Σy::Symmetric{T, S}
+  A::Matrix{T}    # stores Σx⋅Θ⋅Σy
+  a::Int
+  b::Int
+  p::Int64
+end
+
+function CDInverseKroneckerLoss(Σx::Symmetric{T,S}, Σy::Symmetric{T,S}, a::Int, b::Int) where {T<:AbstractFloat} where S
+  (issymmetric(Σx) && issymmetric(Σy)) || throw(DimensionMismatch())
+  (p = size(Σx, 1)) == size(Σy, 1) || throw(DimensionMismatch())
+  CDInverseKroneckerLoss{T,S}(Σx, Σy, zeros(T, p, p), a, b, p)
+end
+
+CoordinateDescent.numCoordinates(f::CDInverseKroneckerLoss) = f.p*f.p
+function CoordinateDescent.initialize!(f::CDInverseKroneckerLoss, x::SparseIterate)
+# compute residuals for the loss
+
+  Σx = f.Σx
+  Σy = f.Σy
+  A = f.A
+  p = f.p
+
+  for ac=1:p, ar=1:p
+      @inbounds A[ar,ac] = A_mul_X_mul_B_rc(Σx, x, Σy, ar, ac)
+  end
+
+  nothing
+end
+
+function CoordinateDescent.gradient(
+  f::CDInverseKroneckerLoss{T},
+  x::SparseIterate{T},
+  j::Int64) where {T <: AbstractFloat}
+
+  Σx = f.Σx
+  Σy = f.Σy
+  A = f.A
+  ri, ci = ind2sub(x, j)
+  @inbounds v = A[ri,ci]
+  return ri == f.a && ci == f.b ? v - 1. : v
+end
+
+
+function CoordinateDescent.descendCoordinate!(
+  f::CDInverseKroneckerLoss{T},
+  g::ProxL1{T},
+  x::SparseIterate{T},
+  j::Int64) where {T <: AbstractFloat}
+
+  Σx = f.Σx
+  Σy = f.Σy
+  A = f.A
+  p = size(x, 1)
+
+  ri, ci = ind2sub(x, j)
+
+  a = zero(T)
+  b = zero(T)
+  @inbounds a  = Σx[ri,ri] * Σy[ci,ci]
+  @inbounds b = A[ri,ci]
+  b = ri == f.a && ci == f.b ? b - 1. : b
+
+  @inbounds oldVal = x[ri, ci]
+  a = one(T) / a
+  @inbounds x[ri, ci] -= b * a
+  newVal = cdprox!(g, x, j, a)
+  h = newVal - oldVal
+
+  # update internals
+  for ac=1:p, ar=1:p
+    @inbounds A[ar, ac] += h * Σx[ar, ri] * Σy[ci, ac]
+  end
+  h
 end

@@ -13,7 +13,11 @@ export
   #
   fusedGraphicalLasso, fusedGraphicalLasso!,   # Danaher et al.
   fusedNeighborhoodSelection,
-  differencePrecisionActiveShooting,
+
+  # Direct Difference Estimation and Iference
+  differencePrecisionActiveShooting, differencePrecisionActiveShooting!, differencePrecisionRefit,
+  CDInverseKroneckerLoss, CDDirectDifferenceLoss,
+  
   differencePrecisionIHT,
   differenceLatentPrecisionIHT
 
