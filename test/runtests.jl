@@ -20,7 +20,7 @@ cvx = try_import(:Convex)
 
 tests = [
   # "test_covsel",
-  "test_diff"
+  "directDifference"
 ]
 
 for t in tests

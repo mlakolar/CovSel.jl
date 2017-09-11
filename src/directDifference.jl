@@ -30,6 +30,7 @@ function diffLoss{T<:AbstractFloat}(
         v = t
       end
     end
+    return v
   else
     throw(ArgumentError("p should be 2 or Inf"))
   end
@@ -247,7 +248,7 @@ function CoordinateDescent.gradient(
   Σx = f.Σx
   Σy = f.Σy
   A = f.A
-  ri, ci = ind2sub(x, j)
+  ri, ci = ind2sub(Σx, j)
   @inbounds v = A[ri,ci]
   return ri == f.a && ci == f.b ? v - 1. : v
 end
@@ -262,9 +263,9 @@ function CoordinateDescent.descendCoordinate!(
   Σx = f.Σx
   Σy = f.Σy
   A = f.A
-  p = size(x, 1)
+  p = size(Σx, 1)
 
-  ri, ci = ind2sub(x, j)
+  ri, ci = ind2sub(Σx, j)
 
   a = zero(T)
   b = zero(T)
@@ -272,9 +273,9 @@ function CoordinateDescent.descendCoordinate!(
   @inbounds b = A[ri,ci]
   b = ri == f.a && ci == f.b ? b - 1. : b
 
-  @inbounds oldVal = x[ri, ci]
+  @inbounds oldVal = x[j]
   a = one(T) / a
-  @inbounds x[ri, ci] -= b * a
+  @inbounds x[j] -= b * a
   newVal = cdprox!(g, x, j, a)
   h = newVal - oldVal
 
