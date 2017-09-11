@@ -173,7 +173,7 @@ facts("direct_difference_estimation") do
   end
 
   context("invert Kroneker") do
-    for rep=1:1
+    for rep=1:50
       p = 20
       hSx, hSy = genData(p)
       A = kron(hSy, hSx)
@@ -196,6 +196,36 @@ facts("direct_difference_estimation") do
         CoordinateDescent.coordinateDescent!(x1, f1, g, CoordinateDescent.CDOptions(;maxIter=5000, optTol=1e-12))
 
         @fact full(x) - full(x1) --> roughly(zeros(p*p); atol=1e-7)
+      end
+    end
+  end
+
+  context("refit") do
+    if cvx && grb
+      for rep=1:50
+        p = 10
+        hSx, hSy = genData(p)
+
+        Convex.set_default_solver(Gurobi.GurobiSolver(OutputFlag=0))
+        Delta = Convex.Variable(p,p);
+
+        S = sprand(p, p, 0.1)
+        S = S + S' / 2
+        indS = find(S)
+
+        opt = CoordinateDescent.CDOptions(;maxIter=5000, optTol=1e-12, randomize=true)
+        x = CovSel.differencePrecisionRefit(Symmetric(hSx), Symmetric(hSy), indS)
+
+        prob = Convex.minimize(Convex.quadform(vec(Delta), kron(hSy,hSx)) / 2 - trace((hSy-hSx)*Delta))
+        prob.constraints += [Delta == Delta']
+        for i=1:p*p
+          if S[i] == 0.
+            prob.constraints += [Delta[i] == 0.]
+          end
+        end
+        Convex.solve!(prob)
+
+        @fact maximum(abs.(Delta.value - x)) --> roughly(0.; atol=1e-3)      
       end
     end
   end

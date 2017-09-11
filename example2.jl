@@ -38,7 +38,7 @@ indS = find(S)
 # end
 
 opt = CoordinateDescent.CDOptions(;maxIter=5000, optTol=1e-12, randomize=true)
-x = CovSel.differencePrecisionRefit(Symmetric(hSx), Symmetric(hSy), indS)
+x = CovSel.differencePrecisionRefit(Symmetric(hSx), Symmetric(hSy), indS, opt)
 @show full(x)
 
 x1 = zeros(p, p)
