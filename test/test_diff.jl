@@ -111,49 +111,46 @@
 
 facts("direct_difference_estimation") do
 
-  context("small") do
-    if cvx && grb
-      # simple model that differes in only one edge
-      srand(123)
+    context("small") do
+        # simple model that differes in only one edge
+        srand(123)
 
-      p = 10
-      Sigmax = eye(p,p)
-      Sigmay = zeros(p,p)
-      rho = 0.7
-      for i=1:p
-          for j=1:p
-              Sigmay[i,j]=rho^abs(i-j)
-          end
-      end
-      sqmy = sqrtm(Sigmay)
-      n = 1000
-      X = randn(n,p)
-      Y = randn(n,p) * sqmy;
-      hSx = cov(X)
-      hSy = cov(Y)
+        p = 10
+        Sigmax = eye(p,p)
+        Sigmay = zeros(p,p)
+        rho = 0.7
+        for i=1:p
+            for j=1:p
+                Sigmay[i,j]=rho^abs(i-j)
+            end
+        end
+        sqmy = sqrtm(Sigmay)
+        n = 1000
+        X = randn(n,p)
+        Y = randn(n,p) * sqmy;
+        hSx = cov(X)
+        hSy = cov(Y)
 
-      Convex.set_default_solver(Gurobi.GurobiSolver(OutputFlag=0))
-      Delta = Convex.Variable(p,p);
+        #   Convex.set_default_solver(Gurobi.GurobiSolver(OutputFlag=0))
+        #   Delta = Convex.Variable(p,p);
 
-      tmp = ones(p,p)
-      for i=1:5
+        tmp = ones(p,p)
+        for i=1:5
 
-        # λ = 0.2
-        λ = rand(Uniform(0.05, 0.3))
-        g = ProximalBase.ProxL1(λ)
+            # λ = 0.2
+            λ = rand(Uniform(0.05, 0.3))
+            g = ProximalBase.ProxL1(λ)
 
-        solShoot = CovSel.Alt.differencePrecisionNaive(hSx, hSy, λ, tmp)
-        solShoot1 = CovSel.differencePrecisionActiveShooting(hSx, hSy, g)
+            solShoot = CovSel.Alt.differencePrecisionNaive(hSx, hSy, λ, tmp)
+            solShoot1 = CovSel.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), g)
 
-        prob = Convex.minimize(Convex.quadform(vec(Delta), kron(hSy,hSx)) / 2 - trace((hSy-hSx)*Delta) +  λ * norm(vec(Delta), 1))
-        prob.constraints += [Delta == Delta']
-        Convex.solve!(prob)
+            # prob = Convex.minimize(Convex.quadform(vec(Delta), kron(hSy,hSx)) / 2 - trace((hSy-hSx)*Delta) +  λ * norm(vec(Delta), 1))
+            # prob.constraints += [Delta == Delta']
+            # Convex.solve!(prob)
 
-        @fact maximum(abs.(tril(Delta.value - solShoot))) --> roughly(0.; atol=2e-3)
-        @fact maximum(abs.(full(solShoot1) - solShoot)) --> roughly(0.; atol=1e-5)
-      end
-
+            # @fact maximum(abs.(tril(Delta.value - solShoot))) --> roughly(0.; atol=2e-3)
+            @fact maximum(abs.(full(solShoot1) - solShoot)) --> roughly(0.; atol=1e-5)
+        end
     end
-  end
 
 end

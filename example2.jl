@@ -2,7 +2,7 @@ reload("ProximalBase")
 reload("CoordinateDescent")
 reload("CovSel")
 
-import CovSel
+import CovSel, CoordinateDescent
 
 srand(123)
 
@@ -37,10 +37,11 @@ indS = find(S)
 #   @show ind2sub(hSx, i)
 # end
 
+opt = CoordinateDescent.CDOptions(;maxIter=5000, optTol=1e-12, randomize=true)
 x = CovSel.differencePrecisionRefit(Symmetric(hSx), Symmetric(hSy), indS)
 @show full(x)
 
 x1 = zeros(p, p)
 x1[indS] = A[indS, indS] \ b[indS]
 
-full(x) - x1
+@show full(x) - x1
