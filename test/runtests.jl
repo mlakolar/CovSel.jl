@@ -19,8 +19,8 @@ cvx = try_import(:Convex)
 
 
 tests = [
-  # "covsel",
-  # "directDifference",
+  "covsel",
+  "directDifference",
   "fusedDifference"
 ]
 
