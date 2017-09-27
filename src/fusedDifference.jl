@@ -29,8 +29,8 @@ function fusedGraphicalLasso!{T<:AbstractFloat}(
 
     p = size(Σx, 1)
 
-    gx = ProxGaussLikelihood(Σx)
-    gy = ProxGaussLikelihood(Σy)
+    gx = ProxGaussLikelihood(Symmetric(Σx))
+    gy = ProxGaussLikelihood(Symmetric(Σy))
 
     Tx = zeros(p, p)  # temp storage
     Ty = zeros(p, p)  # temp storage

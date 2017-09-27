@@ -31,7 +31,15 @@ facts("fused_graphical_lasso") do
 
         λ1 = rand(Uniform(0.01,0.1))
         λ2 = rand(Uniform(0.01,0.1))
-        Zx, Zy = CovSel.fusedGraphicalLasso(X, Y, λ1, λ2;
+
+        θx = eye(p)
+        θy = eye(p)
+        Zx = eye(p)
+        Zy = eye(p)
+        Ux = zeros(p,p)
+        Uy = zeros(p,p)
+
+        CovSel.fusedGraphicalLasso!(θx, θy, Zx, Zy, Ux, Uy, Sx, n, Sy, n, λ1, λ2;
                           penalize_diag=true,
                           options=CovSel.ADMMOptions(;abstol=1e-12,reltol=1e-12))
 
