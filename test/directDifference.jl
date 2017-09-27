@@ -135,9 +135,6 @@ facts("direct_difference_estimation") do
     p = 10
     hSx, hSy = genData(p)
 
-    #   Convex.set_default_solver(Gurobi.GurobiSolver(OutputFlag=0))
-    #   Delta = Convex.Variable(p,p);
-
     tmp = ones(p,p)
     for i=1:5
 
@@ -148,11 +145,6 @@ facts("direct_difference_estimation") do
       solShoot = CovSel.Alt.differencePrecisionNaive(hSx, hSy, λ, tmp)
       solShoot1 = CovSel.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), g)
 
-      # prob = Convex.minimize(Convex.quadform(vec(Delta), kron(hSy,hSx)) / 2 - trace((hSy-hSx)*Delta) +  λ * norm(vec(Delta), 1))
-      # prob.constraints += [Delta == Delta']
-      # Convex.solve!(prob)
-
-      # @fact maximum(abs.(tril(Delta.value - solShoot))) --> roughly(0.; atol=2e-3)
       @fact maximum(abs.(full(solShoot1) - solShoot)) --> roughly(0.; atol=1e-5)
     end
   end
@@ -225,7 +217,7 @@ facts("direct_difference_estimation") do
         end
         Convex.solve!(prob)
 
-        @fact maximum(abs.(Delta.value - x)) --> roughly(0.; atol=1e-3)      
+        @fact maximum(abs.(Delta.value - x)) --> roughly(0.; atol=1e-3)
       end
     end
   end

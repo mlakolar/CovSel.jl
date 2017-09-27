@@ -13,17 +13,6 @@ ADMMOptions(;ρ::Float64=1.,
            reltol::Float64=1e-2) = ADMMOptions(ρ, α, maxiter, abstol, reltol)
 
 
-struct IHTOptions
- epsTol::Float64
- maxIter::Int64
- checkEvery::Int64
-end
-
-IHTOptions(;epsTol::Float64=1e-2, maxIter::Int64=500, checkEvery::Int64=10) =
-  IHTOptions(epsTol, maxIter, checkEvery)
-
-
-
 
 #########################################################
 # minimize  trace(S*X) - log det X + lambda*||X||_1
@@ -48,7 +37,7 @@ function covsel!{T<:AbstractFloat}(
   λρ = λ * γ
 
   p = size(Σ, 1)
-  g = ProxGaussLikelihood(Σ)
+  g = ProxGaussLikelihood(Symmetric(Σ))
 
   tmpStorage = zeros(T, (p, p))
   Zold = copy(Z)
@@ -109,76 +98,6 @@ function covselpath{T<:AbstractFloat}(S::StridedMatrix{T},
 end
 
 
-covSel_objective(Σ, S, L) = trace(Σ*(S+L)) - log(det(S+L))
-
-function covselLatentIHT_grad_S!(gS, Σ, S, L)
-  T = S + L
-  T = inv(T)
-  gS .= Σ - T
-  gS
-end
-
-function covselLatentIHT_grad_U!(gU, gS, Σ, S, L, U)
-  covselLatentIHT_grad_S!(gS, Σ, S, L)
-  scale!(gS, 2.)
-  A_mul_B!(gU, gS, U)
-end
-
-function covselLatentIHT!(Σ::StridedMatrix, ηS, ηU, s, r;
-  epsTol=1e-2, maxIter=100, checkEvery=5, callback=nothing)
-
-  p = size(Σ, 1)
-
-  gS = zeros(p, p)
-  gU = zeros(p, r)
-
-  S = zeros(p, p)
-  L = zeros(p, p)
-
-  # init
-  tmp = full(inv(Symmetric(Σ)))
-  HardThreshold!(S, tmp, s, false)
-
-  tmp .= tmp - S
-  U, d, V = svd(tmp)
-  U = U[:,1:r] .* sqrt.(d[1:r])'
-  L = U * U'
-
-
-  fvals = []
-  # gradient descent
-  #
-  fv = covSel_objective(Σ, S, L)
-  push!(fvals, fv)
-  for iter=1:maxIter
-    # update S
-    covselLatentIHT_grad_S!(gS, Σ, S, L)
-    @. S -= ηS * gS
-    HardThreshold!(S, S, s, false)
-    max_gS = maximum( abs.(gS) )
-
-    # update U and L
-    covselLatentIHT_grad_U!(gU, gS, Σ, S, L, U)
-    @. U -= ηU * gU
-    A_mul_Bt!(L, U, U)
-    max_gU = maximum( abs.(gU) )
-    if callback != nothing
-      callback(Σ, S, L)
-    end
-
-    done = max(max_gS, max_gU) < epsTol
-    # check for convergence
-    if mod(iter, checkEvery) == 0
-      fv_new = covSel_objective(Σ, S, L)
-      push!(fvals, fv_new)
-      done = abs(fv_new - fv) <= epsTol
-      fv = fv_new
-    end
-    done && break
-  end
-
-  (S, L, U, fvals, iter)
-end
 
 
 #########################################################
@@ -188,28 +107,6 @@ end
 #########################################################
 
 
-# function covselpath_refit{T<:AbstractFloat}(S::StridedMatrix{T},
-#                     solutionpath;
-#                     options::ADMMOptions = ADMMOptions(),
-#                     verbose::Bool=false)
-#   p = size(S, 1)
-#   lenPath = length(solutionpath)
-#   solutionpath_refit = Array(Array{Float64, 2}, lenPath)
-#   X = zeros(p, p)
-#   Z = zeros(p, p)
-#   U = zeros(p, p)
-#
-#   for i=1:lenPath
-#     if verbose
-#       @printf("refit = %d/%d\n", i, lenPath)
-#     end
-#     non_zero_set = find( abs(solutionpath[i]) .> 1e-4 )
-#     covsel_refit!(X, Z, U, S, non_zero_set; options=options)
-#     solutionpath_refit[i] = copy(Z)
-#   end
-#   solutionpath_refit
-# end
-#
 #
 # # inimize  trace(S*X) - log det X   subject to support(X) ⊆ non_zero_set
 # function covsel_refit!{T<:AbstractFloat}(

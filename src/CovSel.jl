@@ -17,13 +17,14 @@ export
   # Direct Difference Estimation and Iference
   differencePrecisionActiveShooting, differencePrecisionActiveShooting!, differencePrecisionRefit,
   CDInverseKroneckerLoss, CDDirectDifferenceLoss,
-  
+
   differencePrecisionIHT,
   differenceLatentPrecisionIHT
 
 include("utils.jl")
 
 include("admmCovSel.jl")
+include("LatentCovSel_IHT.jl")
 include("diffEstim.jl")
 include("directDifference.jl")
 include("generate.jl")

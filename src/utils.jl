@@ -102,3 +102,14 @@ function HardThreshold!{T<:AbstractFloat}(X::SparseIterate{T}, s::Int64)
   dropzeros!(X)
   X
 end
+
+
+##################################
+#
+# Gaussian likelihood computation
+#
+#################################
+
+covSel_objective(Σ, S) = trace(Σ*S) - log(det(S))
+
+covSel_objective(Σ, S, L) = trace(Σ*(S+L)) - log(det(S+L))
