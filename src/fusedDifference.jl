@@ -71,8 +71,8 @@ function fusedGraphicalLasso!{T<:AbstractFloat}(
         @. Uy = Ty - Zy
 
         # check convergence
-        r_norm = _normdiff(Θx, Zx) + _normdiff(Θy, Zy)
-        s_norm = (_normdiff(Zx, Zxold) + _normdiff(Zy, Zyold)) * sqrt(ρ)
+        r_norm = norm_diff(Θx, Zx) + norm_diff(Θy, Zy)
+        s_norm = (norm_diff(Zx, Zxold) + norm_diff(Zy, Zyold)) * sqrt(ρ)
         eps_pri = p*abstol + reltol * max( vecnorm(Θx) + vecnorm(Θy), vecnorm(Zx) + vecnorm(Zy))
         eps_dual = p*abstol + reltol * ρ * ( vecnorm(Ux) + vecnorm(Uy) )
         if r_norm < eps_pri && s_norm < eps_dual
@@ -185,8 +185,8 @@ function fusedNeighborhoodSelection(
         @. u2 = T2 - z2
 
         # check convergence
-        r_norm = _normdiff(x1, z1) + _normdiff(x2, z2)
-        s_norm = (_normdiff(z1, z1old) + _normdiff(z2, z2old)) * sqrt(ρ)
+        r_norm = norm_diff(x1, z1) + norm_diff(x2, z2)
+        s_norm = (norm_diff(z1, z1old) + norm_diff(z2, z2old)) * sqrt(ρ)
         eps_pri = sqrt(p)*abstol + reltol * max( vecnorm(x1) + vecnorm(x2), vecnorm(z1) + vecnorm(z2))
         eps_dual = sqrt(p)*abstol + reltol * ρ *( vecnorm(u1) + vecnorm(u2) )
         if r_norm < eps_pri && s_norm < eps_dual
