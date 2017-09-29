@@ -63,8 +63,8 @@ function covsel!{T<:AbstractFloat}(
     @. U = tmpStorage - Z
 
     # check convergence
-    r_norm = norm_diff(X, Z)
-    s_norm = norm_diff(Z, Zold) * sqrt(ρ)
+    r_norm = norm_diff(X, Z, 2)
+    s_norm = norm_diff(Z, Zold, 2) * sqrt(ρ)
     eps_pri = p*abstol + reltol * max( vecnorm(X), vecnorm(Z) )
     eps_dual = p*abstol + reltol * ρ * vecnorm(U)
     if r_norm < eps_pri && s_norm < eps_dual
