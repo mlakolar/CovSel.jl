@@ -295,11 +295,11 @@ end
 #
 ########################################################################
 
-# A = Σx⋅(Δ+UU')⋅Σy       --- this is ensured by the algorithm
+# A = Σx⋅(Δ + (UV' + V'U) / 2.)⋅Σy                 --- this is ensured by the algorithm
 function differencePrecision_objective(
   A::StridedMatrix{T},
   Σx::Symmetric{T}, Σy::Symmetric{T},
-  Δ::SymmetricSparseIterate{T}, U::StridedMatrix{T}) where {T<:AbstractFloat}
+  Δ::SymmetricSparseIterate{T}, U::StridedMatrix{T}, V::StridedMatrix{T}) where {T<:AbstractFloat}
 
   p, r = size(U)
   v = zero(T)
@@ -314,7 +314,8 @@ function differencePrecision_objective(
   # add low rank part
   for c=1:r
     for a=1:p, b=1:p
-      v += (A[a,b] / 2. + Σx[a,b] - Σy[a,b])*U[a,c]*U[b,c]
+      v += (A[a,b] / 2. + Σx[a,b] - Σy[a,b])*U[a,c]*V[b,c] / 2.
+      v += (A[a,b] / 2. + Σx[a,b] - Σy[a,b])*U[b,c]*V[a,c] / 2.
     end
   end
 
