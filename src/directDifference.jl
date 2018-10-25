@@ -9,11 +9,11 @@
 """
   Computes vecnorm(Σx⋅Δ⋅Σy - Σy + Σx, p)
 """
-function diffLoss{T<:AbstractFloat}(
+function diffLoss(
   Σx::Symmetric{T},
   Δ::SymmetricSparseIterate{T},
   Σy::Symmetric{T},
-  p::Real)
+  p::Real) where {T<:AbstractFloat}
 
   d = size(Σx, 1)
   if p == 2.
@@ -39,12 +39,12 @@ end
 """
   Computes vecnorm(Σx⋅(Δ+UU')⋅Σy - Σy + Σx, p)
 """
-function diffLoss{T<:AbstractFloat}(
+function diffLoss(
   Σx::Symmetric{T},
   Δ::SymmetricSparseIterate{T},
   U::StridedMatrix{T},
   Σy::Symmetric{T},
-  p::Real)
+  p::Real) where {T<:AbstractFloat}
 
   d = size(Σx, 1)
   if p == 2.
@@ -89,7 +89,7 @@ end
 
 CoordinateDescent.numCoordinates(f::CDDirectDifferenceLoss) = div(f.p * (f.p + 1), 2)
 
-function CoordinateDescent.initialize!{T<:AbstractFloat}(f::CDDirectDifferenceLoss{T}, x::SymmetricSparseIterate{T})
+function CoordinateDescent.initialize!(f::CDDirectDifferenceLoss{T}, x::SymmetricSparseIterate{T}) where {T<:AbstractFloat}
   # compute residuals for the loss
 
   Σx = f.Σx
@@ -104,10 +104,10 @@ function CoordinateDescent.initialize!{T<:AbstractFloat}(f::CDDirectDifferenceLo
   nothing
 end
 
-function CoordinateDescent.gradient{T <: AbstractFloat}(
+function CoordinateDescent.gradient(
   f::CDDirectDifferenceLoss{T},
   x::SymmetricSparseIterate{T},
-  j::Int64)
+  j::Int64) where {T<:AbstractFloat}
 
   Σx = f.Σx
   Σy = f.Σy
@@ -119,11 +119,11 @@ function CoordinateDescent.gradient{T <: AbstractFloat}(
 end
 
 
-function CoordinateDescent.descendCoordinate!{T <: AbstractFloat}(
+function CoordinateDescent.descendCoordinate!(
   f::CDDirectDifferenceLoss{T},
   g::ProxL1{T},
   x::SymmetricSparseIterate{T},
-  j::Int64)
+  j::Int64) where {T<:AbstractFloat}
 
   Σx = f.Σx
   Σy = f.Σy
@@ -138,8 +138,8 @@ function CoordinateDescent.descendCoordinate!{T <: AbstractFloat}(
     @inbounds a = Σx[ri,ri] * Σy[ri,ri]
     @inbounds b = Σy[ri,ri] - Σx[ri,ri] - A[ri,ri]
   else
-    @inbounds a = (Σx[ri,ri]*Σy[ci,ci] + Σx[ci,ci]*Σy[ri,ri]) + 2.*Σx[ri,ci]*Σy[ri,ci]
-    @inbounds b = 2.*(Σy[ri,ci] - Σx[ri,ci]) - A[ri,ci] - A[ci,ri]
+    @inbounds a = (Σx[ri,ri]*Σy[ci,ci] + Σx[ci,ci]*Σy[ri,ri]) + 2. * Σx[ri,ci] * Σy[ri,ci]
+    @inbounds b = 2. * (Σy[ri,ci] - Σx[ri,ci]) - A[ri,ci] - A[ci,ri]
   end
   oldVal = x[ri, ci]
   x[ri, ci] += b / a
@@ -322,16 +322,16 @@ function differencePrecision_objective(
   v
 end
 
-differencePrecision_objective{T<:AbstractFloat}(
+differencePrecision_objective(
   Σx::Symmetric{T}, Σy::Symmetric{T},
-  Δ::SymmetricSparseIterate{T}) =
+  Δ::SymmetricSparseIterate{T}) where {T<:AbstractFloat} =
     trace((A_mul_X_mul_B(Σx, Δ, Σy) / 2 - (Σy - Σx)) * Δ)
 
 
-function diffPrecision_grad_delta!{T<:AbstractFloat}(
+function diffPrecision_grad_delta!(
   grad_out::StridedMatrix{T},
   A::StridedMatrix{T},
-  Σx::Symmetric{T}, Σy::Symmetric{T})
+  Σx::Symmetric{T}, Σy::Symmetric{T}) where {T<:AbstractFloat}
 
   p = size(Σx, 1)
 
@@ -357,10 +357,10 @@ end
 
 # η is the step size
 # s is the target sparsity
-function differencePrecisionIHT{T<:AbstractFloat}(
+function differencePrecisionIHT(
   Σx::Symmetric{T}, Σy::Symmetric{T},
   η::T, s::Int64;
-  epsTol=1e-5, maxIter=1000)
+  epsTol=1e-5, maxIter=1000) where {T<:AbstractFloat}
 
   assert(size(Σx,1) == size(Σx,2) == size(Σy,1) == size(Σy,2))
 
@@ -407,19 +407,21 @@ end
 # η is the step size
 # s is the target sparsity
 # r is the target rank
-function differenceLatentPrecisionIHT!{T<:AbstractFloat}(
+function differenceLatentPrecisionIHT!(
   Δ::SymmetricSparseIterate{T}, L::StridedMatrix{T},                 # these are pre-allocated
   U::StridedMatrix{T}, gD::StridedMatrix{T}, gU::StridedMatrix{T},   # these are pre-allocated
   Σx::Symmetric{T}, Σy::Symmetric{T},
   ηΔ, ηU, s, r;
-  options::IHTOptions=IHTOptions(), callback=nothing)
+  options::IHTOptions=IHTOptions(), callback=nothing) where {T<:AbstractFloat}
 
   epsTol, maxIter, checkEvery = options.epsTol, options.maxIter, options.checkEvery
 
   p = size(Σx, 1)
   A = A_mul_UUt_mul_B(Σx, U, Σy)
-  for c=1:p, r=1:p
-    A[r,c] += A_mul_X_mul_B_rc(Σx, Δ, Σy, r, c)
+  for col = 1:p
+      for row = 1:p
+        A[row, col] += A_mul_X_mul_B_rc(Σx, Δ, Σy, row, col)
+      end
   end
 
   fvals = []
@@ -431,13 +433,14 @@ function differenceLatentPrecisionIHT!{T<:AbstractFloat}(
     # update Δ
     diffPrecision_grad_delta!(gD, A, Σx, Σy)
     max_gD = maximum( abs.(gD) )
-    for c=1:p, r=c:p
-      Δ[r,c] = Δ[r,c]  - ηΔ * gD[r,c]
-    end
+    @. Δ = Δ - ηΔ * gD
     HardThreshold!(Δ, s)
+
     # update A
-    for c=1:p, r=1:p
-      A[r,c] = A_mul_X_mul_B_rc(Σx, Δ, Σy, r, c) + A_mul_UUt_mul_B_rc(Σx, U, Σy, r, c)
+    for col = 1:p
+        for row = 1:p
+            A[row, col] = A_mul_X_mul_B_rc(Σx, Δ, Σy, row, col) + A_mul_UUt_mul_B_rc(Σx, U, Σy, row, col)
+        end
     end
 
     # update U and L
@@ -445,9 +448,12 @@ function differenceLatentPrecisionIHT!{T<:AbstractFloat}(
     @. U -= ηU * gU
     A_mul_Bt!(L, U, U)
     max_gU = maximum( abs.(gU) )
+
     # update A
-    for c=1:p, r=1:p
-      A[r,c] = A_mul_X_mul_B_rc(Σx, Δ, Σy, r, c) + A_mul_UUt_mul_B_rc(Σx, U, Σy, r, c)
+    for col = 1:p
+        for row = 1:p
+            A[row, col] = A_mul_X_mul_B_rc(Σx, Δ, Σy, row, col) + A_mul_UUt_mul_B_rc(Σx, U, Σy, row, col)
+        end
     end
 
     if callback != nothing

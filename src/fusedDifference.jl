@@ -6,7 +6,7 @@
 # currently implements only two groups
 ###############################
 
-function fusedGraphicalLasso!{T<:AbstractFloat}(
+function fusedGraphicalLasso!(
     Θx::StridedMatrix{T}, Θy::StridedMatrix{T},
     Zx::StridedMatrix{T}, Zy::StridedMatrix{T},
     Ux::StridedMatrix{T}, Uy::StridedMatrix{T},
@@ -14,7 +14,7 @@ function fusedGraphicalLasso!{T<:AbstractFloat}(
     Σy::StridedMatrix{T}, ny::Int,
     λ1::Real, λ2::Real;
     options::ADMMOptions = ADMMOptions(),
-    penalize_diag::Bool=true)
+    penalize_diag::Bool=true) where {T<:AbstractFloat}
 
     maxiter = options.maxiter
     ρ = options.ρ
@@ -23,7 +23,7 @@ function fusedGraphicalLasso!{T<:AbstractFloat}(
     reltol = options.reltol
 
     n = nx + ny
-    γ = 1./ρ
+    γ = 1. / ρ
     γx = nx * γ / n
     γy = ny * γ / n
 
@@ -50,8 +50,8 @@ function fusedGraphicalLasso!{T<:AbstractFloat}(
         copy!(Zyold, Zy)
         # update Zx and Zy with relaxation
         # α⋅X + (1-α)⋅Z
-        @. Tx = α*Θx + (1.-α)*Zx + Ux
-        @. Ty = α*Θy + (1.-α)*Zy + Uy
+        @. Tx = α * Θx + (1. - α)*Zx + Ux
+        @. Ty = α * Θy + (1. - α)*Zy + Uy
         for i=1:p
             for j=i:p
                 if i==j
@@ -83,12 +83,12 @@ function fusedGraphicalLasso!{T<:AbstractFloat}(
 end
 
 
-function fusedGraphicalLasso{T<:AbstractFloat}(
+function fusedGraphicalLasso(
     Σx::StridedMatrix{T}, nx::Int,
     Σy::StridedMatrix{T}, ny::Int,
     λ1::Real, λ2::Real;
     options::ADMMOptions = ADMMOptions(),
-    penalize_diag::Bool=true)
+    penalize_diag::Bool=true) where {T<:AbstractFloat}
 
     p = size(Σx, 1)
 
@@ -132,7 +132,7 @@ function fusedNeighborhoodSelection(
     α = options.α
     abstol = options.abstol
     reltol = options.reltol
-    γ = 1./ρ
+    γ = 1. / ρ
 
     n1 = size(A1, 1)
     n2 = size(A2, 1)
@@ -174,8 +174,8 @@ function fusedNeighborhoodSelection(
         copy!(z1old, z1)
         copy!(z2old, z2)
         # update z1 and z2
-        @. T1 = α*x1 + (1.-α)*z1 + u1
-        @. T2 = α*x2 + (1.-α)*z2 + u2
+        @. T1 = α*x1 + (1. - α)*z1 + u1
+        @. T2 = α*x2 + (1. - α)*z2 + u2
         for i=1:p
             z1[i], z2[i] = proxL1Fused(T1[i], T2[i], λ1, λ2, γ)
         end

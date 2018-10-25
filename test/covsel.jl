@@ -1,8 +1,16 @@
-facts("covsel") do
+module CovSelTest
 
-  context("random") do
-    if scs && cvx
-      srand(123)
+using Test, Random
+using Distributions
+import CovSel, ProximalBase
+import SCS, JuMP
+using LinearAlgebra
+
+
+@testset "covsel" begin
+
+  @testset "random" begin
+      Random.seed!(123)
       n = 1000
       p = 10
 
@@ -30,32 +38,32 @@ facts("covsel") do
       CovSel.covsel!(X, Z, U, S, λ; penalize_diag=true)
 
       # passing in verbose=0 to hide output from SCS
-      solver = SCS.SCSSolver(verbose=0)
-      Convex.set_default_solver(solver);
+      problem = JuMP.Model(solver = SCS.SCSSolver(verbose=0))
+      JuMP.@variable(problem, Ω[1:p, 1:p], SDP)
+      JuMP.@objective(problem, Min, tr(Ω*S) - logdet(Ω) + λ * vecnorm(Ω, 1))
+      JuMP.solve(problem)
 
-      Ω = Convex.Variable(p, p)
-      problem = Convex.minimize(trace(Ω*S) - logdet(Ω) + λ * vecnorm(Ω, 1), Ω in :SDP)
-      Convex.solve!(problem)
-
-      @fact Ω.value - Z --> roughly(zeros(p,p); atol=1e-2)
-    end
+      @test JuMP.getvalue(Ω) - Z ≈ zeros(p,p) atol = 1e-2
   end
 
-  context("non random") do
+  # @testset "non random" begin
+  #
+  #   p = 10
+  #   S = eye(p)
+  #
+  #   λ = 0.5
+  #
+  #   X = zeros(Float64, (p,p))
+  #   Z = zeros(Float64, (p,p))
+  #   U = zeros(Float64, (p,p))
+  #   CovSel.covsel!(X, Z, U, S, λ; penalize_diag=false)
+  #   @fact Z --> roughly(eye(p); atol=1e-3)
+  #
+  #   CovSel.covsel!(X, Z, U, S, λ; penalize_diag=false, options=CovSel.ADMMOptions(;abstol=1e-12,reltol=1e-12))
+  #   @fact Z --> roughly(eye(p))
+  # end
 
-    p = 10
-    S = eye(p)
+end
 
-    λ = 0.5
-
-    X = zeros(Float64, (p,p))
-    Z = zeros(Float64, (p,p))
-    U = zeros(Float64, (p,p))
-    CovSel.covsel!(X, Z, U, S, λ; penalize_diag=false)
-    @fact Z --> roughly(eye(p); atol=1e-3)
-
-    CovSel.covsel!(X, Z, U, S, λ; penalize_diag=false, options=CovSel.ADMMOptions(;abstol=1e-12,reltol=1e-12))
-    @fact Z --> roughly(eye(p))
-  end
 
 end

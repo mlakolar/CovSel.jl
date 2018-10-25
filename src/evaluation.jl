@@ -1,11 +1,11 @@
-immutable ConfusionMatrix
+struct ConfusionMatrix
   tp::Int
   fp::Int
   fn::Int
   tn::Int
 end
 
-function getConfusionMatrix{T}(Δ::AbstractMatrix{T}, hΔ::AbstractMatrix{T}, thr=1e-4)
+function getConfusionMatrix(Δ::AbstractMatrix{T}, hΔ::AbstractMatrix{T}, thr=1e-4) where T
   p = size(Δ, 1)
 
   tp = fp = fn = tn = 0
@@ -33,7 +33,7 @@ function getConfusionMatrix{T}(Δ::AbstractMatrix{T}, hΔ::AbstractMatrix{T}, th
   ConfusionMatrix(tp, fp, fn, tn)
 end
 
-function getConfusionMatrix{T}(Δ::AbstractMatrix{T}, hΔ::SparseIterate{T}, thr=1e-4)
+function getConfusionMatrix(Δ::AbstractMatrix{T}, hΔ::SparseIterate{T}, thr=1e-4) where T
   p = size(Δ, 1)
 
   tp = fp = fn = tn = 0

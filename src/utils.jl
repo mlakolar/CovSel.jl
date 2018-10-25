@@ -5,7 +5,7 @@ Removes all but largest s elements in absolute value.
 Matrix X is symmetric, so we only look for the elements on or below
 the main diagonal to decide value of the s-th largest element.
 """
-function HardThreshold!{T<:AbstractFloat}(out::StridedMatrix{T}, X::StridedMatrix{T}, s::Int64, diagonal::Bool=true)
+function HardThreshold!(out::StridedMatrix{T}, X::StridedMatrix{T}, s::Int64, diagonal::Bool=true) where {T<:AbstractFloat}
   assert(size(out) == size(X))
   if s <= 0
     fill!(out, 0.)
@@ -38,7 +38,7 @@ end
 
 HardThreshold!(X::StridedMatrix, s::Int64, diagonal::Bool=true) = HardThreshold!(X, X, s, diagonal)
 
-function HardThreshold!{T<:AbstractFloat}(out::SparseIterate{T}, X::StridedMatrix{T}, s::Int64, diagonal::Bool=true)
+function HardThreshold!(out::SparseIterate{T}, X::StridedMatrix{T}, s::Int64, diagonal::Bool=true) where {T<:AbstractFloat}
 
   p = size(X, 1)
 
@@ -64,7 +64,7 @@ function HardThreshold!{T<:AbstractFloat}(out::SparseIterate{T}, X::StridedMatri
   out
 end
 
-function HardThreshold!{T<:AbstractFloat}(X::SparseIterate{T}, s::Int64)
+function HardThreshold!(X::SparseIterate{T}, s::Int64) where {T<:AbstractFloat}
 
   # find value of s-th largest element in abs(X)
   h = binary_maxheap(T)

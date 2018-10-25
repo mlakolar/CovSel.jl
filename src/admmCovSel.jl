@@ -18,7 +18,7 @@ ADMMOptions(;ρ::Float64=1.,
 # minimize  trace(S*X) - log det X + lambda*||X||_1
 #########################################################
 
-function covsel!{T<:AbstractFloat}(
+function covsel!(
   X::StridedMatrix{T},
   Z::StridedMatrix{T},
   U::StridedMatrix{T},
@@ -26,7 +26,7 @@ function covsel!{T<:AbstractFloat}(
   λ::T;
   options::ADMMOptions = ADMMOptions(),
   penalize_diag::Bool=true
-  )
+  ) where {T<:AbstractFloat}
 
   maxiter = options.maxiter
   ρ = options.ρ
@@ -75,11 +75,11 @@ function covsel!{T<:AbstractFloat}(
 end
 
 
-function covselpath{T<:AbstractFloat}(S::StridedMatrix{T},
+function covselpath(S::StridedMatrix{T},
                     λarr;
                     options::ADMMOptions = ADMMOptions(),
                     penalize_diag::Bool=true,
-                    verbose::Bool=false)
+                    verbose::Bool=false) where {T<:AbstractFloat}
   p = size(S, 1)
 
   solutionpath = Array(Array{Float64, 2}, length(λarr))

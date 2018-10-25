@@ -2,6 +2,7 @@ module Alt
 
 using ProximalBase: shrink
 using CoordinateDescent: CDOptions
+using SparseArrays
 
 function differencePrecisionNaive(Σx, Σy, λ, Ups, options = CDOptions())
   maxIter = options.maxIter
@@ -24,8 +25,8 @@ function differencePrecisionNaive(Σx, Σy, λ, Ups, options = CDOptions())
         else
           # off-diagonal elements
           x0 = (Σx[a,a]*Σy[b,b] + Σx[b,b]*Σy[a,a])/2. + Σx[a,b]*Σy[a,b]
-          x1 = A[a,b] + A[b,a] - 2.*(Σy[a,b] - Σx[a,b])
-          tmp = shrink(-x1/(2.*x0) + Δ[a,b], λ*Ups[a,b] / x0)
+          x1 = A[a,b] + A[b,a] - 2. * (Σy[a,b] - Σx[a,b])
+          tmp = shrink(-x1/(2. * x0) + Δ[a,b], λ*Ups[a,b] / x0)
         end
 
         h = tmp - Δ[a,b]
@@ -56,11 +57,11 @@ end
 
 
 
-function updateDelta!{T<:AbstractFloat}(
+function updateDelta!(
   Δ::SparseMatrixCSC{T},
   A::StridedMatrix{T}, Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
   λ::T, Ups::StridedMatrix{T},
-  options::CDOptions = CDOptions())
+  options::CDOptions = CDOptions()) where {T<:AbstractFloat}
   # Delta is a sparse matrix stored in CSC format
   # only diagonal and lower triangular elements are used
 
@@ -88,7 +89,7 @@ function updateDelta!{T<:AbstractFloat}(
           # off-diagonal elements
           ix0 = one(T) / ((Σx[rowInd,rowInd]*Σy[colInd,colInd] + Σx[colInd,colInd]*Σy[rowInd,rowInd])/2.
                             + Σx[rowInd,colInd]*Σy[rowInd,colInd])
-          x1 = A[rowInd,colInd] + A[colInd,rowInd] - 2.*(Σy[rowInd,colInd] - Σx[rowInd,colInd])
+          x1 = A[rowInd,colInd] + A[colInd,rowInd] - 2. * (Σy[rowInd,colInd] - Σx[rowInd,colInd])
           tmp = shrink(-x1*ix0/2. + vals[j], λ*Ups[rowInd,colInd] * ix0)
         end
 
@@ -130,11 +131,11 @@ function updateDelta!{T<:AbstractFloat}(
   sparse(Δ)
 end
 
-function findViolator!{T<:AbstractFloat}(
+function findViolator!(
   Δ::SparseMatrixCSC{T},
   A::StridedMatrix{T}, Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
   λ::T, Ups::StridedMatrix{T},
-  options::CDOptions = CDOptions())
+  options::CDOptions = CDOptions()) where {T<:AbstractFloat}
 
   p = size(Σx, 1)
 
@@ -158,10 +159,10 @@ function findViolator!{T<:AbstractFloat}(
 end
 
 
-function updateA!{T<:AbstractFloat}(
+function updateA!(
   A::StridedMatrix{T},
   Δ::SparseMatrixCSC{T},
-  Σx::StridedMatrix{T}, Σy::StridedMatrix{T})
+  Σx::StridedMatrix{T}, Σy::StridedMatrix{T}) where {T<:AbstractFloat}
 
   p = size(A, 1)
 
@@ -191,17 +192,17 @@ end
 
 
 
-differencePrecisionActiveShooting{T<:AbstractFloat}(
+differencePrecisionActiveShooting(
   Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
   λ::T, Ups::StridedMatrix{T},
-  options::CDOptions = CDOptions()) =
+  options::CDOptions = CDOptions()) where {T<:AbstractFloat} =
     differencePrecisionActiveShooting!(spzeros(size(Σx)...), Σx, Σy, λ, Ups, options)
 
-function differencePrecisionActiveShooting!{T<:AbstractFloat}(
+function differencePrecisionActiveShooting!(
   Δ::SparseMatrixCSC{T},
   Σx::StridedMatrix{T}, Σy::StridedMatrix{T},
   λ::T, Ups::StridedMatrix{T},
-  options::CDOptions = CDOptions())
+  options::CDOptions = CDOptions()) where {T<:AbstractFloat}
 
   maxIter = options.maxIter
   p = size(Σx, 1)
