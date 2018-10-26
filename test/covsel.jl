@@ -41,10 +41,10 @@ using LinearAlgebra
 
       # passing in verbose=0 to hide output from SCS
       # ;verbose=0
-      problem = JuMP.Model(with_optimizer(SCS.Optimizer))
+      problem = JuMP.Model(JuMP.with_optimizer(SCS.Optimizer))
       JuMP.@variable(problem, Ω[1:p, 1:p], PSD)
       JuMP.@variable(problem, t)
-      JuMP.@constraint(problem, (t, Ω) in LogDetConeSquare(p))
+      JuMP.@constraint(problem, [t; Ω] in MOI.LogDetConeSquare())
       JuMP.@objective(problem, Min, tr(Ω*S) - t + λ * norm(Ω, 1))
       JuMP.solve(problem)
 
