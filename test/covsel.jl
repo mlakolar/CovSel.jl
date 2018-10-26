@@ -3,7 +3,7 @@ module CovSelTest
 using Test, Random
 using Distributions
 import CovSel, ProximalBase
-import SCS, JuMP
+using SCS, JuMP
 using LinearAlgebra
 
 
@@ -15,7 +15,7 @@ using LinearAlgebra
       p = 10
 
       ρ = 0.5
-      covMat = eye(p)
+      covMat = Matrix(1.0I, p, p)
       for a = 1:p
         for b = a+1:p
           t = ρ^(b - a)
@@ -25,7 +25,7 @@ using LinearAlgebra
       end
       precM = inv(covMat)
 
-      sqCov = sqrtm(covMat)
+      sqCov = sqrt(covMat)
       X = randn(n, p) * sqCov
 
       S = X' * X / n
@@ -37,10 +37,15 @@ using LinearAlgebra
       U = zeros(Float64, (p,p))
       CovSel.covsel!(X, Z, U, S, λ; penalize_diag=true)
 
+      @test norm(S - inv(Z), Inf) <= λ + 1e-6
+
       # passing in verbose=0 to hide output from SCS
-      problem = JuMP.Model(solver = SCS.SCSSolver(verbose=0))
-      JuMP.@variable(problem, Ω[1:p, 1:p], SDP)
-      JuMP.@objective(problem, Min, tr(Ω*S) - logdet(Ω) + λ * vecnorm(Ω, 1))
+      # ;verbose=0
+      problem = JuMP.Model(with_optimizer(SCS.Optimizer))
+      JuMP.@variable(problem, Ω[1:p, 1:p], PSD)
+      JuMP.@variable(problem, t)
+      JuMP.@constraint(problem, (t, Ω) in LogDetConeSquare(p))
+      JuMP.@objective(problem, Min, tr(Ω*S) - t + λ * norm(Ω, 1))
       JuMP.solve(problem)
 
       @test JuMP.getvalue(Ω) - Z ≈ zeros(p,p) atol = 1e-2

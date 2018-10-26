@@ -48,7 +48,7 @@ function covsel!(
     prox!(g, X, tmpStorage, γ)
 
     # z-update with relaxation
-    copy!(Zold, Z)
+    copyto!(Zold, Z)
     @. tmpStorage = α*X + (one(T)-α)*Z + U
     @inbounds for c=1:p
       for r=1:c-1
@@ -65,8 +65,8 @@ function covsel!(
     # check convergence
     r_norm = norm_diff(X, Z, 2)
     s_norm = norm_diff(Z, Zold, 2) * sqrt(ρ)
-    eps_pri = p*abstol + reltol * max( vecnorm(X), vecnorm(Z) )
-    eps_dual = p*abstol + reltol * ρ * vecnorm(U)
+    eps_pri = p*abstol + reltol * max( norm(X), norm(Z) )
+    eps_dual = p*abstol + reltol * ρ * norm(U)
     if r_norm < eps_pri && s_norm < eps_dual
       break
     end
