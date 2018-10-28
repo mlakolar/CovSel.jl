@@ -183,7 +183,7 @@ end
 function differencePrecisionRefit(
   Σx::Symmetric{T},
   Σy::Symmetric{T},
-  S::Vector{Int64},
+  S,
   options=CDOptions()
   ) where T
 
@@ -191,7 +191,8 @@ function differencePrecisionRefit(
   t = CoordinateDescent.numCoordinates(f)
   ω = ones(T, t) * 1e10
   for i=S
-    r,c = ind2sub(Σx, i)
+    # r,c = ind2sub(Σx, i)
+    r, c = Tuple(CartesianIndices(Σx)[i])
     if r >= c
       ind = sub2indLowerTriangular(f.p, r, c)
       ω[ind] = 0.
@@ -248,7 +249,8 @@ function CoordinateDescent.gradient(
   Σx = f.Σx
   Σy = f.Σy
   A = f.A
-  ri, ci = ind2sub(Σx, j)
+  # ri, ci = ind2sub(Σx, j)
+  ri, ci = Tuple(CartesianIndices(Σx)[j])
   @inbounds v = A[ri,ci]
   return ri == f.a && ci == f.b ? v - 1. : v
 end
@@ -265,7 +267,8 @@ function CoordinateDescent.descendCoordinate!(
   A = f.A
   p = size(Σx, 1)
 
-  ri, ci = ind2sub(Σx, j)
+  # ri, ci = ind2sub(Σx, j)
+  ri, ci = Tuple(CartesianIndices(Σx)[j])
 
   a = zero(T)
   b = zero(T)

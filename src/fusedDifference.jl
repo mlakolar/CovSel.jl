@@ -46,8 +46,8 @@ function fusedGraphicalLasso!(
         @. Ty = Zy - Uy
         prox!(gy, Θy, Ty, γy)
 
-        copy!(Zxold, Zx)
-        copy!(Zyold, Zy)
+        copyto!(Zxold, Zx)
+        copyto!(Zyold, Zy)
         # update Zx and Zy with relaxation
         # α⋅X + (1-α)⋅Z
         @. Tx = α * Θx + (1. - α)*Zx + Ux
@@ -73,8 +73,8 @@ function fusedGraphicalLasso!(
         # check convergence
         r_norm = norm_diff(Θx, Zx, 2) + norm_diff(Θy, Zy, 2)
         s_norm = (norm_diff(Zx, Zxold, 2) + norm_diff(Zy, Zyold, 2)) * sqrt(ρ)
-        eps_pri = p*abstol + reltol * max( vecnorm(Θx) + vecnorm(Θy), vecnorm(Zx) + vecnorm(Zy))
-        eps_dual = p*abstol + reltol * ρ * ( vecnorm(Ux) + vecnorm(Uy) )
+        eps_pri = p*abstol + reltol * max( norm(Θx) + norm(Θy), norm(Zx) + norm(Zy))
+        eps_dual = p*abstol + reltol * ρ * ( norm(Ux) + norm(Uy) )
         if r_norm < eps_pri && s_norm < eps_dual
             break
         end
@@ -123,9 +123,9 @@ function fusedNeighborhoodSelection(
     options::ADMMOptions = ADMMOptions()
     )
 
-    assert(size(A1, 2) == size(A2, 2))
-    assert(size(A1, 1) == length(b1))
-    assert(size(A2, 1) == length(b2))
+    @assert size(A1, 2) == size(A2, 2)
+    @assert size(A1, 1) == length(b1)
+    @assert size(A2, 1) == length(b2)
 
     maxiter = options.maxiter
     ρ = options.ρ
@@ -144,8 +144,8 @@ function fusedNeighborhoodSelection(
         AtA1[i,i] += ρ
         AtA2[i,i] += ρ
     end
-    cAtA1 = cholfact!(AtA1)
-    cAtA2 = cholfact!(AtA2)
+    cAtA1 = cholesky!(AtA1, Val(false))
+    cAtA2 = cholesky!(AtA2, Val(false))
 
     Atb1 = A1'*b1 / n1
     Atb2 = A2'*b2 / n2
@@ -171,8 +171,8 @@ function fusedNeighborhoodSelection(
         @. T2 = Atb2 + (z2 - u2) * ρ
         x2 = cAtA2 \ T2
 
-        copy!(z1old, z1)
-        copy!(z2old, z2)
+        copyto!(z1old, z1)
+        copyto!(z2old, z2)
         # update z1 and z2
         @. T1 = α*x1 + (1. - α)*z1 + u1
         @. T2 = α*x2 + (1. - α)*z2 + u2
@@ -187,8 +187,8 @@ function fusedNeighborhoodSelection(
         # check convergence
         r_norm = norm_diff(x1, z1, 2) + norm_diff(x2, z2, 2)
         s_norm = (norm_diff(z1, z1old, 2) + norm_diff(z2, z2old, 2)) * sqrt(ρ)
-        eps_pri = sqrt(p)*abstol + reltol * max( vecnorm(x1) + vecnorm(x2), vecnorm(z1) + vecnorm(z2))
-        eps_dual = sqrt(p)*abstol + reltol * ρ *( vecnorm(u1) + vecnorm(u2) )
+        eps_pri = sqrt(p)*abstol + reltol * max( norm(x1) + norm(x2), norm(z1) + norm(z2))
+        eps_dual = sqrt(p)*abstol + reltol * ρ *( norm(u1) + norm(u2) )
         if r_norm < eps_pri && s_norm < eps_dual
             break
         end

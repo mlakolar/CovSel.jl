@@ -1,16 +1,17 @@
 module CovSelTest
 
-using Test, Random
-using Distributions
+using Test, Random, LinearAlgebra, Distributions
 import CovSel, ProximalBase
-using SCS, JuMP
-using LinearAlgebra
+using MathOptInterface
+const MOI = MathOptInterface
+using JuMP, SCS
+
+Random.seed!(123)
 
 
-@testset "covsel" begin
+@testset "random" begin
+  for REP=1:10
 
-  @testset "random" begin
-      Random.seed!(123)
       n = 1000
       p = 10
 
@@ -37,38 +38,50 @@ using LinearAlgebra
       U = zeros(Float64, (p,p))
       CovSel.covsel!(X, Z, U, S, λ; penalize_diag=true)
 
-      @test norm(S - inv(Z), Inf) <= λ + 1e-6
-
       # passing in verbose=0 to hide output from SCS
-      # ;verbose=0
-      problem = JuMP.Model(JuMP.with_optimizer(SCS.Optimizer))
-      JuMP.@variable(problem, Ω[1:p, 1:p], PSD)
-      JuMP.@variable(problem, t)
-      JuMP.@constraint(problem, [t; Ω] in MOI.LogDetConeSquare())
-      JuMP.@objective(problem, Min, tr(Ω*S) - t + λ * norm(Ω, 1))
-      JuMP.solve(problem)
+      problem = Model(JuMP.with_optimizer(SCS.Optimizer, verbose=0))
+      @variable(problem, Ω[1:p, 1:p], PSD)
+      @variable(problem, lg_det)
+      @variable(problem, B[1:p, 1:p])
 
-      @test JuMP.getvalue(Ω) - Z ≈ zeros(p,p) atol = 1e-2
+      indOffDiag = Vector{Int64}(undef, 0)
+      ind = 0
+      for col = 1:p
+          for row = 1:p
+              ind += 1
+              if row <= col
+                  push!(indOffDiag, ind)
+              end
+          end
+      end
+
+      @constraint(problem, [lg_det; Ω[indOffDiag]] in MOI.LogDetConeTriangle(p))
+      @constraint(problem, Ω .<= B)
+      @constraint(problem, -Ω .<= B)
+
+      @objective(problem, Min, tr(Ω*S) - lg_det + λ * sum(B))
+      optimize!(problem)
+
+      @test JuMP.result_value.(Ω) - Z ≈ zeros(p,p) atol = 1e-2
   end
-
-  # @testset "non random" begin
-  #
-  #   p = 10
-  #   S = eye(p)
-  #
-  #   λ = 0.5
-  #
-  #   X = zeros(Float64, (p,p))
-  #   Z = zeros(Float64, (p,p))
-  #   U = zeros(Float64, (p,p))
-  #   CovSel.covsel!(X, Z, U, S, λ; penalize_diag=false)
-  #   @fact Z --> roughly(eye(p); atol=1e-3)
-  #
-  #   CovSel.covsel!(X, Z, U, S, λ; penalize_diag=false, options=CovSel.ADMMOptions(;abstol=1e-12,reltol=1e-12))
-  #   @fact Z --> roughly(eye(p))
-  # end
-
 end
+
+@testset "non random" begin
+    p = 10
+    S = Matrix(1.0I, p, p)
+
+    λ = 0.5
+
+    X = zeros(Float64, (p,p))
+    Z = zeros(Float64, (p,p))
+    U = zeros(Float64, (p,p))
+    CovSel.covsel!(X, Z, U, S, λ; penalize_diag=false)
+    @test Z ≈ S atol=1e-3
+
+    CovSel.covsel!(X, Z, U, S, λ; penalize_diag=false, options=CovSel.ADMMOptions(;abstol=1e-12,reltol=1e-12))
+    @test Z ≈ S
+end
+
 
 
 end

@@ -1,27 +1,35 @@
+module DirectDiffTest
+
+using Test, Random, LinearAlgebra, SparseArrays
+using Distributions
+import CovSel, ProximalBase, CoordinateDescent
 
 
-facts("direct_difference_estimation") do
+Random.seed!(123)
 
-  function genData(p)
-    srand(123)
-    Sigmax = eye(p,p)
-    Sigmay = zeros(p,p)
-    rho = 0.7
-    for i=1:p
-      for j=1:p
-        Sigmay[i,j]=rho^abs(i-j)
-      end
+function genData(p)
+  Sigmax = Matrix(1.0I, p, p)
+  Sigmay = zeros(p,p)
+  rho = 0.7
+  for i=1:p
+    for j=1:p
+      Sigmay[i,j]=rho^abs(i-j)
     end
-    sqmy = sqrtm(Sigmay)
-    n = 1000
-    X = randn(n,p)
-    Y = randn(n,p) * sqmy;
-    hSx = cov(X)
-    hSy = cov(Y)
-    hSx, hSy
   end
+  sqmy = sqrt(Sigmay)
+  n = 1000
+  X = randn(n,p)
+  Y = randn(n,p) * sqmy;
+  hSx = cov(X)
+  hSy = cov(Y)
+  hSx, hSy
+end
 
-  context("small") do
+
+
+@testset "direct_difference_estimation" begin
+
+  @testset "small" begin
     # simple model that differes in only one edge
     p = 10
     hSx, hSy = genData(p)
@@ -36,26 +44,26 @@ facts("direct_difference_estimation") do
       solShoot = CovSel.Alt.differencePrecisionNaive(hSx, hSy, λ, tmp)
       solShoot1 = CovSel.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), g)
 
-      @fact maximum(abs.(full(solShoot1) - solShoot)) --> roughly(0.; atol=1e-5)
+      @test convert(Matrix, solShoot1) ≈ convert(Matrix, solShoot) atol=1e-5
     end
   end
 
-  context("loss") do
+  @testset "loss" begin
     for rep=1:5
       p = 10
       hSx, hSy = genData(p)
 
       A = sprand(p, p, 0.15)
       A = (A + A') / 2.
-      As = convert(ProximalBase.SymmetricSparseIterate, A)
+      As = ProximalBase.SymmetricSparseIterate(A)
 
-      @fact CovSel.diffLoss(Symmetric(hSx), As, Symmetric(hSy), 2) - vecnorm(hSx*A*hSy, 2)--> roughly(0.; atol=1e-12)
-      @fact CovSel.diffLoss(Symmetric(hSx), As, Symmetric(hSy), Inf) - vecnorm(hSx*A*hSy, Inf) --> roughly(0.; atol=1e-12)
-      @fact_throws CovSel.diffLoss(Symmetric(hSx), As, Symmetric(hSy), 3) ArgumentError
+      @test CovSel.diffLoss(Symmetric(hSx), As, Symmetric(hSy), 2)  ≈ norm(hSx*A*hSy, 2) atol=1e-12
+      @test CovSel.diffLoss(Symmetric(hSx), As, Symmetric(hSy), Inf) ≈ norm(hSx*A*hSy, Inf) atol=1e-12
+      @test_throws ArgumentError CovSel.diffLoss(Symmetric(hSx), As, Symmetric(hSy), 3)
     end
   end
 
-  context("invert Kroneker") do
+  @testset "invert Kroneker" begin
     for rep=1:50
       p = 20
       hSx, hSy = genData(p)
@@ -78,40 +86,33 @@ facts("direct_difference_estimation") do
         CoordinateDescent.coordinateDescent!(x, f, g, CoordinateDescent.CDOptions(;maxIter=5000, optTol=1e-12))
         CoordinateDescent.coordinateDescent!(x1, f1, g, CoordinateDescent.CDOptions(;maxIter=5000, optTol=1e-12))
 
-        @fact full(x) - full(x1) --> roughly(zeros(p*p); atol=1e-7)
+        @test convert(Vector, x) ≈ convert(Vector, x1) atol=1e-7
       end
     end
   end
 
-  context("refit") do
-    if cvx && grb
+  @testset "refit" begin
       for rep=1:50
-        p = 10
+        p = 3
         hSx, hSy = genData(p)
 
-        Convex.set_default_solver(Gurobi.GurobiSolver(OutputFlag=0))
-        Delta = Convex.Variable(p,p);
-
-        S = sprand(p, p, 0.1)
+        S = sprand(p, p, 0.2)
         S = S + S' / 2
-        indS = find(S)
+        indS = findall(x->x!=0, S)
+        ilin = LinearIndices(S)[indS]
+
 
         opt = CoordinateDescent.CDOptions(;maxIter=5000, optTol=1e-12, randomize=true)
         x = CovSel.differencePrecisionRefit(Symmetric(hSx), Symmetric(hSy), indS)
 
-        prob = Convex.minimize(Convex.quadform(vec(Delta), kron(hSy,hSx)) / 2 - trace((hSy-hSx)*Delta))
-        prob.constraints += [Delta == Delta']
-        for i=1:p*p
-          if S[i] == 0.
-            prob.constraints += [Delta[i] == 0.]
-          end
-        end
-        Convex.solve!(prob)
-
-        @fact maximum(abs.(Delta.value - x)) --> roughly(0.; atol=1e-3)
+        x1 = spzeros(p, p)
+        x1[ilin] = (0.5 * (kron(hSy, hSx)[ilin, ilin] + kron(hSx, hSy)[ilin, ilin])) \ (hSy - hSx)[ilin]
+        @test convert(Matrix, x1) ≈ convert(Matrix, x) atol = 1e-4
       end
-    end
   end
+
+
+end
 
 
 end
