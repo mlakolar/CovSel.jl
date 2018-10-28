@@ -41,7 +41,7 @@ version = "1.3.0"
 deps = ["DataStructures", "LinearAlgebra", "ProximalBase", "SparseArrays", "Statistics"]
 git-tree-sha1 = "32352a50b0f87fd09458a58fe19617fbb08887a5"
 repo-rev = "master"
-repo-url = "git@github.com:mlakolar/CoordinateDescent.jl.git"
+repo-url = "https://github.com/mlakolar/CoordinateDescent.jl.git"
 uuid = "af3e6e94-ae3f-11e8-2d74-f149f5661110"
 version = "0.1.0"
 
@@ -171,7 +171,7 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 deps = ["Distributions", "Ipopt", "JuMP", "LinearAlgebra", "Random", "SparseArrays", "Statistics", "Test"]
 git-tree-sha1 = "54cf93e709c16eb25f4703898684454384631543"
 repo-rev = "master"
-repo-url = "git@github.com:mlakolar/ProximalBase.jl.git"
+repo-url = "https://github.com/mlakolar/ProximalBase.jl.git"
 uuid = "e46f183a-ae2f-11e8-253c-bfe2254e1c56"
 version = "0.1.0"
 
