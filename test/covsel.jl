@@ -55,7 +55,7 @@ Random.seed!(123)
           end
       end
 
-      @constraint(problem, [lg_det; Ω[indOffDiag]] in MOI.LogDetConeTriangle(p))
+      @constraint(problem, [lg_det; 1; Ω[indOffDiag]] in MOI.LogDetConeTriangle(p))
       @constraint(problem, Ω .<= B)
       @constraint(problem, -Ω .<= B)
 
