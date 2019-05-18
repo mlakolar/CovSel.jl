@@ -61,9 +61,9 @@ Random.seed!(123)
       @objective(problem, Min, tr(Ω*S) - lg_det + λ * sum(B))
       optimize!(problem)
 
-      Ωv = value.(Ω)
+      Ωv = JuMP.value.(Ω)
 
-      @test tr(Z*S) - logdet(Z) + λ * sum(abs, Z) < tr(Ωv*S) - logdet(Ωv) + λ * sum(abs, Ωv)      
+      @test tr(Z*S) - logdet(Z) + λ * sum(abs, Z) < tr(Ωv*S) - logdet(Ωv) + λ * sum(abs, Ωv)
       #@test JuMP.value.(Ω) - Z ≈ zeros(p,p) atol = 1e-2
   end
 end
