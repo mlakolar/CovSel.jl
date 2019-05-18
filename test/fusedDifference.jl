@@ -48,8 +48,8 @@ Random.seed!(123)
             end
         end
     end
-    @constraint(problem, [lg_det_x; Ωx[indOffDiag]] in MOI.LogDetConeTriangle(p))
-    @constraint(problem, [lg_det_y; Ωy[indOffDiag]] in MOI.LogDetConeTriangle(p))
+    @constraint(problem, [lg_det_x; 1; Ωx[indOffDiag]] in MOI.LogDetConeTriangle(p))
+    @constraint(problem, [lg_det_y; 1; Ωy[indOffDiag]] in MOI.LogDetConeTriangle(p))
 
     @constraint(problem,  Ωx .<= Bx)
     @constraint(problem, -Ωx .<= Bx)
@@ -82,8 +82,14 @@ Random.seed!(123)
             )
         optimize!(problem)
 
-        @test JuMP.result_value.(Ωx) - Zx ≈ zeros(p,p) atol = 1e-2
-        @test JuMP.result_value.(Ωy) - Zy ≈ zeros(p,p) atol = 1e-2
+        Ωxv = value.(Ωx)
+        Ωyv = value.(Ωy)
+        myv = (tr(Zx*Sx) - logdet(Zx) + tr(Zy*Sy) - logdet(Zy)) / 2. + λ1 * (sum(abs, Zx) + sum(abs, Zy)) + λ2 * sum(abs, Zx - Zy)
+        scsv = (tr(Ωxv*Sx) - logdet(Ωxv) + tr(Ωyv*Sy) - logdet(Ωyv)) / 2. + λ1 * (sum(abs, Ωxv) + sum(abs, Ωyv)) + λ2 * sum(abs, Ωxv - Ωyv)
+        @test myv - scsv < 0.
+
+        # @test JuMP.value.(Ωx) - Zx ≈ zeros(p,p) atol = 1e-2
+        # @test JuMP.value.(Ωy) - Zy ≈ zeros(p,p) atol = 1e-2
     end
 
 end
@@ -130,8 +136,8 @@ end
     @objective(problem, Min, (sum((X[:,1] - X[:,2:p]*xj1) .^ 2) + sum((Y[:,1] - Y[:,2:p]*xj2) .^ 2)) / (2. * n) + λ1 * (sum(t1)+sum(t2)) + λ2 * sum(t3))
     optimize!(problem)
 
-    @test JuMP.result_value.(xj1) - z1 ≈ zeros(p-1) atol=3e-5
-    @test JuMP.result_value.(xj2) - z2 ≈ zeros(p-1) atol=3e-5
+    @test JuMP.value.(xj1) - z1 ≈ zeros(p-1) atol=3e-5
+    @test JuMP.value.(xj2) - z2 ≈ zeros(p-1) atol=3e-5
   end
 end
 
