@@ -1,8 +1,8 @@
 
 tests = [
-  # "covsel",
+  "covsel",
   "directDifference",
-  # "fusedDifference"
+  "fusedDifference"
 ]
 
 for t in tests
