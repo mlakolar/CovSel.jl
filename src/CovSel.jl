@@ -1,7 +1,7 @@
 module CovSel
 
 using ProximalBase
-using DataStructures: binary_maxheap
+using DataStructures: BinaryMaxHeap
 using CoordinateDescent, Distributions
 using Printf, SparseArrays, LinearAlgebra
 

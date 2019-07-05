@@ -14,7 +14,7 @@ function HardThreshold!(out::StridedMatrix{T}, X::StridedMatrix{T}, s::Int64, di
     p = size(X, 1)
 
     # find value of s-th largest element in abs(X)
-    h = binary_maxheap(T)
+    h = BinaryMaxHeap(T)
     for c=1:p, r=(diagonal ? c : c + 1):p
         push!(h, abs(X[r,c]))
     end
@@ -43,7 +43,7 @@ function HardThreshold!(out::SparseIterate{T}, X::StridedMatrix{T}, s::Int64, di
   p = size(X, 1)
 
   # find value of s-th largest element in abs(X)
-  h = binary_maxheap(T)
+  h = BinaryMaxHeap(T)
   for c=1:p, r=(diagonal ? c : c + 1):p
       push!(h, abs(X[r,c]))
   end
@@ -67,7 +67,7 @@ end
 function HardThreshold!(X::SparseIterate{T}, s::Int64) where {T<:AbstractFloat}
 
   # find value of s-th largest element in abs(X)
-  h = binary_maxheap(T)
+  h = BinaryMaxHeap(T)
   for i=1:nnz(X)
       push!(h, abs(X.nzval[i]))
   end
