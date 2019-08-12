@@ -397,7 +397,7 @@ end
 function CDInverseReducedSymKroneckerLoss(Σx::Symmetric{T,S}, Σy::Symmetric{T,S}, ind::Int) where {T<:AbstractFloat} where S
   (issymmetric(Σx) && issymmetric(Σy)) || throw(DimensionMismatch())
   (p = size(Σx, 1)) == size(Σy, 1) || throw(DimensionMismatch())
-  CDInverseSymKroneckerLoss{T,S}(Σx, Σy, zeros(T, p, p), zeros(T, p, p), ind, p)
+  CDInverseReducedSymKroneckerLoss{T,S}(Σx, Σy, zeros(T, p, p), zeros(T, p, p), ind, p)
 end
 
 CoordinateDescent.numCoordinates(f::CDInverseReducedSymKroneckerLoss) = div((f.p + 1) * f.p, 2)
@@ -472,9 +472,14 @@ function CoordinateDescent.descendCoordinate!(
 
   a = zero(T)
   b = zero(T)
-  @inbounds a = (Σx[ri,ri] * Σy[ci,ci] + Σx[ci,ci] * Σy[ri,ri]) / 2.
-  @inbounds b = (A[ri,ci] + B[ri,ci]) / 2.
-  b = ri == f.a && ci == f.b ? b - 1. : b
+  if ri == ci
+    @inbounds a = Σx[ri,ri] * Σy[ci,ci]
+    @inbounds b = (A[ri,ri] + B[ri,ri]) / 2.
+  else
+    @inbounds a = (Σx[ri,ri] * Σy[ci,ci] + Σx[ci,ci] * Σy[ri,ri]) / 2. + Σx[ri,ci] * Σy[ri,ci]
+    @inbounds b = (A[ri,ci] + B[ri,ci]) / sqrt(2.)
+  end
+  b = j == f.ind ? b - 1. : b
 
   @inbounds oldVal = x[j]
   a = one(T) / a
@@ -483,9 +488,17 @@ function CoordinateDescent.descendCoordinate!(
   h = newVal - oldVal
 
   # update internals
-  for ac=1:p, ar=1:p
-    @inbounds A[ar, ac] += h * Σx[ar, ri] * Σy[ci, ac]
-    @inbounds B[ar, ac] += h * Σy[ar, ri] * Σx[ci, ac]
+  if ri == ci
+    for ac=1:p, ar=1:p
+      @inbounds A[ar, ac] += h * Σx[ar, ri] * Σy[ri, ac]
+      @inbounds B[ar, ac] += h * Σy[ar, ri] * Σx[ri, ac]
+    end
+  else
+    _c = h / sqrt(2.)
+    for ac=1:p, ar=1:p
+      @inbounds A[ar, ac] += _c * (Σx[ar, ri] * Σy[ci, ac] + Σx[ar, ci] * Σy[ri, ac])
+      @inbounds B[ar, ac] += _c * (Σy[ar, ri] * Σx[ci, ac] + Σy[ar, ci] * Σx[ri, ac])
+    end
   end
   h
 end
