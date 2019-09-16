@@ -17,7 +17,7 @@ export
 
   # Direct Difference Estimation and Inference
   differencePrecisionActiveShooting, differencePrecisionActiveShooting!, differencePrecisionRefit,
-  CDInverseKroneckerLoss, CDInverseSymKroneckerLoss, CDInverseReducedSymKroneckerLoss, CDDirectDifferenceLoss,
+  CDDirectDifferenceLoss,
 
   differencePrecisionIHT,
   differenceLatentPrecisionIHT

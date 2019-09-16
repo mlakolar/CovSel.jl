@@ -41,11 +41,11 @@ version = "2.1.0"
 
 [[CoordinateDescent]]
 deps = ["DataStructures", "LinearAlgebra", "ProximalBase", "SparseArrays", "Statistics"]
-git-tree-sha1 = "b363944a408a67ab0c3e28524679fd4d424f618c"
+git-tree-sha1 = "bbc84edb73ba30f97de925c88fffdd7e7ffbd748"
 repo-rev = "master"
-repo-url = "https://github.com/mlakolar/CoordinateDescent.jl.git"
-uuid = "af3e6e94-ae3f-11e8-2d74-f149f5661110"
-version = "0.1.0"
+repo-url = "https://github.com/mlakolar/CoordinateDescent.jl"
+uuid = "c00ed354-b9be-54b8-8a23-c5ac771bc43a"
+version = "0.2.0"
 
 [[DataAPI]]
 git-tree-sha1 = "8903f0219d3472543fc4b2f5ebaf675a07f817c0"
@@ -142,10 +142,9 @@ uuid = "fdba3010-5040-5b88-9595-932c9decdf73"
 version = "0.7.7"
 
 [[Missings]]
-deps = ["SparseArrays", "Test"]
-git-tree-sha1 = "f0719736664b4358aa9ec173077d4285775f8007"
+git-tree-sha1 = "29858ce6c8ae629cf2d733bffa329619a1c843d0"
 uuid = "e1d29d7a-bbdc-5cf2-9ac0-f12de2c33e28"
-version = "0.4.1"
+version = "0.4.2"
 
 [[Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
@@ -164,9 +163,9 @@ version = "1.1.0"
 
 [[PDMats]]
 deps = ["Arpack", "LinearAlgebra", "SparseArrays", "SuiteSparse", "Test"]
-git-tree-sha1 = "9d6a9b3e19634612fb1edcafc4b1d75242b24bde"
+git-tree-sha1 = "035f8d60ba2a22cb1d2580b1e0e5ce0cb05e4563"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
-version = "0.9.9"
+version = "0.9.10"
 
 [[Pkg]]
 deps = ["Dates", "LibGit2", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
@@ -178,11 +177,11 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[ProximalBase]]
 deps = ["Distributions", "Ipopt", "JuMP", "LinearAlgebra", "Random", "SparseArrays", "Statistics", "Test"]
-git-tree-sha1 = "508b507e0d0e8a47f21c494ffc510a1e25c86fd3"
+git-tree-sha1 = "5e4ffe3e18690503106d417053443f8562dbdb6d"
 repo-rev = "master"
-repo-url = "https://github.com/mlakolar/ProximalBase.jl.git"
-uuid = "e46f183a-ae2f-11e8-253c-bfe2254e1c56"
-version = "0.1.0"
+repo-url = "https://github.com/mlakolar/ProximalBase.jl"
+uuid = "0a755509-c5b1-5d6f-9b24-59bcda3c37a3"
+version = "0.2.0"
 
 [[QuadGK]]
 deps = ["DataStructures", "LinearAlgebra", "Test"]
