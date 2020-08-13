@@ -26,7 +26,7 @@ Random.seed!(123)
     Y = randn(n, p) * sqrt(Sigma_y)
 
     # passing in verbose=0 to hide output from SCS
-    problem = Model(with_optimizer(SCS.Optimizer, verbose=0))
+    problem = Model(optimizer_with_attributes(SCS.Optimizer, "verbose" => 0))
 
     Sx = cov(X)
     Sy = cov(Y)
@@ -111,7 +111,7 @@ end
   X = randn(n, p)
   Y = randn(n, p) * sqrt(Sigma_y)
 
-  problem = Model(with_optimizer(Ipopt.Optimizer, print_level=0))
+  problem = Model(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0))
 
   # m = JuMP.Model(solver=Gurobi.GurobiSolver(OutputFlag=0))
   @variable(problem, xj1[1:p-1])

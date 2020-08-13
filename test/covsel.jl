@@ -38,7 +38,7 @@ Random.seed!(123)
       CovSel.covsel!(X, Z, U, S, λ; penalize_diag=true)
 
       # passing in verbose=0 to hide output from SCS
-      problem = Model(JuMP.with_optimizer(SCS.Optimizer, verbose=0))
+      problem = Model(JuMP.optimizer_with_attributes(SCS.Optimizer, "verbose" => 0))
       @variable(problem, Ω[1:p, 1:p], PSD)
       @variable(problem, lg_det)
       @variable(problem, B[1:p, 1:p])
@@ -63,8 +63,8 @@ Random.seed!(123)
 
       Ωv = JuMP.value.(Ω)
 
-      @test tr(Z*S) - logdet(Z) + λ * sum(abs, Z) < tr(Ωv*S) - logdet(Ωv) + λ * sum(abs, Ωv)
-      #@test JuMP.value.(Ω) - Z ≈ zeros(p,p) atol = 1e-2
+      @test tr(Z*S) - logdet(Z) + λ * sum(abs, Z) ≈ tr(Ωv*S) - logdet(Ωv) + λ * sum(abs, Ωv) atol = 1e-3
+      @test JuMP.value.(Ω) - Z ≈ zeros(p,p) atol = 1e-2
   end
 end
 
