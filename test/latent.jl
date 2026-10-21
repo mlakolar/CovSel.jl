@@ -57,6 +57,8 @@ Random.seed!(11)
         epsTol=1e-10, maxIter=200, checkEvery=5, callback=(Σ, S, L) -> (calls[] += 1))
     @test calls[] == iter
     @test L ≈ U * U'
+    @test issymmetric(S)
+    @test isposdef(Symmetric(S + L))
     @test count(!iszero, tril(S, -1)) <= 1
     @test fvals[end] <= fvals[1]
     @test CovSel.covSel_objective(Σ, S, L) >= CovSel.covSel_objective(Σ, inv(Σ)) - 1e-8

@@ -19,7 +19,7 @@ IHTOptions(;epsTol::Real=1e-2, maxIter::Integer=500, checkEvery::Integer=10) =
 
   # gradient of tr(Σ(S + L)) - log det(S + L) with respect to S
   function covselLatentIHT_grad_S!(gS, Σ, S, L)
-    gS .= Σ - inv(S + L)
+    gS .= Symmetric(Σ) - inv(Symmetric(S + L))
     gS
   end
 

@@ -25,6 +25,11 @@ Random.seed!(1)
     # asking for more entries than there are keeps everything
     @test CovSel.HardThreshold!(copy(X), 100) == X
     @test_throws DimensionMismatch CovSel.HardThreshold!(zeros(2, 2), X, 1)
+
+    # the support stays symmetric when the upper triangle differs by roundoff
+    Y = copy(X)
+    Y[2, 3] = nextfloat(Y[2, 3])
+    @test CovSel.HardThreshold!(similar(Y), Y, 3) == [4.0 0 0; 0 3.0 Y[2, 3]; 0 -2.5 0]
   end
 
   @testset "sparse iterates" begin
