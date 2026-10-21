@@ -6,6 +6,19 @@
 # currently implements only two groups
 ###############################
 
+"""
+    fusedGraphicalLasso(Σx, nx, Σy, ny, λ1, λ2; options=ADMMOptions(), penalize_diag=true)
+    fusedGraphicalLasso!(Θx, Θy, Zx, Zy, Ux, Uy, Σx, nx, Σy, ny, λ1, λ2; options=ADMMOptions(), penalize_diag=true)
+
+Fused graphical lasso (Danaher, Wang and Witten, 2014) for two groups by ADMM:
+
+    minimize  Σₖ nₖ/n⋅(tr(Σₖ Ωₖ) - log det Ωₖ) + λ1 (‖Ωx‖₁ + ‖Ωy‖₁) + λ2 ‖Ωx - Ωy‖₁
+
+where `Σx`, `Σy` are the sample covariances from `nx` and `ny` observations
+and `n = nx + ny`. With `penalize_diag=false` the diagonal is excluded from
+the λ1 penalty. In the in-place version `Θ`, `Z` and `U` are the ADMM iterates.
+Returns `(Zx, Zy)`, the sparse estimates of the precision matrices.
+"""
 function fusedGraphicalLasso!(
     Θx::StridedMatrix{T}, Θy::StridedMatrix{T},
     Zx::StridedMatrix{T}, Zy::StridedMatrix{T},
@@ -23,17 +36,18 @@ function fusedGraphicalLasso!(
     reltol = options.reltol
 
     n = nx + ny
-    γ = 1. / ρ
+    γ = T(1 / ρ)
     γx = nx * γ / n
     γy = ny * γ / n
+    l1, l2 = T(λ1), T(λ2)
 
     p = size(Σx, 1)
 
     gx = ProxGaussLikelihood(Symmetric(Σx))
     gy = ProxGaussLikelihood(Symmetric(Σy))
 
-    Tx = zeros(p, p)  # temp storage
-    Ty = zeros(p, p)  # temp storage
+    Tx = zeros(T, p, p)  # temp storage
+    Ty = zeros(T, p, p)  # temp storage
 
     Zxold = copy(Zx)
     Zyold = copy(Zy)
@@ -50,16 +64,16 @@ function fusedGraphicalLasso!(
         copyto!(Zyold, Zy)
         # update Zx and Zy with relaxation
         # α⋅X + (1-α)⋅Z
-        @. Tx = α * Θx + (1. - α)*Zx + Ux
-        @. Ty = α * Θy + (1. - α)*Zy + Uy
+        @. Tx = α * Θx + (1 - α)*Zx + Ux
+        @. Ty = α * Θy + (1 - α)*Zy + Uy
         for i=1:p
             for j=i:p
                 if i==j
-                    z1, z2 = proxL1Fused(Tx[i,i], Ty[i,i], penalize_diag ? λ1 : 0., λ2, γ)
+                    z1, z2 = proxL1Fused(Tx[i,i], Ty[i,i], penalize_diag ? l1 : zero(T), l2, γ)
                     Zx[i,i] = z1
                     Zy[i,i] = z2
                 else
-                    z1, z2 = proxL1Fused(Tx[i,j], Ty[i,j], λ1, λ2, γ)
+                    z1, z2 = proxL1Fused(Tx[i,j], Ty[i,j], l1, l2, γ)
                     Zx[i,j] = Zx[j,i] = z1
                     Zy[i,j] = Zy[j,i] = z2
                 end
@@ -92,12 +106,12 @@ function fusedGraphicalLasso(
 
     p = size(Σx, 1)
 
-    Θx = eye(p)
-    Θy = eye(p)
-    Zx = zeros(p, p)
-    Zy = zeros(p, p)
-    Ux = zeros(p, p)
-    Uy = zeros(p, p)
+    Θx = Matrix{T}(I, p, p)
+    Θy = Matrix{T}(I, p, p)
+    Zx = zeros(T, p, p)
+    Zy = zeros(T, p, p)
+    Ux = zeros(T, p, p)
+    Uy = zeros(T, p, p)
 
     fusedGraphicalLasso!(
     Θx, Θy,
@@ -116,6 +130,16 @@ end
 # ADMM implementation of NIPS paper
 ####################################
 
+"""
+    fusedNeighborhoodSelection(A1, b1, A2, b2, λ1, λ2; options=ADMMOptions())
+
+Fused neighborhood selection for one node in two groups by ADMM:
+
+    minimize  ‖b1 - A1 x1‖² / (2 n1) + ‖b2 - A2 x2‖² / (2 n2)
+                + λ1 (‖x1‖₁ + ‖x2‖₁) + λ2 ‖x1 - x2‖₁
+
+Returns `(x1, x2)`.
+"""
 function fusedNeighborhoodSelection(
     A1, b1,
     A2, b2,
@@ -132,7 +156,7 @@ function fusedNeighborhoodSelection(
     α = options.α
     abstol = options.abstol
     reltol = options.reltol
-    γ = 1. / ρ
+    γ = 1 / ρ
 
     n1 = size(A1, 1)
     n2 = size(A2, 1)
@@ -144,8 +168,8 @@ function fusedNeighborhoodSelection(
         AtA1[i,i] += ρ
         AtA2[i,i] += ρ
     end
-    cAtA1 = cholesky!(AtA1, Val(false))
-    cAtA2 = cholesky!(AtA2, Val(false))
+    cAtA1 = cholesky!(Symmetric(AtA1))
+    cAtA2 = cholesky!(Symmetric(AtA2))
 
     Atb1 = A1'*b1 / n1
     Atb2 = A2'*b2 / n2
@@ -174,10 +198,10 @@ function fusedNeighborhoodSelection(
         copyto!(z1old, z1)
         copyto!(z2old, z2)
         # update z1 and z2
-        @. T1 = α*x1 + (1. - α)*z1 + u1
-        @. T2 = α*x2 + (1. - α)*z2 + u2
+        @. T1 = α*x1 + (1 - α)*z1 + u1
+        @. T2 = α*x2 + (1 - α)*z2 + u2
         for i=1:p
-            z1[i], z2[i] = proxL1Fused(T1[i], T2[i], λ1, λ2, γ)
+            z1[i], z2[i] = proxL1Fused(T1[i], T2[i], float(λ1), float(λ2), γ)
         end
 
         # update U

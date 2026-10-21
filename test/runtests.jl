@@ -1,13 +1,24 @@
+using CovSel
+using Test
+using Aqua
 
 tests = [
+  "utils",
   "covsel",
   "directDifference",
-  "fusedDifference"
+  "fusedDifference",
+  "latent",
+  "generate"
 ]
 
-for t in tests
-	f = "$t.jl"
-	println("* running $f ...")
-    t = @elapsed include(f)
-    println("done (took $t seconds).")
+@testset "CovSel" begin
+  for t in tests
+    f = "$t.jl"
+    println("* running $f ...")
+    include(f)
+  end
+
+  @testset "Aqua" begin
+    Aqua.test_all(CovSel)
+  end
 end

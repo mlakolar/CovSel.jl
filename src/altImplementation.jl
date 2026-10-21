@@ -1,8 +1,10 @@
+# Reference implementations of direct difference estimation on dense and
+# SparseMatrixCSC iterates, used to test the main implementation.
 module Alt
 
 using ProximalBase: shrink
 using CoordinateDescent: CDOptions
-using SparseArrays
+using SparseArrays, LinearAlgebra
 
 function differencePrecisionNaive(Σx, Σy, λ, Ups, options = CDOptions())
   maxIter = options.maxIter
@@ -227,7 +229,7 @@ function differencePrecisionActiveShooting!(
   end
 
   lDelta = tril(Δ, -1)
-  dDelta = spdiagm(diag(Δ))
+  dDelta = spdiagm(0 => diag(Δ))
   Δ = (lDelta + lDelta') + dDelta
 end
 

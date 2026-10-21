@@ -1,3 +1,11 @@
+"""
+    ADMMOptions(; ρ=1.0, α=1.0, maxiter=1000, abstol=1e-4, reltol=1e-2)
+
+Options for the ADMM solvers: penalty parameter `ρ`, over-relaxation parameter
+`α` (between 1 and 1.8 speeds things up), maximum number of iterations, and the
+absolute and relative tolerances of the primal and dual residuals (Boyd et al.,
+2011, Section 3.3.1).
+"""
 struct ADMMOptions
   ρ::Float64
   α::Float64
@@ -6,24 +14,32 @@ struct ADMMOptions
   reltol::Float64
 end
 
-ADMMOptions(;ρ::Float64=1.,
-           α::Float64=1.,
-           maxiter::Int64=1000,
-           abstol::Float64=1e-4,
-           reltol::Float64=1e-2) = ADMMOptions(ρ, α, maxiter, abstol, reltol)
+ADMMOptions(;ρ::Real=1.,
+           α::Real=1.,
+           maxiter::Integer=1000,
+           abstol::Real=1e-4,
+           reltol::Real=1e-2) = ADMMOptions(ρ, α, maxiter, abstol, reltol)
 
 
 
-#########################################################
-# minimize  trace(S*X) - log det X + lambda*||X||_1
-#########################################################
+"""
+    covsel!(X, Z, U, Σ, λ; options=ADMMOptions(), penalize_diag=true)
 
+Graphical lasso by ADMM:
+
+    minimize  tr(Σ Ω) - log det Ω + λ ‖Ω‖₁
+
+where the ℓ1 norm is over all entries, or only the off-diagonal ones when
+`penalize_diag=false`. `X`, `Z` and `U` are the ADMM iterates (the primal
+iterate, its sparse copy, and the scaled dual variable); pass zeros, or the
+iterates of a previous call to warm start. Returns `Z`, the sparse estimate.
+"""
 function covsel!(
   X::StridedMatrix{T},
   Z::StridedMatrix{T},
   U::StridedMatrix{T},
   Σ::StridedMatrix{T},
-  λ::T;
+  λ::Real;
   options::ADMMOptions = ADMMOptions(),
   penalize_diag::Bool=true
   ) where {T<:AbstractFloat}
@@ -33,8 +49,8 @@ function covsel!(
   α = options.α
   abstol = options.abstol
   reltol = options.reltol
-  γ = one(T) / ρ
-  λρ = λ * γ
+  γ = T(1 / ρ)
+  λρ = T(λ * γ)
 
   p = size(Σ, 1)
   g = ProxGaussLikelihood(Symmetric(Σ))
@@ -75,6 +91,12 @@ function covsel!(
 end
 
 
+"""
+    covselpath(S, λarr; options=ADMMOptions(), penalize_diag=true, verbose=false)
+
+Solve [`covsel!`](@ref) for each `λ` in `λarr`, warm starting from the
+previous solution. Returns a vector of the estimated precision matrices.
+"""
 function covselpath(S::StridedMatrix{T},
                     λarr;
                     options::ADMMOptions = ADMMOptions(),
@@ -82,10 +104,10 @@ function covselpath(S::StridedMatrix{T},
                     verbose::Bool=false) where {T<:AbstractFloat}
   p = size(S, 1)
 
-  solutionpath = Array(Array{Float64, 2}, length(λarr))
-  X = zeros(p, p)
-  Z = zeros(p, p)
-  U = zeros(p, p)
+  solutionpath = Vector{Matrix{T}}(undef, length(λarr))
+  X = zeros(T, p, p)
+  Z = zeros(T, p, p)
+  U = zeros(T, p, p)
 
   for i=1:length(λarr)
     if verbose

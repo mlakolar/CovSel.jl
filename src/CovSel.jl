@@ -1,12 +1,25 @@
+"""
+    CovSel
+
+Methods for learning high-dimensional Gaussian graphical models:
+
+* the graphical lasso by ADMM ([`covsel!`](@ref), [`covselpath`](@ref));
+* the fused graphical lasso for two groups ([`fusedGraphicalLasso`](@ref)) and
+  fused neighborhood selection ([`fusedNeighborhoodSelection`](@ref));
+* direct estimation of the difference of two precision matrices by coordinate
+  descent ([`differencePrecisionActiveShooting`](@ref),
+  [`differencePrecisionRefit`](@ref)) or iterative hard thresholding, with an
+  optional low rank component ([`differencePrecisionIHT`](@ref),
+  [`differenceLatentPrecisionIHT`](@ref)).
+"""
 module CovSel
 
 using ProximalBase
-using DataStructures: BinaryMaxHeap
-using CoordinateDescent, Distributions
+using CoordinateDescent
 using Printf, SparseArrays, LinearAlgebra
 
 export
-  ADMMOptions,
+  ADMMOptions, IHTOptions,
   covsel!, covselpath,
   #covsel_refit!, covselpath_refit
 
@@ -20,7 +33,7 @@ export
   CDDirectDifferenceLoss,
 
   differencePrecisionIHT,
-  differenceLatentPrecisionIHT
+  differenceLatentPrecisionIHT, differenceLatentPrecisionIHT!
 
 include("utils.jl")
 
