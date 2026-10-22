@@ -160,7 +160,7 @@ adir = joinpath(res, "aclime")
 if isdir(adir) && !isempty(readdir(adir))
   println("\n### Replication of Table 1 of Cai, Liu and Zhou (2016): mean error (standard error)\n")
   ncols = length(split(readline(first(filter(f -> endswith(f, ".csv"), readdir(adir; join=true)))), ',')) - 3
-  variants = ncols >= 12 ? 4 : 3
+  variants = ncols >= 16 ? 4 : 3   # 3 norms per variant and one tuning parameter each
   println("| model | p | reps | norm | ACLIME | CLIME (trace CV) | CLIME (likelihood CV) |",
     variants == 4 ? " ACLIME, truncate=false |" : "")
   println("|---|---:|---:|---|---:|---:|---:|", variants == 4 ? "---:|" : "")
