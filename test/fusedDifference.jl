@@ -1,67 +1,44 @@
 module FusedDifferenceTest
 
-using Test, Random, Distributions, LinearAlgebra
+using Test, Random, LinearAlgebra, Statistics
 import CovSel, ProximalBase
-using SCS, JuMP, Ipopt
-import MathOptInterface
-const MOI = MathOptInterface
+
+include("optimality.jl")
 
 Random.seed!(123)
 
+function twoGroups(p, n)
+  ρ = 0.3
+  iρ = -ρ / (1. - ρ^2)
+  Sigma_y = Matrix(1.0I, p, p)
+  Sigma_y[1,2] = iρ
+  Sigma_y[2,1] = iρ
+  Sigma_y[1,1] = 1. / (1. - ρ^2)
+  Sigma_y[2,2] = 1. / (1. - ρ^2)
+  randn(n, p), randn(n, p) * sqrt(Sigma_y)
+end
+
+# with nx = ny the likelihood weights are 1/2
+fglObjective(Ωx, Ωy, Sx, Sy, λ1, λ2) =
+  (tr(Ωx*Sx) - logdet(Ωx) + tr(Ωy*Sy) - logdet(Ωy)) / 2. + λ1 * (sum(abs, Ωx) + sum(abs, Ωy)) + λ2 * sum(abs, Ωx - Ωy)
+
+fglResidual(Zx, Zy, Sx, Sy, nx, ny, λ1, λ2; kw...) =
+  fusedFixedPointResidual(Zx, Zy, nx / (nx + ny) * (Sx - inv(Zx)), ny / (nx + ny) * (Sy - inv(Zy)), λ1, λ2; kw...)
+
+const tight = CovSel.ADMMOptions(;abstol=1e-12, reltol=1e-12, maxiter=10000)
 
 @testset "fused_graphical_lasso" begin
     # simple model that differes in only one edge
     p = 10
-    Sigma_x = Matrix(1.0I, p, p)
-    ρ = 0.3
-    iρ = -ρ / (1. - ρ^2)
-    Sigma_y = Matrix(1.0I, p, p)
-    Sigma_y[1,2] = iρ
-    Sigma_y[2,1] = iρ
-    Sigma_y[1,1] = 1. / (1. - ρ^2)
-    Sigma_y[2,2] = 1. / (1. - ρ^2);
-
     n = 1000
-    X = randn(n, p)
-    Y = randn(n, p) * sqrt(Sigma_y)
-
-    # passing in verbose=0 to hide output from SCS
-    problem = Model(optimizer_with_attributes(SCS.Optimizer, "verbose" => 0))
-
+    X, Y = twoGroups(p, n)
     Sx = cov(X)
     Sy = cov(Y)
-    @variable(problem, Ωx[1:p, 1:p], PSD)
-    @variable(problem, Ωy[1:p, 1:p], PSD)
-    @variable(problem, lg_det_x)
-    @variable(problem, lg_det_y)
-    @variable(problem, Bx[1:p, 1:p])
-    @variable(problem, By[1:p, 1:p])
-    @variable(problem, Bd[1:p, 1:p])
 
-    indOffDiag = Vector{Int64}(undef, 0)
-    ind = 0
-    for col = 1:p
-        for row = 1:p
-            ind += 1
-            if row <= col
-                push!(indOffDiag, ind)
-            end
-        end
-    end
-    @constraint(problem, [lg_det_x; 1; Ωx[indOffDiag]] in MOI.LogDetConeTriangle(p))
-    @constraint(problem, [lg_det_y; 1; Ωy[indOffDiag]] in MOI.LogDetConeTriangle(p))
+    for i=1:10
 
-    @constraint(problem,  Ωx .<= Bx)
-    @constraint(problem, -Ωx .<= Bx)
-    @constraint(problem,  Ωy .<= By)
-    @constraint(problem, -Ωy .<= By)
-    @constraint(problem,   Ωx - Ωy  .<= Bd)
-    @constraint(problem, -(Ωx - Ωy) .<= Bd)
-
-    for i=1:20
-
-        λ1 = rand(Uniform(0.01,0.1))
-        λ2 = rand(Uniform(0.01,0.1))
+        λ1 = 0.01 + 0.09 * rand()
+        λ2 = 0.01 + 0.09 * rand()
 
         θx = Matrix(1.0I, p, p)
         θy = Matrix(1.0I, p, p)
@@ -71,74 +48,87 @@ Random.seed!(123)
         Uy = zeros(p,p)
 
         CovSel.fusedGraphicalLasso!(θx, θy, Zx, Zy, Ux, Uy, Sx, n, Sy, n, λ1, λ2;
-            penalize_diag=true,
-            options=CovSel.ADMMOptions(;abstol=1e-12,reltol=1e-12))
+            penalize_diag=true, options=tight)
 
-        @objective(problem, Min,
-            (tr(Ωx*Sx) - lg_det_x) / 2.0 +
-            (tr(Ωy*Sy) - lg_det_y) / 2.0 +
-            λ1 * (sum(Bx) + sum(By)) +
-            λ2 * sum(Bd)
-            )
-        optimize!(problem)
+        @test issymmetric(Zx) && issymmetric(Zy)
+        @test isposdef(Zx) && isposdef(Zy)
+        @test fglResidual(Zx, Zy, Sx, Sy, n, n, λ1, λ2) < 1e-6
+        @test isLocalMin((A, B) -> fglObjective(A, B, Sx, Sy, λ1, λ2), Zx, Zy)
 
-        Ωxv = value.(Ωx)
-        Ωyv = value.(Ωy)
-        myv = (tr(Zx*Sx) - logdet(Zx) + tr(Zy*Sy) - logdet(Zy)) / 2. + λ1 * (sum(abs, Zx) + sum(abs, Zy)) + λ2 * sum(abs, Zx - Zy)
-        scsv = (tr(Ωxv*Sx) - logdet(Ωxv) + tr(Ωyv*Sy) - logdet(Ωyv)) / 2. + λ1 * (sum(abs, Ωxv) + sum(abs, Ωyv)) + λ2 * sum(abs, Ωxv - Ωyv)
-        @test myv - scsv < 0.
-
-        # @test JuMP.value.(Ωx) - Zx ≈ zeros(p,p) atol = 1e-2
-        # @test JuMP.value.(Ωy) - Zy ≈ zeros(p,p) atol = 1e-2
+        # the allocating version gives the same answer
+        Zx1, Zy1 = CovSel.fusedGraphicalLasso(Sx, n, Sy, n, λ1, λ2; options=tight)
+        @test Zx1 ≈ Zx atol=1e-6
+        @test Zy1 ≈ Zy atol=1e-6
     end
 
+    # unequal sample sizes and an unpenalized diagonal
+    Zx, Zy = CovSel.fusedGraphicalLasso(Sx, 300, Sy, 700, 0.05, 0.05; penalize_diag=false, options=tight)
+    @test fglResidual(Zx, Zy, Sx, Sy, 300, 700, 0.05, 0.05; penalize_diag=false) < 1e-6
+
+    # a large fusion penalty makes the two estimates equal, and their common
+    # value is the graphical lasso estimate for the pooled covariance
+    # (λ1 (|x| + |y|) = 2λ1|x| on x = y, and the likelihoods are weighted 1/2)
+    Zx, Zy = CovSel.fusedGraphicalLasso(Sx, n, Sy, n, 0.05, 10.0; options=tight)
+    @test Zx ≈ Zy atol=1e-6
+    Z = zeros(p, p)
+    CovSel.covsel!(zeros(p, p), Z, zeros(p, p), (Sx + Sy) / 2, 0.1; options=CovSel.ADMMOptions(;abstol=1e-12, reltol=1e-12, maxiter=10000))
+    @test Zx ≈ Z atol=1e-5
+
+    # no fusion penalty: two separate graphical lasso problems with λ = 2λ1
+    Zx, Zy = CovSel.fusedGraphicalLasso(Sx, n, Sy, n, 0.05, 0.0; options=tight)
+    for (Zk, Sk) in ((Zx, Sx), (Zy, Sy))
+      Z = zeros(p, p)
+      CovSel.covsel!(zeros(p, p), Z, zeros(p, p), Sk, 0.1; options=CovSel.ADMMOptions(;abstol=1e-12, reltol=1e-12, maxiter=10000))
+      @test Zk ≈ Z atol=1e-5
+    end
+
+    # unpenalized diagonal and identity covariances: the solution is I
+    Zx, Zy = CovSel.fusedGraphicalLasso(Matrix(1.0I, p, p), n, Matrix(1.0I, p, p), n, 0.5, 0.5;
+        penalize_diag=false, options=CovSel.ADMMOptions(;abstol=1e-12,reltol=1e-12))
+    @test Zx ≈ I
+    @test Zy ≈ I
+
+    # Float32
+    Zx32, Zy32 = CovSel.fusedGraphicalLasso(Float32.(Sx), n, Float32.(Sy), n, 0.05, 0.05;
+        options=CovSel.ADMMOptions(;abstol=1e-6,reltol=1e-6))
+    Zx64, Zy64 = CovSel.fusedGraphicalLasso(Sx, n, Sy, n, 0.05, 0.05;
+        options=CovSel.ADMMOptions(;abstol=1e-6,reltol=1e-6))
+    @test eltype(Zx32) == Float32
+    @test Zx32 ≈ Zx64 atol=1e-3
+    @test Zy32 ≈ Zy64 atol=1e-3
 end
 
 
 @testset "fused_neighborhood_selection" begin
-  # simple model that differes in only one edge
   p = 5
-  Sigma_x = Matrix(1.0I, p, p)
-  ρ = 0.3
-  iρ = -ρ / (1. - ρ^2)
-  Sigma_y = Matrix(1.0I, p, p)
-  Sigma_y[1,2] = iρ
-  Sigma_y[2,1] = iρ
-  Sigma_y[1,1] = 1. / (1. - ρ^2)
-  Sigma_y[2,2] = 1. / (1. - ρ^2);
-
   n = 1000
-  X = randn(n, p)
-  Y = randn(n, p) * sqrt(Sigma_y)
+  X, Y = twoGroups(p, n)
+  A1, b1, A2, b2 = X[:,2:p], X[:,1], Y[:,2:p], Y[:,1]
 
-  problem = Model(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0))
+  fnsObjective(x1, x2, λ1, λ2) =
+    (sum(abs2, b1 - A1*x1) + sum(abs2, b2 - A2*x2)) / (2. * n) + λ1 * (sum(abs, x1) + sum(abs, x2)) + λ2 * sum(abs, x1 - x2)
 
-  # m = JuMP.Model(solver=Gurobi.GurobiSolver(OutputFlag=0))
-  @variable(problem, xj1[1:p-1])
-  @variable(problem, xj2[1:p-1])
-  @variable(problem, t1[1:p-1])
-  @variable(problem, t2[1:p-1])
-  @variable(problem, t3[1:p-1])
+  for i=1:10
+    λ1 = 0.1 * rand()
+    λ2 = 0.1 * rand()
+    z1, z2 = CovSel.fusedNeighborhoodSelection(A1, b1, A2, b2, λ1, λ2; options=tight)
 
-  @constraint(problem, xj1 .<= t1 )
-  @constraint(problem, -t1 .<= xj1 )
-  @constraint(problem, xj2 .<= t2 )
-  @constraint(problem, -t2 .<= xj2 )
-  @constraint(problem, -t3 .<= xj1 - xj2 )
-  @constraint(problem, xj1 - xj2 .<= t3 )
-
-  for i=1:20
-    λ1 = rand(Uniform(0., 0.1))
-    λ2 = rand(Uniform(0., 0.1))
-    z1, z2 = CovSel.fusedNeighborhoodSelection(X[:,2:p], X[:,1], Y[:,2:p], Y[:,1], λ1, λ2;
-                      options=CovSel.ADMMOptions(;abstol=1e-12,reltol=1e-12))
-
-    @objective(problem, Min, (sum((X[:,1] - X[:,2:p]*xj1) .^ 2) + sum((Y[:,1] - Y[:,2:p]*xj2) .^ 2)) / (2. * n) + λ1 * (sum(t1)+sum(t2)) + λ2 * sum(t3))
-    optimize!(problem)
-
-    @test JuMP.value.(xj1) - z1 ≈ zeros(p-1) atol=3e-5
-    @test JuMP.value.(xj2) - z2 ≈ zeros(p-1) atol=3e-5
+    g1 = A1' * (A1 * z1 - b1) / n
+    g2 = A2' * (A2 * z2 - b2) / n
+    @test fusedFixedPointResidual(z1, z2, g1, g2, λ1, λ2; t=0.5) < 1e-8
+    @test isLocalMin((x, y) -> fnsObjective(x, y, λ1, λ2), z1, z2)
   end
+
+  # without penalties the solutions are the least squares fits
+  z1, z2 = CovSel.fusedNeighborhoodSelection(A1, b1, A2, b2, 0.0, 0.0; options=tight)
+  @test z1 ≈ A1 \ b1 atol=1e-6
+  @test z2 ≈ A2 \ b2 atol=1e-6
+
+  # a large fusion penalty gives the lasso on the stacked data with penalty 2λ1
+  z1, z2 = CovSel.fusedNeighborhoodSelection(A1, b1, A2, b2, 0.02, 10.0; options=tight)
+  @test z1 ≈ z2 atol=1e-8
+  A, b = [A1; A2], [b1; b2]
+  @test fusedFixedPointResidual(z1, z1, A' * (A * z1 - b) / (2n), A' * (A * z1 - b) / (2n), 0.02, 0.0; t=0.5) < 1e-8
 end
 
 

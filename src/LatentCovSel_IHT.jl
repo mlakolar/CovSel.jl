@@ -1,4 +1,10 @@
+"""
+    IHTOptions(; epsTol=1e-2, maxIter=500, checkEvery=10)
 
+Options for the iterative hard thresholding solvers. The iterations stop when
+the largest gradient entry falls below `epsTol`, or when the objective, checked
+every `checkEvery` iterations, changes by at most `epsTol`.
+"""
 struct IHTOptions
  epsTol::Float64
  maxIter::Int64
@@ -6,24 +12,27 @@ struct IHTOptions
 end
 
 
-IHTOptions(;epsTol::Float64=1e-2, maxIter::Int64=500, checkEvery::Int64=10) =
+IHTOptions(;epsTol::Real=1e-2, maxIter::Integer=500, checkEvery::Integer=10) =
   IHTOptions(epsTol, maxIter, checkEvery)
 
 
 
+  # gradient of tr(Σ(S + L)) - log det(S + L) with respect to S
   function covselLatentIHT_grad_S!(gS, Σ, S, L)
-    T = S + L
-    T = inv(T)
-    gS .= Σ - T
+    gS .= Symmetric(Σ) - inv(Symmetric(S + L))
     gS
   end
 
+  # gradient with respect to U, where L = UU'
   function covselLatentIHT_grad_U!(gU, gS, Σ, S, L, U)
     covselLatentIHT_grad_S!(gS, Σ, S, L)
-    scale!(gS, 2.)
-    A_mul_B!(gU, gS, U)
+    rmul!(gS, 2.)
+    mul!(gU, gS, U)
   end
 
+  # minimize tr(Σ(S + L)) - log det(S + L) over S with at most s nonzero
+  # off-diagonal entries (lower triangle) and L = UU' of rank r, by gradient
+  # descent with step sizes ηS and ηU and hard thresholding of S
   function covselLatentIHT!(Σ::StridedMatrix, ηS, ηU, s, r;
     epsTol=1e-2, maxIter=100, checkEvery=5, callback=nothing)
 
@@ -33,24 +42,25 @@ IHTOptions(;epsTol::Float64=1e-2, maxIter::Int64=500, checkEvery::Int64=10) =
     gU = zeros(p, r)
 
     S = zeros(p, p)
-    L = zeros(p, p)
 
     # init
-    tmp = full(inv(Symmetric(Σ)))
+    tmp = Matrix(inv(Symmetric(Σ)))
     HardThreshold!(S, tmp, s, false)
 
     tmp .= tmp - S
-    U, d, V = svd(tmp)
-    U = U[:,1:r] .* sqrt.(d[1:r])'
+    F = svd(tmp)
+    U = F.U[:,1:r] .* sqrt.(F.S[1:r])'
     L = U * U'
 
 
-    fvals = []
+    fvals = Float64[]
     # gradient descent
     #
     fv = covSel_objective(Σ, S, L)
     push!(fvals, fv)
-    for iter=1:maxIter
+    iter = 0
+    while iter < maxIter
+      iter += 1
       # update S
       covselLatentIHT_grad_S!(gS, Σ, S, L)
       @. S -= ηS * gS
@@ -60,9 +70,9 @@ IHTOptions(;epsTol::Float64=1e-2, maxIter::Int64=500, checkEvery::Int64=10) =
       # update U and L
       covselLatentIHT_grad_U!(gU, gS, Σ, S, L, U)
       @. U -= ηU * gU
-      A_mul_Bt!(L, U, U)
+      mul!(L, U, U')
       max_gU = maximum( abs.(gU) )
-      if callback != nothing
+      if callback !== nothing
         callback(Σ, S, L)
       end
 
