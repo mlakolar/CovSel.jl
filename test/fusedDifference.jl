@@ -6,6 +6,9 @@ using SCS, JuMP, Ipopt
 
 Random.seed!(123)
 
+# TEMPORARY: progress output to locate a hang on CI
+step(msg) = (println("  [fused] ", msg); flush(stdout))
+
 function twoGroups(p, n)
   ρ = 0.3
   iρ = -ρ / (1. - ρ^2)
@@ -29,7 +32,7 @@ fglObjective(Ωx, Ωy, Sx, Sy, λ1, λ2) =
     Sy = cov(Y)
 
     # passing in verbose=0 to hide output from SCS
-    problem = Model(optimizer_with_attributes(SCS.Optimizer, "verbose" => 0))
+    problem = Model(optimizer_with_attributes(SCS.Optimizer, "verbose" => 0, "time_limit_secs" => 60.0))
     @variable(problem, Ωx[1:p, 1:p], PSD)
     @variable(problem, Ωy[1:p, 1:p], PSD)
     @variable(problem, lg_det_x)
@@ -61,6 +64,7 @@ fglObjective(Ωx, Ωy, Sx, Sy, λ1, λ2) =
         Ux = zeros(p,p)
         Uy = zeros(p,p)
 
+        step("FGL ADMM $i")
         CovSel.fusedGraphicalLasso!(θx, θy, Zx, Zy, Ux, Uy, Sx, n, Sy, n, λ1, λ2;
             penalize_diag=true,
             options=CovSel.ADMMOptions(;abstol=1e-12,reltol=1e-12))
@@ -71,7 +75,9 @@ fglObjective(Ωx, Ωy, Sx, Sy, λ1, λ2) =
             λ1 * (sum(Bx) + sum(By)) +
             λ2 * sum(Bd)
             )
+        step("FGL SCS $i")
         optimize!(problem)
+        step("FGL SCS $i done")
 
         myv = fglObjective(Zx, Zy, Sx, Sy, λ1, λ2)
         scsv = fglObjective(value.(Ωx), value.(Ωy), Sx, Sy, λ1, λ2)
@@ -86,6 +92,7 @@ fglObjective(Ωx, Ωy, Sx, Sy, λ1, λ2) =
         @test Zy1 ≈ Zy atol=1e-6
     end
 
+    step("FGL extra cases")
     # a large fusion penalty makes the two estimates equal
     Zx, Zy = CovSel.fusedGraphicalLasso(Sx, n, Sy, n, 0.05, 10.0;
         options=CovSel.ADMMOptions(;abstol=1e-10,reltol=1e-10))
@@ -97,6 +104,7 @@ fglObjective(Ωx, Ωy, Sx, Sy, λ1, λ2) =
     @test Zx ≈ I
     @test Zy ≈ I
 
+    step("FGL Float32")
     # Float32
     Zx32, Zy32 = CovSel.fusedGraphicalLasso(Float32.(Sx), n, Float32.(Sy), n, 0.05, 0.05;
         options=CovSel.ADMMOptions(;abstol=1e-6,reltol=1e-6))
@@ -113,7 +121,7 @@ end
   n = 1000
   X, Y = twoGroups(p, n)
 
-  problem = Model(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0, "sb" => "yes"))
+  problem = Model(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0, "sb" => "yes", "max_cpu_time" => 60.0))
 
   @variable(problem, xj1[1:p-1])
   @variable(problem, xj2[1:p-1])
@@ -131,11 +139,14 @@ end
   for i=1:10
     λ1 = 0.1 * rand()
     λ2 = 0.1 * rand()
+    step("FNS ADMM $i")
     z1, z2 = CovSel.fusedNeighborhoodSelection(X[:,2:p], X[:,1], Y[:,2:p], Y[:,1], λ1, λ2;
                       options=CovSel.ADMMOptions(;abstol=1e-12,reltol=1e-12))
 
     @objective(problem, Min, (sum((X[:,1] - X[:,2:p]*xj1) .^ 2) + sum((Y[:,1] - Y[:,2:p]*xj2) .^ 2)) / (2. * n) + λ1 * (sum(t1)+sum(t2)) + λ2 * sum(t3))
+    step("FNS Ipopt $i")
     optimize!(problem)
+    step("FNS Ipopt $i done")
 
     @test value.(xj1) ≈ z1 atol=3e-5
     @test value.(xj2) ≈ z2 atol=3e-5
