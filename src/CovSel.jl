@@ -33,7 +33,11 @@ export
   CDDirectDifferenceLoss, diffLoss,
 
   differencePrecisionIHT,
-  differenceLatentPrecisionIHT, differenceLatentPrecisionIHT!
+  differenceLatentPrecisionIHT, differenceLatentPrecisionIHT!,
+
+  # CLIME and ACLIME
+  clime, aclime, CLIMEPath,
+  CLIMESolver, DualSimplex, ParametricSimplex, LPSolver
 
 include("utils.jl")
 
@@ -42,6 +46,9 @@ include("LatentCovSel_IHT.jl")
 
 include("directDifference.jl")
 include("fusedDifference.jl")
+
+include("clime_simplex.jl")
+include("clime.jl")
 
 include("generate.jl")
 include("evaluation.jl")
