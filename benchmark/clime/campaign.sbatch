@@ -41,7 +41,7 @@ echo "start $(date -u +%FT%TZ) on $(hostname)"
 
 # 1. compile for this CPU, problems, tasks
 $JULIA --project=$BENCH -e 'using Pkg; Pkg.precompile(); using CovSel, HiGHS' || exit 1
-[ -d $PROBLEMS ] || $JULIA --project=$BENCH $BENCH/prepare.jl $PROBLEMS $PREPARE_ARGS > $OUT/problems.txt || exit 1
+[ -d $PROBLEMS ] || OPENBLAS_NUM_THREADS=8 $JULIA --project=$BENCH $BENCH/prepare.jl $PROBLEMS $PREPARE_ARGS > $OUT/problems.txt || exit 1
 $JULIA --project=$BENCH $BENCH/make_tasks.jl $PROBLEMS $OUT > $OUT/tasks.txt || exit 1
 echo "$(wc -l < $OUT/tasks.txt) tasks, $(date -u +%FT%TZ)"
 
