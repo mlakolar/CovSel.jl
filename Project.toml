@@ -12,7 +12,7 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
 Aqua = "0.8"
-CoordinateDescent = "0.3, 0.4"
+CoordinateDescent = "0.4"
 Ipopt = "1"
 JuMP = "1"
 LinearAlgebra = "1"
