@@ -8,9 +8,10 @@
 # validation. ACLIME uses δ = 2 in step 1 and chooses δ of step 2 from j/50,
 # j = 1, …, 100, by the likelihood on the validation sample. The paper chooses
 # the penalty of CLIME "by cross validation" as in Cai, Liu and Luo (2011),
-# without more detail; here it is chosen from 50 values between 1 and 0.01 by
+# without more detail; here it is chosen from 40 values between 1 and 0.03 by
 # 5-fold cross validation on the training sample, with the trace loss
-# Σᵢ ((S Ω)ᵢᵢ - 1)² ("CLIME") and with the likelihood loss ("CLIMElik").
+# Σᵢ ((S Ω)ᵢᵢ - 1)² ("CLIME") and with the likelihood loss ("CLIMElik"), both
+# computed from the same fold paths.
 
 using CovSel, LinearAlgebra, SparseArrays, Random, Statistics, Printf
 
@@ -50,12 +51,25 @@ function replication(model, p, rng; n=200, ntest=200)
   path = aclime(S, n; δ=δs)
   lik = [CovSel._cvloss(Stest, Ωh, :likelihood) for Ωh in path]
   Ωa = path[argmin(lik)]
-  # CLIME, penalty by 5-fold cross validation with the trace loss
-  λs = exp.(range(log(1.0), log(0.01); length=50))
-  cv = climecv(X, λs; folds=5, loss=:trace, rng=copy(rng))
-  cvl = climecv(X, λs; folds=5, loss=:likelihood, rng=rng)
-  (norms(Ωa - Ω)..., norms(bestestimate(cv) - Ω)..., norms(bestestimate(cvl) - Ω)...,
-   δs[argmin(lik)], cv.λ[cv.best], cvl.λ[cvl.best])
+  # CLIME, penalty by 5-fold cross validation with the trace and likelihood losses
+  λs = exp.(range(log(1.0), log(0.03); length=40))
+  Ltr = zeros(length(λs))
+  Llik = zeros(length(λs))
+  for test in CovSel._folds(n, 5, rng)
+    train = setdiff(1:n, test)
+    fold = redirect_stderr(devnull) do      # warnings about infeasible penalties
+      clime(cov(X[train, :]), λs)
+    end
+    St = cov(X[test, :])
+    for (k, λ) in enumerate(λs)
+      kk = findfirst(==(λ), fold.λ)
+      Ltr[k] += kk === nothing ? Inf : CovSel._cvloss(St, fold[kk], :trace)
+      Llik[k] += kk === nothing ? Inf : CovSel._cvloss(St, fold[kk], :likelihood)
+    end
+  end
+  full = clime(S, λs[[argmin(Ltr), argmin(Llik)]])
+  (norms(Ωa - Ω)..., norms(full[1] - Ω)..., norms(full[2] - Ω)...,
+   δs[argmin(lik)], λs[argmin(Ltr)], λs[argmin(Llik)])
 end
 
 function main(model, p, reps, out)
