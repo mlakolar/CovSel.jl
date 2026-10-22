@@ -12,11 +12,11 @@ UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
 CovSel = {path = ".."}
 
 [compat]
-CoordinateDescent = "0.4"
+CoordinateDescent = "0.4, 0.5"
 CovSel = "0.2"
 LinearAlgebra = "1"
 Printf = "1"
-ProximalBase = "0.3.2"
+ProximalBase = "0.3.2, 0.4"
 Random = "1"
 Statistics = "1"
 UnicodePlots = "3"
