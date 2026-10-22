@@ -10,6 +10,7 @@ estimators, and prints what it found; plots are drawn in the terminal with
 | [`difference_estimation.jl`](difference_estimation.jl) | Direct estimation of `Ωx - Ωy` with `differencePrecisionActiveShooting`, refitting with `differencePrecisionRefit` (checked against the closed form), `differencePrecisionIHT`, and the indirect approaches. |
 | [`fused_graphical_lasso.jl`](fused_graphical_lasso.jl) | `fusedGraphicalLasso` for two groups and the effect of the fusion penalty λ2; `fusedNeighborhoodSelection` for a single node. |
 | [`latent_difference.jl`](latent_difference.jl) | A sparse plus low rank difference with `differenceLatentPrecisionIHT!`: choosing the step sizes, monitoring convergence with a callback, and the comparison with the sparse estimator. |
+| [`clime.jl`](clime.jl) | CLIME and ACLIME with `clime` and `aclime`: a path of penalties, cross validation with `climecv` and `aclimecv`, edge recovery, and the solvers. |
 | [`inference.jl`](inference.jl) | A simulation of the test for one entry of `Ωx - Ωy` when p > n (the Gaussian case of ROCKET): size, coverage, and the null distribution against N(0, 1). |
 
 These replace the scripts `example1.jl`, `example2.jl` and `exampleInference.jl`
