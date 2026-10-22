@@ -78,12 +78,13 @@ nonzeros(β) = count(x -> abs(x) > 1e-4, β)
 println("           node 5 in x, y    node 7 in x, y    other nonzeros in x, y   entries differing")
 @printf("truth      %6.3f %6.3f     %6.3f %6.3f     %8d %8d          %8d\n",
   βx[5], βy[5], βx[6], βy[6], nonzeros(βx[rest]), nonzeros(βy[rest]), nonzeros(βx - βy))
-for λ2 in (0.0, 0.05, 0.5)
+for λ2 in (0.0, 0.05, 0.1, 0.5)
   zx, zy = fusedNeighborhoodSelection(X[:, others], X[:, a], Y[:, others], Y[:, a], λ, λ2)
   @printf("λ2 = %.2f  %6.3f %6.3f     %6.3f %6.3f     %8d %8d          %8d\n", λ2,
     zx[5], zy[5], zx[6], zy[6], nonzeros(zx[rest]), nonzeros(zy[rest]), nonzeros(zx - zy))
 end
 println("""
 Fitting each group on its own (λ2 = 0) finds spurious neighbors and
-differences. A moderate λ2 removes the spurious differences and keeps the one
-real difference; a large λ2 forces the two neighborhoods to be equal.""")
+differences. As λ2 grows the spurious differences go first, and at λ2 = 0.1
+only the real one is left; a large λ2 forces the two neighborhoods to be
+equal.""")

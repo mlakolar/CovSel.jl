@@ -18,8 +18,8 @@
 #
 #   julia --project=examples examples/inference.jl
 #
-# The default p = 500, n = 400 and 500 replications takes about half a minute;
-# COVSEL_EXAMPLES_QUICK=1 selects a small setting that runs in seconds.
+# The default p = 500, n = 400 and 500 replications takes a few seconds;
+# COVSEL_EXAMPLES_QUICK=1 selects a smaller setting.
 
 using CovSel, CoordinateDescent
 using LinearAlgebra, Printf, Random, Statistics
@@ -64,12 +64,14 @@ a, b = 1, 2
 println("p = $p, n = $n per group, $numRep replications, edge ($a, $b) with Ω[a, b] = ",
   round(Ω[a, b], digits=3))
 
-# Both groups are drawn from N(0, Ω⁻¹), so Ωx[a, b] - Ωy[a, b] = 0.
+# Both groups are drawn from N(0, Ω⁻¹), so Ωx[a, b] - Ωy[a, b] = 0. Ω is
+# factored once; with the factor, generateData only solves a triangular system.
+F = cholesky(Symmetric(Ω))
 T = zeros(numRep)
 covered = 0
 selected = 0
 elapsed = @elapsed for rep=1:numRep
-  data = CovSel.generateData(Ω, 2n)
+  data = CovSel.generateData(F, 2n)
   x = edgeInference(data[1:n, :], a, b)
   y = edgeInference(data[n+1:end, :], a, b)
   T[rep] = (x.estimate - y.estimate) / sqrt(x.variance + y.variance)

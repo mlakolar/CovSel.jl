@@ -9,6 +9,7 @@
 #     (the comparison of the removed example1.jl); iterative hard
 #     thresholding, sparse and sparse plus rank one
 #   "ADMM": the graphical lasso and the fused graphical lasso
+#   "generateData": drawing samples, from Ω and from its Cholesky factor
 
 using BenchmarkTools
 using CovSel, CoordinateDescent, ProximalBase
@@ -65,4 +66,13 @@ for p in DIMENSIONS
   # each sample starts from zero iterates, since covsel! warm starts from them
   g["covsel!"] = @benchmarkable covsel!(X, Z, U, $Sy, 0.1) setup=(X = zeros($p, $p); Z = zeros($p, $p); U = zeros($p, $p)) evals=1
   g["fusedGraphicalLasso"] = @benchmarkable fusedGraphicalLasso($Sx, 1000, $Sy, 1000, 0.05, 0.05)
+end
+
+SUITE["generateData"] = BenchmarkGroup()
+for p in DIMENSIONS
+  Ω = Matrix(SymTridiagonal(fill(1.0, p), fill(0.3, p - 1)))
+  F = cholesky(Symmetric(Ω))
+  g = SUITE["generateData"]["p = $p, n = 1000"] = BenchmarkGroup()
+  g["from Ω"] = @benchmarkable CovSel.generateData($Ω, 1000)
+  g["from the Cholesky factor"] = @benchmarkable CovSel.generateData($F, 1000)
 end
