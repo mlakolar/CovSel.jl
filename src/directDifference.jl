@@ -64,6 +64,32 @@ end
 
 CoordinateDescent.numCoordinates(f::CDDirectDifferenceLoss) = div(f.p * (f.p + 1), 2)
 
+# The loss as a function of the coordinate for Δ[r, c] (and Δ[c, r]) is
+# quadratic: this is its second derivative, and (Σy - Σx)[r, c], doubled off the
+# diagonal, is minus its derivative at Δ = 0.
+@inline function _curvature(X, Y, r, c)
+  @inbounds r == c ? X[r, r] * Y[r, r] : (X[r, r] * Y[c, c] + X[c, c] * Y[r, r]) + 2 * X[r, c] * Y[r, c]
+end
+
+# Scales for the stopping rule of CoordinateDescent 0.5 and later (relativeTol),
+# as for its quadratic loss: the change of coordinate k is measured as
+# |Δxₖ| √aₖ, with aₖ the curvature, and compared with optTol ⋅ maxₖ |bₖ| / √aₖ,
+# with -bₖ the derivative at zero. Neither depends on the units of Σx and Σy.
+if isdefined(CoordinateDescent, :coordinateScale)
+  CoordinateDescent.coordinateScale(f::CDDirectDifferenceLoss, k::Int) =
+    sqrt(_curvature(f.X, f.Y, ind2subLowerTriangular(f.p, k)...))
+
+  function CoordinateDescent.responseScale(f::CDDirectDifferenceLoss{T}) where {T<:AbstractFloat}
+    X, Y, p = f.X, f.Y, f.p
+    s = zero(T)
+    for c=1:p, r=c:p
+      b = (r == c ? 1 : 2) * (Y[r, c] - X[r, c])
+      s = max(s, abs(b) / sqrt(_curvature(X, Y, r, c)))
+    end
+    s
+  end
+end
+
 function CoordinateDescent.initialize!(f::CDDirectDifferenceLoss{T}, x::SymmetricSparseIterate{T}) where {T<:AbstractFloat}
   copyto!(f.A, A_mul_X_mul_B(f.Σx, x, f.Σy))
   nothing
@@ -89,11 +115,10 @@ function CoordinateDescent.descendCoordinate!(
   X, Y, A, p = f.X, f.Y, f.A, f.p
   ri, ci = ind2subLowerTriangular(p, j)
 
+  a = _curvature(X, Y, ri, ci)
   if ri == ci
-    @inbounds a = X[ri,ri] * Y[ri,ri]
     @inbounds b = Y[ri,ri] - X[ri,ri] - A[ri,ri]
   else
-    @inbounds a = (X[ri,ri]*Y[ci,ci] + X[ci,ci]*Y[ri,ri]) + 2 * X[ri,ci] * Y[ri,ci]
     @inbounds b = 2 * (Y[ri,ci] - X[ri,ci]) - A[ri,ci] - A[ci,ri]
   end
   oldVal = x[ri, ci]

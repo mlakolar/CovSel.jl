@@ -72,6 +72,36 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
     x3 = CovSel.differencePrecisionActiveShooting(Symmetric(Float32.(hSx)), Symmetric(Float32.(hSy)), ProximalBase.ProxL1(Float32(λ)))
     @test eltype(x3) == Float32
     @test Matrix(x3) ≈ Matrix(x1) atol=1e-4
+
+    # CoordinateDescent 0.5 and later measure convergence relative to scales of
+    # the loss; check them against the loss along the coordinate directions
+    if isdefined(CoordinateDescent, :coordinateScale)
+      f = CovSel.CDDirectDifferenceLoss(Symmetric(hSx), Symmetric(hSy))
+      E(r, c) = (M = zeros(p, p); M[r, c] = M[c, r] = 1; M)
+      curvature(r, c) = tr(hSx * E(r, c) * hSy * E(r, c))
+      for (r, c) in ((1, 1), (2, 1), (7, 3))
+        k = ProximalBase.sub2indLowerTriangular(p, r, c)
+        @test CoordinateDescent.coordinateScale(f, k) ≈ sqrt(curvature(r, c))
+      end
+      @test CoordinateDescent.responseScale(f) ≈
+        maximum(abs(tr(E(r, c) * (hSy - hSx))) / sqrt(curvature(r, c)) for c=1:p for r=c:p)
+
+      # so multiplying the covariances and λ by a constant divides the solution
+      # by it and takes the same number of passes
+      passes, sols = Int[], Matrix{Float64}[]
+      for a in (1e-3, 1.0, 1e3)
+        info = CoordinateDescent.CDInfo()
+        x = SymmetricSparseIterate(p)
+        CoordinateDescent.coordinateDescent!(x, CovSel.CDDirectDifferenceLoss(Symmetric(a * hSx), Symmetric(a * hSy)),
+          ProximalBase.ProxL1(a * λ), CoordinateDescent.CDOptions(; randomize=false), info)
+        @test info.converged
+        push!(passes, info.iterations)
+        push!(sols, a * Matrix(x))
+      end
+      @test passes[1] == passes[2] == passes[3]
+      @test sols[1] ≈ sols[2] atol=1e-8
+      @test sols[3] ≈ sols[2] atol=1e-8
+    end
     @test_throws DimensionMismatch CovSel.CDDirectDifferenceLoss(Symmetric(hSx), Symmetric(hSy[1:3, 1:3]))
   end
 
