@@ -137,6 +137,49 @@ end
 
 _pushempty!(col::_ColumnPath) = (push!(col.ptr, length(col.rows) + 1); col)
 
+# entry r of column j of the estimate for penalty t, from the column paths
+@inline function _pathentry(cols::Vector{_ColumnPath{T}}, t::Int, r::Int, j::Int) where {T}
+  c = cols[j]
+  lo, hi = c.ptr[t], c.ptr[t+1] - 1
+  @inbounds while lo <= hi
+    mid = (lo + hi) >>> 1
+    rm = c.rows[mid]
+    rm == r && return c.vals[mid]
+    rm < r ? (lo = mid + 1) : (hi = mid - 1)
+  end
+  zero(T)
+end
+
+# the symmetrized estimate for penalty t, from the column paths: entry (r, j)
+# is the one of raw[r, j] and raw[j, r] with the smaller absolute value
+function _assemble_symmetric(cols::Vector{_ColumnPath{T}}, t::Int) where {T}
+  p = length(cols)
+  colptr = Vector{Int}(undef, p + 1)
+  colptr[1] = 1
+  @inbounds for j in 1:p
+    c = cols[j]
+    m = 0
+    for q in c.ptr[t]:c.ptr[t+1]-1
+      m += !iszero(_pathentry(cols, t, j, c.rows[q]))
+    end
+    colptr[j+1] = colptr[j] + m
+  end
+  rowval = Vector{Int}(undef, colptr[end] - 1)
+  nzval = Vector{T}(undef, colptr[end] - 1)
+  @inbounds for j in 1:p
+    c = cols[j]
+    k = colptr[j]
+    for q in c.ptr[t]:c.ptr[t+1]-1
+      r, x = c.rows[q], c.vals[q]
+      y = _pathentry(cols, t, j, r)
+      iszero(y) && continue
+      rowval[k], nzval[k] = r, abs(x) <= abs(y) ? x : y
+      k += 1
+    end
+  end
+  SparseMatrixCSC(p, p, colptr, rowval, nzval)
+end
+
 # the estimate for penalty t, from the column paths
 function _assemble(cols::Vector{_ColumnPath{T}}, t::Int) where {T}
   p = length(cols)
@@ -390,12 +433,18 @@ function Base.show(io::IO, ::MIME"text/plain", path::CLIMEPath)
   end
 end
 
-# S as a dense symmetric Matrix of floats
+# S as a dense symmetric Matrix of floats; S itself when it already is one
 function _covariance(S::AbstractMatrix)
   p = LinearAlgebra.checksquare(S)
   T = float(eltype(S))
   T <: AbstractFloat || throw(ArgumentError("S must be a real matrix"))
-  M = Matrix{T}(S)
+  M = if S isa Matrix{T} && issymmetric(S)
+    S
+  elseif S isa Symmetric{T,Matrix{T}} && issymmetric(parent(S))
+    parent(S)
+  else
+    Matrix{T}(S)
+  end
   if !(S isa Union{Symmetric,Hermitian}) && !issymmetric(M)
     atol = sqrt(eps(T)) * maximum(abs, M; init=zero(T))
     all(abs(M[r, c] - M[c, r]) <= atol for c in 1:p for r in c+1:p) ||
@@ -434,8 +483,7 @@ function _estimate(solver::CLIMESolver, S::Matrix{T}, spec::_CLIMESpec{T}, λ::A
   Ω = Vector{SparseMatrixCSC{T,Int}}(undef, length(λ))
   keep = falses(length(λ))
   for t in 1:nfeas
-    R = _assemble(cols, t)
-    Ω[order[t]] = symmetrize ? symmetrize_minabs(R) : R
+    Ω[order[t]] = symmetrize ? _assemble_symmetric(cols, t) : _assemble(cols, t)
     keep[order[t]] = true
   end
   CLIMEPath{T}(T.(λ[keep]), Ω[keep])
