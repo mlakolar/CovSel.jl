@@ -3,15 +3,18 @@
 # README.md.
 #
 # Groups:
-#   "direct difference": the three solvers of the ℓ1 penalized direct difference
-#     estimator (the comparison of the removed example1.jl), the package solver
-#     also along a path of λ values (warmStart=false), and iterative hard
+#   "direct difference": the ℓ1 penalized direct difference estimator solved by
+#     differencePrecisionActiveShooting, directly and along a path of λ values
+#     (warmStart=false), and by the naive reference solver in test/reference.jl
+#     (the comparison of the removed example1.jl); iterative hard
 #     thresholding, sparse and sparse plus rank one
 #   "ADMM": the graphical lasso and the fused graphical lasso
 
 using BenchmarkTools
 using CovSel, CoordinateDescent, ProximalBase
 using LinearAlgebra, Random, Statistics
+
+include(joinpath(@__DIR__, "..", "test", "reference.jl"))
 
 const QUICK = get(ENV, "COVSEL_BENCHMARK_QUICK", "0") == "1"
 const DIMENSIONS = QUICK ? (10,) : (20, 50, 100)
@@ -37,10 +40,8 @@ for p in DIMENSIONS
   ω = ones(p, p)
   for λ in LAMBDAS
     g = SUITE["direct difference"]["p = $p, λ = $λ"] = BenchmarkGroup()
-    g["Alt.differencePrecisionNaive"] =
-      @benchmarkable CovSel.Alt.differencePrecisionNaive($Sxd, $Syd, $λ, $ω)
-    g["Alt.differencePrecisionActiveShooting"] =
-      @benchmarkable CovSel.Alt.differencePrecisionActiveShooting($Sxd, $Syd, $λ, $ω)
+    g["Reference.differencePrecisionNaive"] =
+      @benchmarkable Reference.differencePrecisionNaive($Sxd, $Syd, $λ, $ω)
     g["differencePrecisionActiveShooting"] =
       @benchmarkable differencePrecisionActiveShooting($Sx, $Sy, ProxL1($λ))
     g["differencePrecisionActiveShooting, warmStart=false"] =

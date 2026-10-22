@@ -21,7 +21,6 @@ using SparseArrays, LinearAlgebra
 export
   ADMMOptions, ADMMInfo, IHTOptions,
   covsel!, covselpath,
-  #covsel_refit!, covselpath_refit
 
   # difference estimation
   #
@@ -30,7 +29,7 @@ export
 
   # Direct Difference Estimation and Inference
   differencePrecisionActiveShooting, differencePrecisionActiveShooting!, differencePrecisionRefit,
-  CDDirectDifferenceLoss,
+  CDDirectDifferenceLoss, diffLoss,
 
   differencePrecisionIHT,
   differenceLatentPrecisionIHT, differenceLatentPrecisionIHT!
@@ -38,7 +37,6 @@ export
 include("utils.jl")
 
 include("admmCovSel.jl")
-include("tvCovSel.jl")
 include("LatentCovSel_IHT.jl")
 
 include("directDifference.jl")
@@ -46,9 +44,5 @@ include("fusedDifference.jl")
 
 include("generate.jl")
 include("evaluation.jl")
-
-
-# alternative implementations
-include("altImplementation.jl")
 
 end

@@ -16,6 +16,7 @@ Pkg.add("CovSel")   # or Pkg.add(url="https://github.com/mlakolar/CovSel.jl") un
 * Fused neighborhood selection: `fusedNeighborhoodSelection`
 * Direct estimation of the difference of two precision matrices `Ωx - Ωy` (Zhao, Cai and Li, 2014)
   * ℓ1 penalized, by active shooting coordinate descent: `differencePrecisionActiveShooting`, `differencePrecisionRefit`
+  * the residual of its estimating equation, a validation loss for choosing λ: `diffLoss`
   * sparsity constrained, by iterative hard thresholding: `differencePrecisionIHT`
   * sparse plus low rank: `differenceLatentPrecisionIHT`
 

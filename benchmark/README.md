@@ -11,15 +11,17 @@ allocations of each benchmark.
 - **direct difference**: the ℓ1 penalized direct difference estimator on the
   problem of the removed `example1.jl` (Σx = I, Σy the AR(1) covariance with
   ρ = 0.7, n = 1000), for p = 20, 50, 100 and λ = 0.1, 0.2, solved by
-  - `Alt.differencePrecisionNaive`: full sweeps over dense matrices,
-  - `Alt.differencePrecisionActiveShooting`: active set on a `SparseMatrixCSC`,
   - `differencePrecisionActiveShooting`: the package solver, at λ directly
     from zero (the default), and with `warmStart=false`, which first solves
-    along a path of 50 decreasing λ values;
+    along a path of 50 decreasing λ values,
+  - `Reference.differencePrecisionNaive` from
+    [`../test/reference.jl`](../test/reference.jl): full coordinate descent
+    sweeps over dense matrices, the reference the tests check the package
+    solver against;
 
   and, with the size of the true support, `differencePrecisionIHT` and the
   sparse plus rank one `differenceLatentPrecisionIHT`. Before the timings,
-  `run.jl` checks that the three ℓ1 solvers give the same solution.
+  `run.jl` checks that the package solver agrees with the reference solver.
 - **ADMM**: `covsel!` and `fusedGraphicalLasso` on the same covariances.
 
 ## Setup and running

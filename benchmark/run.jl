@@ -1,6 +1,6 @@
-# Run the suite in benchmarks.jl: check that the ℓ1 direct difference solvers
-# agree, then print the median time, memory and number of allocations of each
-# benchmark.
+# Run the suite in benchmarks.jl: check that differencePrecisionActiveShooting
+# agrees with the naive reference solver, then print the median time, memory
+# and number of allocations of each benchmark.
 #
 #   julia --project=benchmark benchmark/run.jl [results.json]
 #
@@ -13,15 +13,12 @@ using Printf
 println("Julia $VERSION, CovSel $(pkgversion(CovSel)), CoordinateDescent $(pkgversion(CoordinateDescent)), ",
   "$(Threads.nthreads()) threads, $(BLAS.get_num_threads()) BLAS threads\n")
 
-println("Largest absolute difference from Alt.differencePrecisionNaive:")
+println("Largest absolute difference between differencePrecisionActiveShooting and the reference solver:")
 for p in DIMENSIONS, λ in LAMBDAS
   Sx, Sy = PROBLEMS[p]
-  ω = ones(p, p)
-  naive = CovSel.Alt.differencePrecisionNaive(Matrix(Sx), Matrix(Sy), λ, ω)
-  alt = CovSel.Alt.differencePrecisionActiveShooting(Matrix(Sx), Matrix(Sy), λ, ω)
+  naive = Reference.differencePrecisionNaive(Matrix(Sx), Matrix(Sy), λ, ones(p, p))
   shooting = differencePrecisionActiveShooting(Sx, Sy, ProxL1(λ))
-  @printf("  p = %3d, λ = %.1f: Alt.differencePrecisionActiveShooting %.1e, differencePrecisionActiveShooting %.1e\n",
-    p, λ, maximum(abs, Matrix(alt) - naive), maximum(abs, Matrix(shooting) - naive))
+  @printf("  p = %3d, λ = %.1f: %.1e\n", p, λ, maximum(abs, Matrix(shooting) - naive))
 end
 
 if QUICK

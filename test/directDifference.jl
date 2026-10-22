@@ -2,7 +2,10 @@ module DirectDiffTest
 
 using Test, Random, LinearAlgebra, SparseArrays, Statistics
 import CovSel, ProximalBase, CoordinateDescent
+using CovSel: diffLoss
 using ProximalBase: SymmetricSparseIterate
+
+include("reference.jl")
 
 Random.seed!(123)
 
@@ -27,12 +30,9 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
       λ = 0.05 + 0.25 * rand()
       g = ProximalBase.ProxL1(λ)
 
-      solShoot = CovSel.Alt.differencePrecisionNaive(hSx, hSy, λ, tmp)
+      solShoot = Reference.differencePrecisionNaive(hSx, hSy, λ, tmp)
       solShoot1 = CovSel.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), g)
       @test Matrix(solShoot1) ≈ solShoot atol=1e-5
-
-      solShoot2 = CovSel.Alt.differencePrecisionActiveShooting(hSx, hSy, λ, tmp)
-      @test Matrix(solShoot2) ≈ solShoot atol=1e-5
 
       # warm start from the solution
       x = copy(solShoot1)
@@ -138,10 +138,14 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
       Δ = SymmetricSparseIterate(sparse(inv(hSx) - inv(hSy)))
       @test CovSel.diffLoss(Symmetric(hSx), Δ, Symmetric(hSy), Inf) ≈ 0 atol=1e-10
 
-      # objective
-      @test CovSel.differencePrecision_objective(Symmetric(hSx), Symmetric(hSy), As) ≈ denseLoss(hSx, hSy, Matrix(A))
-      Ax = hSx * (A + U*U') * hSy
-      @test CovSel.differencePrecision_objective(Ax, Symmetric(hSx), Symmetric(hSy), As, U) ≈ denseLoss(hSx, hSy, Matrix(A) + U*U')
+      # dense and sparse matrices give the same loss
+      for M in (Matrix(A), A)
+        @test diffLoss(Symmetric(hSx), M, Symmetric(hSy), 2) ≈ norm(R, 2)
+        @test diffLoss(Symmetric(hSx), M, Symmetric(hSy), Inf) ≈ norm(R, Inf)
+        @test diffLoss(Symmetric(hSx), M, U, Symmetric(hSy), 2) ≈ norm(RL, 2)
+        @test diffLoss(Symmetric(hSx), M, U, Symmetric(hSy), Inf) ≈ norm(RL, Inf)
+      end
+      @test_throws ArgumentError diffLoss(Symmetric(hSx), Matrix(A), Symmetric(hSy), 1)
     end
   end
 

@@ -10,15 +10,41 @@
     diffLoss(Σx, Δ, Σy, p)
     diffLoss(Σx, Δ, U, Σy, p)
 
-Entrywise `p`-norm (`p` is 2 or `Inf`) of the residual `Σx⋅Δ⋅Σy - Σy + Σx` of
-the direct difference estimating equation, or of `Σx⋅(Δ + UU')⋅Σy - Σy + Σx`
-when the low rank factor `U` is given.
+Residual of the estimating equation of direct difference estimation,
+
+    ‖Σx⋅Δ⋅Σy - (Σy - Σx)‖ₚ,
+
+as an entrywise norm: `p = 2` for the Frobenius norm or `p = Inf` for the
+largest absolute entry. With the low rank factor `U` (`p × r`) it is the
+residual of `Δ + UU'`. `Σx` and `Σy` are `Symmetric` covariance matrices and
+`Δ` is a `SymmetricSparseIterate` or a symmetric matrix.
+
+With the population covariances the residual is zero at `Δ = Ωx - Ωy`. With
+the sample covariances of held-out data it measures how well an estimate fits
+new data, so it serves as a validation loss for choosing the penalty of
+[`differencePrecisionActiveShooting`](@ref).
 """
 diffLoss(Σx::Symmetric{T}, Δ::SymmetricSparseIterate{T}, Σy::Symmetric{T}, p::Real) where {T<:AbstractFloat} =
   _diffLoss((r, c) -> A_mul_X_mul_B_rc(Σx, Δ, Σy, r, c) - Σy[r, c] + Σx[r, c], size(Σx, 1), p)
 
 diffLoss(Σx::Symmetric{T}, Δ::SymmetricSparseIterate{T}, U::StridedMatrix{T}, Σy::Symmetric{T}, p::Real) where {T<:AbstractFloat} =
   _diffLoss((r, c) -> A_mul_X_mul_B_rc(Σx, Δ, Σy, r, c) + A_mul_UUt_mul_B_rc(Σx, U, Σy, r, c) - Σy[r, c] + Σx[r, c], size(Σx, 1), p)
+
+diffLoss(Σx::Symmetric{T}, Δ::AbstractMatrix{T}, Σy::Symmetric{T}, p::Real) where {T<:AbstractFloat} =
+  _diffLoss(Σx * Δ * Σy - Σy + Σx, p)
+
+diffLoss(Σx::Symmetric{T}, Δ::AbstractMatrix{T}, U::StridedMatrix{T}, Σy::Symmetric{T}, p::Real) where {T<:AbstractFloat} =
+  _diffLoss(Σx * (Δ + U * U') * Σy - Σy + Σx, p)
+
+function _diffLoss(R::AbstractMatrix, p::Real)
+  if p == 2
+    return norm(R)
+  elseif p == Inf
+    return maximum(abs, R)
+  else
+    throw(ArgumentError("p should be 2 or Inf"))
+  end
+end
 
 function _diffLoss(residual, d::Int, p::Real)
   if p == 2
@@ -229,46 +255,6 @@ end
 # Direct difference estimation using iterative hard thresholding
 #
 ########################################################################
-
-# A = Σx⋅(Δ + (UV' + VU') / 2.)⋅Σy                 --- this is ensured by the algorithm
-# returns tr(A⋅Θ)/2 - tr(Θ⋅(Σy - Σx)) with Θ = Δ + (UV' + VU') / 2
-function differencePrecision_objective(
-  A::StridedMatrix{T},
-  Σx::Symmetric{T}, Σy::Symmetric{T},
-  Δ::SymmetricSparseIterate{T}, U::StridedMatrix{T}, V::StridedMatrix{T}) where {T<:AbstractFloat}
-
-  p, r = size(U)
-  v = zero(T)
-  # add sparse part
-  for c=1:p
-    for j=1:p
-      t = Δ[j, c]
-      v += (A[j,c]/2 + Σx[j,c] - Σy[j,c])*t
-    end
-  end
-
-  # add low rank part
-  for c=1:r
-    for a=1:p, b=1:p
-      v += (A[a,b] / 2 + Σx[a,b] - Σy[a,b])*U[a,c]*V[b,c] / 2
-      v += (A[a,b] / 2 + Σx[a,b] - Σy[a,b])*U[b,c]*V[a,c] / 2
-    end
-  end
-
-  v
-end
-
-differencePrecision_objective(A::StridedMatrix{T}, Σx::Symmetric{T}, Σy::Symmetric{T},
-  Δ::SymmetricSparseIterate{T}, U::StridedMatrix{T}) where {T<:AbstractFloat} =
-  differencePrecision_objective(A, Σx, Σy, Δ, U, U)
-
-differencePrecision_objective(A::StridedMatrix{T}, Σx::Symmetric{T}, Σy::Symmetric{T},
-  Δ::SymmetricSparseIterate{T}) where {T<:AbstractFloat} =
-  differencePrecision_objective(A, Σx, Σy, Δ, zeros(T, size(A, 1), 0))
-
-differencePrecision_objective(Σx::Symmetric{T}, Σy::Symmetric{T}, Δ::SymmetricSparseIterate{T}) where {T<:AbstractFloat} =
-  differencePrecision_objective(A_mul_X_mul_B(Σx, Δ, Σy), Σx, Σy, Δ)
-
 
 # gradient (A + A')/2 + Σx - Σy of the loss with respect to Θ; the IHT solvers
 # pass Σx and Σy as dense matrices, which are faster to index than a Symmetric
