@@ -46,26 +46,6 @@ Base.@kwdef struct PDHG <: CLIMESolver
   check::Int = 40
 end
 
-# largest eigenvalue of the positive semidefinite S, from above
-function _opnorm_psd(S::Matrix{T}) where {T}
-  p = size(S, 1)
-  v = ones(T, p) ./ sqrt(T(p))
-  w = similar(v)
-  λ = zero(T)
-  for _ in 1:100
-    mul!(w, S, v)
-    λnew = dot(v, w)
-    nw = norm(w)
-    iszero(nw) && return one(T)
-    v .= w ./ nw
-    abs(λnew - λ) <= 1e-6 * λnew && (λ = λnew; break)
-    λ = λnew
-  end
-  # the Rayleigh quotient is a lower bound; ‖Sv - λv‖ bounds the error
-  mul!(w, S, v)
-  λ + norm(w .- λ .* v) + eps(T) * p
-end
-
 # out[:, 1:m] = S * X[:, 1:m], using the nonzero entries of X when it is sparse
 function _mulS!(out::Matrix{T}, S::Matrix{T}, X::Matrix{T}, m::Int, idx::Vector{Vector{Int}},
                 vals::Vector{Vector{T}}, threaded::Bool) where {T}
