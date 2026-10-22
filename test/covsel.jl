@@ -2,58 +2,52 @@ module CovSelTest
 
 using Test, Random, LinearAlgebra
 import CovSel, ProximalBase
-using JuMP, SCS
+
+include("optimality.jl")
 
 Random.seed!(123)
 
-# solves the graphical lasso with SCS
-function covselSCS(S, λ)
-  p = size(S, 1)
-  problem = Model(optimizer_with_attributes(SCS.Optimizer, "verbose" => 0, "eps_abs" => 1e-8, "eps_rel" => 1e-8))
-  @variable(problem, Ω[1:p, 1:p], PSD)
-  @variable(problem, lg_det)
-  @variable(problem, B[1:p, 1:p])
-
-  @constraint(problem, [lg_det; 1; [Ω[r, c] for c=1:p for r=1:c]] in MOI.LogDetConeTriangle(p))
-  @constraint(problem, Ω .<= B)
-  @constraint(problem, -Ω .<= B)
-
-  @objective(problem, Min, tr(Ω*S) - lg_det + λ * sum(B))
-  optimize!(problem)
-  value.(Ω)
-end
-
-objective(Ω, S, λ) = tr(Ω*S) - logdet(Ω) + λ * sum(abs, Ω)
+objective(Ω, S, λ; penalize_diag=true) =
+  tr(Ω*S) - logdet(Ω) + λ * (penalize_diag ? sum(abs, Ω) : sum(abs, Ω) - sum(abs, diag(Ω)))
 
 function ar1Cov(p, ρ)
   [ρ^abs(a - b) for a=1:p, b=1:p]
 end
 
+const tight = CovSel.ADMMOptions(;abstol=1e-10, reltol=1e-10, maxiter=10000)
+
 @testset "covsel" begin
 
   @testset "random" begin
-    for REP=1:5
+    for REP=1:5, penalize_diag in (true, false)
       n = 1000
       p = 10
       X = randn(n, p) * sqrt(ar1Cov(p, 0.5))
       S = X' * X / n
 
-      λ = 0.5
+      λ = 0.1 + 0.4 * rand()
 
       X = zeros(Float64, (p,p))
       Z = zeros(Float64, (p,p))
       U = zeros(Float64, (p,p))
-      CovSel.covsel!(X, Z, U, S, λ; penalize_diag=true)
+      CovSel.covsel!(X, Z, U, S, λ; penalize_diag=penalize_diag, options=tight)
 
-      Ωv = covselSCS(S, λ)
-      @test objective(Z, S, λ) ≈ objective(Ωv, S, λ) atol = 1e-2
-      @test Ωv ≈ Z atol = 1e-2
+      @test issymmetric(Z)
+      @test isposdef(Z)
+      @test covselFixedPointResidual(Z, S, λ; penalize_diag=penalize_diag) < 1e-6
+      @test isLocalMin(Ω -> objective(Ω, S, λ; penalize_diag=penalize_diag), Z)
 
-      # with tight tolerances ADMM is at least as good as SCS
-      CovSel.covsel!(X, Z, U, S, λ; options=CovSel.ADMMOptions(;abstol=1e-10, reltol=1e-10, maxiter=10000))
-      @test objective(Z, S, λ) <= objective(Ωv, S, λ) + 1e-6
-      @test Ωv ≈ Z atol = 1e-3
+      # the default (loose) tolerances give a nearby solution
+      Z1 = zeros(p, p)
+      CovSel.covsel!(zeros(p, p), Z1, zeros(p, p), S, λ; penalize_diag=penalize_diag)
+      @test norm(Z1 - Z, Inf) < 2e-2
     end
+
+    # large λ: only the diagonal survives, Ω = Diagonal(1 / (S_ii + λ))
+    S = ar1Cov(5, 0.3)
+    Z = zeros(5, 5)
+    CovSel.covsel!(zeros(5, 5), Z, zeros(5, 5), S, 1.0; options=tight)
+    @test Z ≈ Diagonal(1 ./ (diag(S) .+ 1.0))
   end
 
   @testset "non random" begin
@@ -90,6 +84,7 @@ end
       Z = zeros(p, p)
       CovSel.covsel!(zeros(p, p), Z, zeros(p, p), S, λ; options=opt)
       @test path[i] ≈ Z atol=1e-5
+      @test covselFixedPointResidual(path[i], S, λ) < 1e-6
     end
     # smaller λ, denser estimate
     @test issorted([count(!iszero, Z) for Z in path])
