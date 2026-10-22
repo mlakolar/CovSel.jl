@@ -87,6 +87,15 @@ end
   t1 = CovSel.getConfusionMatrix(Δ, x)
   @test (t1.tp, t1.fp, t1.fn, t1.tn) == (t.tp, t.fp, t.fn, t.tn)
 
+  # off-diagonal entries only: (2,1) fp, (3,1) fn, (3,2) tn
+  for h in (hΔ, x)
+    t2 = CovSel.getConfusionMatrix(Δ, h; diagonal=false)
+    @test (t2.tp, t2.fp, t2.fn, t2.tn) == (0, 1, 1, 1)
+  end
+  # the threshold
+  t3 = CovSel.getConfusionMatrix(Δ, 0.5 * hΔ, 0.6)
+  @test (t3.tp, t3.fp, t3.fn, t3.tn) == (1, 0, 2, 3)
+
   # empty supports
   t0 = CovSel.ConfusionMatrix(0, 0, 0, 0)
   @test CovSel.tpr(t0) == 0.0
