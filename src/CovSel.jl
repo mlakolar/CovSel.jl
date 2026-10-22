@@ -37,7 +37,7 @@ export
 
   # CLIME and ACLIME
   clime, aclime, CLIMEPath,
-  CLIMESolver, DualSimplex, ParametricSimplex, LPSolver
+  CLIMESolver, DualSimplex, ParametricSimplex, LPSolver, PDHG
 
 include("utils.jl")
 
@@ -49,6 +49,7 @@ include("fusedDifference.jl")
 
 include("clime_simplex.jl")
 include("clime.jl")
+include("clime_pdhg.jl")
 
 include("generate.jl")
 include("evaluation.jl")

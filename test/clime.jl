@@ -87,6 +87,24 @@ l1cols(R) = [norm(R[:, i], 1) for i in 1:size(R, 2)]
     end
   end
 
+  @testset "PDHG" begin
+    S = samplecov(ar1(30, 0.6), 120)
+    λs = [0.5, 0.3, 0.15]
+    exact = clime(S, λs; symmetrize=false)
+    for (tol, ntasks) in ((1e-5, 1), (1e-8, 2))
+      fo = clime(S, λs, PDHG(; tol=tol); symmetrize=false, ntasks=ntasks)
+      @test fo.λ == λs
+      for k in eachindex(λs)
+        @test l1cols(fo[k]) ≈ l1cols(exact[k]) rtol=20tol
+        @test maximum(abs.(S * fo[k] - I)) <= λs[k] * (1 + 20tol)
+      end
+    end
+    @test clime(S, 0.3, PDHG(; tol=1e-9)) ≈ clime(S, 0.3) atol=1e-6
+    # ACLIME: step 1 by the parametric simplex, step 2 by PDHG
+    @test aclime(S, 120, PDHG(; tol=1e-9)) ≈ aclime(S, 120) atol=1e-6
+    @test_logs (:warn, r"did not converge") clime(S, 0.15, PDHG(; maxiter=10))
+  end
+
   @testset "paths" begin
     S = samplecov(ar1(30, 0.6), 100)
     λs = [0.1, 0.4, 0.2, 0.3]    # any order

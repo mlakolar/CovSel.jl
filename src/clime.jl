@@ -6,7 +6,7 @@
 
 Supertype of the solvers accepted by [`clime`](@ref) and [`aclime`](@ref):
 [`DualSimplex`](@ref) (the default), [`ParametricSimplex`](@ref),
-[`LPSolver`](@ref) and [`PrimalDualCLIME`](@ref).
+[`LPSolver`](@ref) and [`PDHG`](@ref).
 """
 abstract type CLIMESolver end
 
@@ -468,7 +468,7 @@ feasible penalty (with a warning).
 
 The solver can be [`ParametricSimplex`](@ref) (the default), any linear
 programming solver of MathOptInterface ([`LPSolver`](@ref)), or the first order
-method [`PrimalDualCLIME`](@ref). See also [`aclime`](@ref).
+method [`PDHG`](@ref). See also [`aclime`](@ref).
 
 # Examples
 ```julia
