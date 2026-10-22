@@ -25,8 +25,10 @@ export BENCH=$RUN/CovSel.jl/benchmark/clime
 export JULIA=$HOME/juliaPkg/julia-1.13.2/bin/julia
 export JULIA_DEPOT_PATH=$HOME/juliaPkg/depot:
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
-module load r/4.5.3 parallel/20240522
-export RSCRIPT=$(command -v Rscript)
+module load parallel/20240522 apptainer
+# R 4.5.3 of Discovery is an Apptainer container; --cleanenv keeps the host's
+# compiler and library settings out of it
+export RSCRIPT="$(command -v apptainer) exec --cleanenv --env OPENBLAS_NUM_THREADS=1,OMP_NUM_THREADS=1 /apps/containers/r/4.5/r-4.5.3.sif Rscript"
 export RLIB=$HOME/juliaPkg/Rlib-r4.5.3
 export QUICK=${QUICK:-0}
 if [ "$QUICK" = 1 ]; then
