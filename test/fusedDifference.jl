@@ -2,6 +2,7 @@ module FusedDifferenceTest
 
 using Test, Random, LinearAlgebra, Statistics
 import CovSel, ProximalBase
+using CovSel: ADMMOptions, ADMMInfo
 
 include("optimality.jl")
 
@@ -88,6 +89,21 @@ const tight = CovSel.ADMMOptions(;abstol=1e-12, reltol=1e-12, maxiter=10000)
     @test Zx ≈ I
     @test Zy ≈ I
 
+    # info, and invariance to the scale of the data
+    its = Int[]
+    Zx1, Zy1 = CovSel.fusedGraphicalLasso(Sx, n, Sy, n, 0.05, 0.05)
+    for c in (1e-3, 1.0, 1e3)
+      info = ADMMInfo()
+      Zxc, Zyc = CovSel.fusedGraphicalLasso(c * Sx, n, c * Sy, n, c * 0.05, c * 0.05; info=info)
+      @test info.converged
+      push!(its, info.iterations)
+      @test c * Zxc ≈ Zx1 rtol=1e-6
+      @test c * Zyc ≈ Zy1 rtol=1e-6
+    end
+    @test its[1] == its[2] == its[3]
+    @test_logs (:warn, r"fusedGraphicalLasso! stopped after 2 iterations") CovSel.fusedGraphicalLasso(Sx, n, Sy, n, 0.05, 0.05;
+        options=CovSel.ADMMOptions(; maxiter=2))
+
     # Float32
     Zx32, Zy32 = CovSel.fusedGraphicalLasso(Float32.(Sx), n, Float32.(Sy), n, 0.05, 0.05;
         options=CovSel.ADMMOptions(;abstol=1e-6,reltol=1e-6))
@@ -118,6 +134,20 @@ end
     @test fusedFixedPointResidual(z1, z2, g1, g2, λ1, λ2; t=0.5) < 1e-8
     @test isLocalMin((x, y) -> fnsObjective(x, y, λ1, λ2), z1, z2)
   end
+
+  # info, and invariance to the scales of A and b: with A multiplied by a, b by
+  # c and the penalties by a⋅c, the coefficients are multiplied by c / a
+  its = Int[]
+  z1, z2 = CovSel.fusedNeighborhoodSelection(A1, b1, A2, b2, 0.02, 0.02)
+  for (a, c) in ((1.0, 1.0), (1e3, 1e-2), (1e-2, 1e3))
+    info = ADMMInfo()
+    w1, w2 = CovSel.fusedNeighborhoodSelection(a * A1, c * b1, a * A2, c * b2, a * c * 0.02, a * c * 0.02; info=info)
+    @test info.converged
+    push!(its, info.iterations)
+    @test (a / c) * w1 ≈ z1 rtol=1e-6
+    @test (a / c) * w2 ≈ z2 rtol=1e-6
+  end
+  @test its[1] == its[2] == its[3]
 
   # without penalties the solutions are the least squares fits
   z1, z2 = CovSel.fusedNeighborhoodSelection(A1, b1, A2, b2, 0.0, 0.0; options=tight)

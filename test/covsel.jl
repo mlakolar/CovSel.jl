@@ -1,7 +1,8 @@
 module CovSelTest
 
-using Test, Random, LinearAlgebra
+using Test, Random, LinearAlgebra, Statistics
 import CovSel, ProximalBase
+using CovSel: covsel!, ADMMOptions, ADMMInfo
 
 include("optimality.jl")
 
@@ -92,6 +93,65 @@ const tight = CovSel.ADMMOptions(;abstol=1e-10, reltol=1e-10, maxiter=10000)
     @test redirect_stdout(devnull) do
       CovSel.covselpath(S, λarr[1:1]; options=opt, verbose=true)
     end[1] ≈ path[1]
+  end
+
+  @testset "ADMM options" begin
+    p = 30
+    S = cov(randn(300, p) * cholesky(ar1Cov(p, 0.5)).U)
+    solve(S, λ, opt; info=ADMMInfo()) = (local W = zeros(p, p); covsel!(zeros(p, p), W, zeros(p, p), S, λ; options=opt, info=info); W)
+
+    # info
+    info = ADMMInfo()
+    Z = solve(S, 0.1, ADMMOptions(); info=info)
+    @test info.converged
+    @test 1 <= info.iterations < 10_000
+    @test isfinite(info.ρ) && info.ρ > 0
+    @test info.r_norm >= 0 && info.s_norm >= 0
+
+    # multiplying the data by a constant rescales the solution and leaves the
+    # number of iterations unchanged, with or without adaptive ρ
+    for adaptive in (true, false)
+      its = Int[]
+      Z1 = solve(S, 0.1, ADMMOptions(; adaptive=adaptive))
+      for c in (1e-3, 1.0, 1e3)
+        info = ADMMInfo()
+        Zc = solve(c * S, c * 0.1, ADMMOptions(; adaptive=adaptive); info=info)
+        push!(its, info.iterations)
+        @test c * Zc ≈ Z1 rtol=1e-6
+      end
+      @test its[1] == its[2] == its[3]
+    end
+
+    # adaptive ρ balances the residuals when the variances are very unequal
+    D = Diagonal(exp.(range(log(0.1), log(10), length=p)))
+    Sh = D * S * D
+    λ = 0.05 * tr(Sh) / p
+    fixed, adaptive = ADMMInfo(), ADMMInfo()
+    Zf = solve(Sh, λ, ADMMOptions(; adaptive=false); info=fixed)
+    Za = solve(Sh, λ, ADMMOptions(); info=adaptive)
+    @test fixed.converged && adaptive.converged
+    @test adaptive.iterations < fixed.iterations / 5
+    @test adaptive.ρ != 1
+    @test covselFixedPointResidual(Za, Sh, λ; t=0.1 / maximum(diag(Sh))) < 1e-3 * maximum(abs, Za)
+
+    # warm starting from a solution with its final ρ, which the dual variable is
+    # scaled by, stops after one iteration
+    X, Z, U = zeros(p, p), zeros(p, p), zeros(p, p)
+    info = ADMMInfo()
+    covsel!(X, Z, U, Sh, 0.01 * tr(Sh) / p; info=info)
+    @test info.converged && info.ρ != 1
+    covsel!(X, Z, U, Sh, 0.01 * tr(Sh) / p; options=ADMMOptions(; ρ=info.ρ), info=info)
+    @test info.iterations == 1
+
+    # stopping at maxiter gives a warning
+    info = ADMMInfo()
+    @test_logs (:warn, r"covsel! stopped after 3 iterations") solve(S, 0.1, ADMMOptions(; maxiter=3); info=info)
+    @test !info.converged
+    @test info.iterations == 3
+
+    # the defaults
+    o = ADMMOptions()
+    @test (o.ρ, o.α, o.maxiter, o.abstol, o.reltol, o.adaptive) == (1.0, 1.5, 10_000, 1e-5, 1e-3, true)
   end
 
   @testset "Float32" begin
