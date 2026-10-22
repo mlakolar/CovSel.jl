@@ -123,6 +123,7 @@ l1cols(R) = [norm(R[:, i], 1) for i in 1:size(R, 2)]
     # the same estimates from any number of tasks
     @test clime(S, λs; ntasks=3) == clime(S, λs; ntasks=1)
     @test sprint(show, MIME"text/plain"(), clime(S, [0.4, 0.2])) isa String
+    @test sprint(show, clime(S, [0.4, 0.2])) == "CLIMEPath(2 estimates, p = 30)"
   end
 
   @testset "symmetrization" begin
@@ -219,6 +220,7 @@ l1cols(R) = [norm(R[:, i], 1) for i in 1:size(R, 2)]
     @test cva.λ == [2.0, 1.0, 0.5]
     @test bestestimate(cva) ≈ aclime(cov(X), n; δ=cva.λ[cva.best])
     @test sprint(show, MIME"text/plain"(), cv) isa String
+    @test startswith(sprint(show, cv), "CLIMECV(4 penalties")
   end
 end
 

@@ -419,6 +419,11 @@ Base.size(path::CLIMEPath) = size(path.Ω)
 Base.getindex(path::CLIMEPath, k::Int) = path.Ω[k]
 Base.IndexStyle(::Type{<:CLIMEPath}) = IndexLinear()
 
+function Base.show(io::IO, path::CLIMEPath)
+  p = isempty(path) ? 0 : size(path.Ω[1], 1)
+  print(io, "CLIMEPath(", length(path), " estimates, p = ", p, ")")
+end
+
 function Base.show(io::IO, ::MIME"text/plain", path::CLIMEPath)
   n = length(path)
   p = n > 0 ? size(path.Ω[1], 1) : 0

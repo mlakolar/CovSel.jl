@@ -31,6 +31,9 @@ validation loss.
 """
 bestestimate(cv::CLIMECV) = cv.path.Ω[findfirst(==(cv.λ[cv.best]), cv.path.λ)]
 
+Base.show(io::IO, cv::CLIMECV) =
+  print(io, "CLIMECV(", length(cv.λ), " penalties, best ", round(cv.λ[cv.best]; sigdigits=4), ")")
+
 function Base.show(io::IO, ::MIME"text/plain", cv::CLIMECV)
   println(io, "CLIMECV: $(cv.folds)-fold cross validation of $(length(cv.λ)) penalties, best ",
     round(cv.λ[cv.best]; sigdigits=4))
