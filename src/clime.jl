@@ -5,7 +5,7 @@
     CLIMESolver
 
 Supertype of the solvers accepted by [`clime`](@ref) and [`aclime`](@ref):
-[`DualSimplex`](@ref) (the default), [`ParametricSimplex`](@ref),
+[`ParametricSimplex`](@ref) (the default), [`DualSimplex`](@ref),
 [`LPSolver`](@ref) and [`PDHG`](@ref).
 """
 abstract type CLIMESolver end
@@ -25,7 +25,7 @@ of `S` with a vector.
 
 - `tol`: tolerance of the feasibility and ratio tests
 - `refactor`: number of pivots between two factorizations of the basis block
-- `maxpivots`: maximum number of pivots for one penalty; `0` means `100 + 20p`
+- `maxpivots`: maximum number of pivots for one penalty; `0` means `1000 + 50p`
 
 See also [`ParametricSimplex`](@ref), which follows the solution path through
 all its breakpoints.
@@ -49,7 +49,7 @@ when the penalties are close together.
 
 - `tol`: tolerance of the ratio tests
 - `refactor`: number of pivots between two factorizations of the basis block
-- `maxpivots`: maximum number of pivots for one column; `0` means `100 + 20p`
+- `maxpivots`: maximum number of pivots for one column; `0` means `1000 + 50p`
 """
 Base.@kwdef struct ParametricSimplex <: CLIMESolver
   tol::Float64 = 1e-9
@@ -59,7 +59,7 @@ end
 
 const _Simplex = Union{DualSimplex,ParametricSimplex}
 
-_maxpivots(solver::_Simplex, p) = solver.maxpivots > 0 ? solver.maxpivots : 100 + 20 * p
+_maxpivots(solver::_Simplex, p) = solver.maxpivots > 0 ? solver.maxpivots : 1000 + 50 * p
 
 # the tolerance in the precision T: at least 100 eps(T)
 _tol(solver::_Simplex, ::Type{T}) where {T} = max(T(solver.tol), 100 * eps(T))
