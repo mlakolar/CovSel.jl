@@ -23,7 +23,9 @@ const SOLVERS = Dict(
 # the largest p for which each mode is run (the others take too long)
 const MAXP = Dict(("HiGHS", "single") => 1000, ("HiGHS", "path") => 500,
                   ("PDHG", "single") => 1000, ("PDHG", "path") => 1000,
-                  ("PDHG4", "single") => 1000, ("PDHG4", "path") => 1000)
+                  ("PDHG4", "single") => 1000, ("PDHG4", "path") => 1000,
+                  ("ParametricSimplex", "single") => 2000, ("DualSimplex", "single") => 2000,
+                  ("DualSimplex", "path") => 2000)
 
 l1cols(R) = [norm(view(R, :, i), 1) for i in 1:size(R, 2)]
 
@@ -53,8 +55,15 @@ function run(dir, outdir, names)
       p > get(MAXP, (nm, mode), typemax(Int)) && continue
       grid = mode == "single" ? λs[end:end] : λs
       GC.gc()
-      local path
-      stats = @timed path = clime(S, grid, solver; symmetrize=false, ntasks=nt)
+      local path, stats
+      try
+        stats = @timed path = clime(S, grid, solver; symmetrize=false, ntasks=nt)
+      catch err
+        # a failure is recorded with NaN time, and the other solvers still run
+        @printf("%-28s %-18s T%-2d %-6s failed: %s\n", name, nm, nt, mode, sprint(showerror, err)[1:min(end, 200)])
+        push!(rows, @sprintf("%s,%s,%d,%d,%s,%d,%s,NaN,NaN,0,0,NaN,-1", name, model, p, n, nm, nt, mode))
+        continue
+      end
       t = stats.time - stats.gctime
       nsolved = length(path.λ)
       viol = maximum(violation(S, path[k], path.λ[k]) for k in 1:nsolved; init=-Inf)

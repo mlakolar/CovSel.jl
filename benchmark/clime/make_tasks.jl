@@ -24,7 +24,8 @@ for name in sort(readdir(problems_dir))
   # Julia: the simplex solvers always, HiGHS and PDHG up to p = 1000 (run_julia.jl
   # also limits the HiGHS path to p ≤ 500)
   solvers = ["ParametricSimplex", "DualSimplex"]
-  p <= 1000 && append!(solvers, ["HiGHS", "PDHG"])
+  p <= 1000 && push!(solvers, "HiGHS")
+  (p <= 500 || (p == 1000 && n > p)) && push!(solvers, "PDHG")
   cost = p <= 200 ? 30.0 : p == 500 ? 300.0 : p == 1000 ? 600.0 : p == 2000 ? 200.0 : 900.0
   mem = p >= 4000 ? 3800 : 1900
   task(cost, mem, "$JL \$BENCH/run_julia.jl $dir $out/julia $(join(solvers, ' '))", "$out/logs/julia_$name.log")
