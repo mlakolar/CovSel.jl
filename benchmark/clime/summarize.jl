@@ -159,8 +159,11 @@ end
 adir = joinpath(res, "aclime")
 if isdir(adir) && !isempty(readdir(adir))
   println("\n### Replication of Table 1 of Cai, Liu and Zhou (2016): mean error (standard error)\n")
-  println("| model | p | reps | norm | ACLIME | CLIME (trace CV) | CLIME (likelihood CV) |")
-  println("|---|---:|---:|---|---:|---:|---:|")
+  ncols = length(split(readline(first(filter(f -> endswith(f, ".csv"), readdir(adir; join=true)))), ',')) - 3
+  variants = ncols >= 12 ? 4 : 3
+  println("| model | p | reps | norm | ACLIME | CLIME (trace CV) | CLIME (likelihood CV) |",
+    variants == 4 ? " ACLIME, truncate=false |" : "")
+  println("|---|---:|---:|---|---:|---:|---:|", variants == 4 ? "---:|" : "")
   for model in ("band", "ar1", "er"), p in (50, 100, 200)
     f = joinpath(adir, "$(model)_p$p.csv")
     isfile(f) || continue
@@ -170,7 +173,7 @@ if isdir(adir) && !isempty(readdir(adir))
     s = parse.(Float64, split(lines[3], ',')[4:end])
     reps = split(lines[2], ',')[3]
     for (j, norm) in enumerate(("spectral", "matrix ℓ1", "Frobenius"))
-      cells = [@sprintf("%.2f (%.2f)", m[3(q-1)+j], s[3(q-1)+j]) for q in 1:3]
+      cells = [@sprintf("%.2f (%.2f)", m[3(q-1)+j], s[3(q-1)+j]) for q in 1:variants]
       println("| $model | $p | $reps | $norm | ", join(cells, " | "), " |")
     end
   end

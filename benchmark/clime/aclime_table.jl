@@ -6,7 +6,8 @@
 # MODEL is band, ar1 or er. As in the paper: Σ = D Ω₁⁻¹ D with D diagonal with
 # entries uniform on (1, 5); n = 200 training observations and 200 more for
 # validation. ACLIME uses δ = 2 in step 1 and chooses δ of step 2 from j/50,
-# j = 1, …, 100, by the likelihood on the validation sample. The paper chooses
+# j = 1, …, 100, by the likelihood on the validation sample; "ACLIMEu" is the
+# same without the rule of step 1 for large variances. The paper chooses
 # the penalty of CLIME "by cross validation" as in Cai, Liu and Luo (2011),
 # without more detail; here it is chosen from 40 values between 1 and 0.03 by
 # 5-fold cross validation on the training sample, with the trace loss
@@ -46,11 +47,17 @@ function replication(model, p, rng; n=200, ntest=200)
   X = randn(rng, n, p) * U
   Xtest = randn(rng, ntest, p) * U
   S, Stest = cov(X), cov(Xtest)
-  # ACLIME, δ of step 2 by the validation likelihood
+  # ACLIME, δ of step 2 by the validation likelihood, with the rule of step 1 for
+  # large variances (as in the paper) and without it (truncate=false)
   δs = (1:100) ./ 50
-  path = aclime(S, n; δ=δs)
+  path = redirect_stderr(devnull) do        # warnings about zero diagonal entries
+    aclime(S, n; δ=δs)
+  end
   lik = [CovSel._cvloss(Stest, Ωh, :likelihood) for Ωh in path]
   Ωa = path[argmin(lik)]
+  pathu = aclime(S, n; δ=δs, truncate=false)
+  liku = [CovSel._cvloss(Stest, Ωh, :likelihood) for Ωh in pathu]
+  Ωu = pathu[argmin(liku)]
   # CLIME, penalty by 5-fold cross validation with the trace and likelihood losses
   λs = exp.(range(log(1.0), log(0.03); length=40))
   Ltr = zeros(length(λs))
@@ -68,8 +75,8 @@ function replication(model, p, rng; n=200, ntest=200)
     end
   end
   full = clime(S, λs[[argmin(Ltr), argmin(Llik)]])
-  (norms(Ωa - Ω)..., norms(full[1] - Ω)..., norms(full[2] - Ω)...,
-   δs[argmin(lik)], λs[argmin(Ltr)], λs[argmin(Llik)])
+  (norms(Ωa - Ω)..., norms(full[1] - Ω)..., norms(full[2] - Ω)..., norms(Ωu - Ω)...,
+   δs[argmin(lik)], λs[argmin(Ltr)], λs[argmin(Llik)], δs[argmin(liku)])
 end
 
 function main(model, p, reps, out)
@@ -79,7 +86,8 @@ function main(model, p, reps, out)
   m, s = vec(mean(M; dims=1)), vec(std(M; dims=1)) ./ sqrt(reps)
   names = ["ACLIME spectral", "ACLIME l1", "ACLIME Frobenius", "CLIME spectral", "CLIME l1",
            "CLIME Frobenius", "CLIMElik spectral", "CLIMElik l1", "CLIMElik Frobenius",
-           "ACLIME delta", "CLIME lambda", "CLIMElik lambda"]
+           "ACLIMEu spectral", "ACLIMEu l1", "ACLIMEu Frobenius",
+           "ACLIME delta", "CLIME lambda", "CLIMElik lambda", "ACLIMEu delta"]
   for (k, nm) in enumerate(names)
     @printf("%-6s p=%-4d %-18s %.3f (%.3f)\n", model, p, nm, m[k], s[k])
   end
