@@ -194,9 +194,13 @@ l1cols(R) = [norm(R[:, i], 1) for i in 1:size(R, 2)]
     @test issorted(nnz.(path))
     @test_throws ArgumentError aclime(S, 0)
     @test_throws ArgumentError aclime(S, n; δ=-1)
-    # large variances: the rule of step 1 can zero whole columns, with a warning
+    # large variances: the rule of step 1 can zero whole columns, with a warning,
+    # and without the rule the estimate scales with the data
     Ωbig = @test_logs (:warn, r"diagonal entries") aclime(1e4 * S, n)
     @test any(iszero, diag(Ωbig))
+    Ωnt = aclime(1e4 * S, n; truncate=false)
+    @test all(>(0), diag(Ωnt))
+    @test aclime(S, n; truncate=false) ≈ 1e4 * Ωnt rtol=0.05
   end
 
   @testset "cross validation" begin
