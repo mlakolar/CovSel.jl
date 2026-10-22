@@ -364,7 +364,8 @@ _solve_diagonal(::LPSolver, args...) = _needmoi()
 
 Estimates along a sequence of penalties, returned by [`clime`](@ref) and
 [`aclime`](@ref) when given several of them. `path[k]` is the estimate for the
-penalty `path.λ[k]`, and the penalties keep the order in which they were given.
+penalty `path.λ[k]` (the constant δ for ACLIME), in the order in which the
+penalties were given.
 """
 struct CLIMEPath{T<:AbstractFloat} <: AbstractVector{SparseMatrixCSC{T,Int}}
   λ::Vector{T}
@@ -513,9 +514,15 @@ With `Ŝ = S + I/n`, `λₙ = δ √(log p / n)` and `λ₁ = δ₁ √(log p / 
    and the columns are symmetrized as in [`clime`](@ref).
 
 Returns a `SparseMatrixCSC`. With a vector `δ`, returns a [`CLIMEPath`](@ref)
-of the estimates for each `δ`, whose `λ` field holds `λₙ`; Cai, Liu and Zhou
-(2016) choose `δ` from `(1:100)/50` by cross validation. Since `Ŝ` is positive
-definite, all the column problems are feasible.
+of the estimates for each `δ`, whose field `λ` holds the values of `δ`. Cai,
+Liu and Zhou (2016) choose `δ` from `(1:100)/50` by cross validation, which
+[`aclimecv`](@ref) does. Since `Ŝ` is positive definite, all the column problems
+are feasible.
+
+The rule of step 1 for large variances depends on the units of the variables:
+when the variances are large, whole columns of the estimate can be zero, and
+`aclime` warns. Rescaling the data, for example to unit variances (passing the
+correlation matrix as `S`), avoids it.
 """
 function aclime(S::AbstractMatrix, n::Integer, solver::CLIMESolver=DualSimplex();
                 δ=2, δ₁::Real=2, symmetrize::Bool=true, ntasks::Integer=Threads.nthreads())
@@ -539,8 +546,16 @@ function aclime(S::AbstractMatrix, n::Integer, solver::CLIMESolver=DualSimplex()
     end
   end
 
-  # step 2: CLIME with the constraint of entry j of column i scaled by √(σⱼⱼ ω̂ᵢᵢ)
+  # step 2: CLIME with the constraint of entry j of column i scaled by √(σⱼⱼ ω̂ᵢᵢ);
+  # Ŝ is positive definite, so all the penalties are feasible
   spec = _CLIMESpec(sqrt.(σ), false, zero(T))
   path = _estimate(solver, Ŝ, spec, T.(δs) .* rate, sqrt.(ω), symmetrize, ntasks, δ isa Real)
-  δ isa Real ? only(path) : path
+  for Ω in path.Ω
+    any(i -> iszero(Ω[i, i]), 1:p) || continue
+    @warn "ACLIME: some diagonal entries of the estimate are zero. The variables with variance " *
+          "above √(n / log p) = $(round(1 / rate; sigdigits=3)) get √(log p / n) as their " *
+          "estimated diagonal in step 1; consider rescaling the data, e.g. to unit variances."
+    break
+  end
+  δ isa Real ? only(path.Ω) : CLIMEPath{T}(T.(δs), path.Ω)
 end

@@ -188,11 +188,37 @@ l1cols(R) = [norm(R[:, i], 1) for i in 1:size(R, 2)]
     @test all(certificate(Ŝ, Vector(raw[:, i]), i, 2rate * sqrt(ω[i]); c=sqrt.(σ)) < 1e-8 for i in 1:p)
     # a path over δ
     path = aclime(S, n; δ=[2.0, 1.0, 0.5])
-    @test path.λ ≈ [2.0, 1.0, 0.5] .* rate
+    @test path.λ == [2.0, 1.0, 0.5]
     @test path[1] ≈ Ω
     @test issorted(nnz.(path))
     @test_throws ArgumentError aclime(S, 0)
     @test_throws ArgumentError aclime(S, n; δ=-1)
+    # large variances: the rule of step 1 can zero whole columns, with a warning
+    Ωbig = @test_logs (:warn, r"diagonal entries") aclime(1e4 * S, n)
+    @test any(iszero, diag(Ωbig))
+  end
+
+  @testset "cross validation" begin
+    n, p = 120, 20
+    Ω0 = Matrix(SymTridiagonal(ones(p), fill(0.4, p - 1)))
+    X = randn(n, p) / cholesky(Symmetric(Ω0)).U'
+    λs = [0.5, 0.3, 0.2, 0.1]
+    cv = climecv(X, λs; folds=4, rng=MersenneTwister(3))
+    @test cv isa CLIMECV{Float64}
+    @test cv.λ == λs && cv.folds == 4
+    @test length(cv.meanloss) == length(cv.stdloss) == 4
+    @test all(isfinite, cv.stdloss[isfinite.(cv.meanloss)])
+    @test cv.best == argmin(cv.meanloss)
+    @test bestestimate(cv) ≈ clime(cov(X), λs[cv.best])
+    # the same folds from the same random number generator
+    @test climecv(X, λs; folds=4, rng=MersenneTwister(3)).meanloss == cv.meanloss
+    @test climecv(X, λs; folds=4, loss=:trace).meanloss != cv.meanloss
+    @test_throws ArgumentError climecv(X, λs; loss=:other)
+    @test_throws ArgumentError climecv(X, λs; folds=1)
+    cva = aclimecv(X, [2.0, 1.0, 0.5]; folds=3)
+    @test cva.λ == [2.0, 1.0, 0.5]
+    @test bestestimate(cva) ≈ aclime(cov(X), n; δ=cva.λ[cva.best])
+    @test sprint(show, MIME"text/plain"(), cv) isa String
   end
 end
 

@@ -17,7 +17,7 @@ module CovSel
 using ProximalBase
 using CoordinateDescent
 using SparseArrays, LinearAlgebra
-using Random: AbstractRNG, default_rng
+using Random: AbstractRNG, default_rng, randperm
 
 export
   ADMMOptions, ADMMInfo, IHTOptions,
@@ -36,7 +36,7 @@ export
   differenceLatentPrecisionIHT, differenceLatentPrecisionIHT!,
 
   # CLIME and ACLIME
-  clime, aclime, CLIMEPath,
+  clime, aclime, CLIMEPath, climecv, aclimecv, CLIMECV, bestestimate,
   CLIMESolver, DualSimplex, ParametricSimplex, LPSolver, PDHG
 
 include("utils.jl")
@@ -50,6 +50,7 @@ include("fusedDifference.jl")
 include("clime_simplex.jl")
 include("clime.jl")
 include("clime_pdhg.jl")
+include("clime_cv.jl")
 
 include("generate.jl")
 include("evaluation.jl")
