@@ -31,14 +31,16 @@ l1cols(R) = [norm(view(R, :, i), 1) for i in 1:size(R, 2)]
 violation(S, R, λ) = maximum(abs.(S * R - I)) / λ - 1
 
 function run(dir, outdir, names)
-  prob = read_problem(dir)
+  meta = read_meta(dir)
+  p, n, model = parse(Int, meta["p"]), parse(Int, meta["n"]), meta["model"]
+  S = readbin(joinpath(dir, "S.bin"), p, p)
+  λs = parse.(Float64, readlines(joinpath(dir, "lambda.txt")))
   name = basename(rstrip(dir, '/'))
-  S, λs, p = prob.S, prob.λ, prob.p
   nt = Threads.nthreads()
   nt == 1 && BLAS.set_num_threads(1)
   mkpath(outdir)
   # compile everything on a small problem first
-  small = read_problem(dir).S[1:min(p, 30), 1:min(p, 30)]
+  small = S[1:min(p, 30), 1:min(p, 30)]
   for nm in names
     redirect_stderr(devnull) do
       clime(small, [0.5, 0.3], SOLVERS[nm](); ntasks=nt)
@@ -57,7 +59,7 @@ function run(dir, outdir, names)
       nsolved = length(path.λ)
       viol = maximum(violation(S, path[k], path.λ[k]) for k in 1:nsolved; init=-Inf)
       nnzmin = nsolved == length(grid) ? nnz(path[end]) : -1
-      push!(rows, @sprintf("%s,%s,%d,%d,%s,%d,%s,%.6f,%.6f,%d,%d,%.3e,%d", name, prob.model, p, prob.n, nm, nt,
+      push!(rows, @sprintf("%s,%s,%d,%d,%s,%d,%s,%.6f,%.6f,%d,%d,%.3e,%d", name, model, p, n, nm, nt,
         mode, t, stats.gctime, stats.bytes, nsolved, viol, nnzmin))
       if mode == "path"
         L = fill(NaN, p, length(λs))
