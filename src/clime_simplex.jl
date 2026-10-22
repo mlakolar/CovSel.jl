@@ -58,7 +58,6 @@ mutable struct _PSMWorkspace{T<:AbstractFloat}
   x::Vector{T}           # scratch, length p
   y::Vector{T}           # scratch, length p
   z::Vector{T}           # scratch, length p
-  perm::Vector{Int}      # scratch
   npivots::Int           # pivots since the last factorization
 end
 
@@ -71,7 +70,7 @@ function _PSMWorkspace(S::Matrix{T}) where {T<:AbstractFloat}
     zeros(T, cap, cap),
     zeros(T, p), zeros(T, p), zeros(T, p),
     zeros(T, p), zeros(T, p), zeros(T, p), zeros(T, p), zeros(T, p),
-    zeros(T, p), zeros(T, p), zeros(T, p), zeros(Int, p), 0)
+    zeros(T, p), zeros(T, p), zeros(T, p), 0)
 end
 
 function _grow!(ws::_PSMWorkspace{T}, k::Int) where {T}
