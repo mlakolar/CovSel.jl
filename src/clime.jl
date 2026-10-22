@@ -509,15 +509,17 @@ The column problems are independent: they are distributed over `ntasks` tasks
 With `symmetrize=false` the column solutions are returned as they are.
 
 The penalty is in the units of `S Ω`, so it is not invariant to rescaling the
-variables. Use the correlation matrix to treat all variables alike, and rescale
-the estimate: for `S = D R D` with `D` diagonal, the estimate from `R` gives
-`D⁻¹ Ω̂ D⁻¹`. For `n < p` the sample covariance matrix is singular and the column
-problems become infeasible for small `λ`; a path then stops at the smallest
-feasible penalty (with a warning).
+variables. To treat all variables alike, use the correlation matrix
+`R = D⁻¹ S D⁻¹`, with `D` the diagonal matrix of standard deviations: if `Θ̂` is
+the estimate from `R`, then `D⁻¹ Θ̂ D⁻¹` estimates `Ω`. When `S` is singular, as
+the sample covariance matrix is for `n ≤ p`, the column problems are infeasible
+for small `λ`: an infeasible penalty throws a `DomainError`, and is dropped from
+a path with a warning.
 
-The solver can be [`ParametricSimplex`](@ref) (the default), any linear
-programming solver of MathOptInterface ([`LPSolver`](@ref)), or the first order
-method [`PDHG`](@ref). See also [`aclime`](@ref).
+The solver can be [`ParametricSimplex`](@ref) (the default), [`DualSimplex`](@ref),
+any linear programming solver of MathOptInterface ([`LPSolver`](@ref)), or the
+first order method [`PDHG`](@ref). All but `PDHG` give the exact solutions of
+the linear programs. See also [`aclime`](@ref) and [`climecv`](@ref).
 
 # Examples
 ```julia

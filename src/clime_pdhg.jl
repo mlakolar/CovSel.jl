@@ -34,6 +34,8 @@ exactly, and the result is kept, as the exact solution, if it satisfies all
 the optimality conditions (it usually does at that point, since the iterates
 are exactly sparse).
 
+It is much slower than [`ParametricSimplex`](@ref) on a CPU, and keeps 14
+matrices of size p × p (iterates, their products with `S` and their averages).
 Step 1 of [`aclime`](@ref) is not of the form PDHG handles and is solved by
 [`ParametricSimplex`](@ref).
 """
