@@ -3,6 +3,10 @@
 
 Methods for learning high-dimensional Gaussian graphical models:
 
+* CLIME and ACLIME, sparse precision matrices by constrained ℓ1 minimization
+  ([`clime`](@ref), [`aclime`](@ref)), with cross validation
+  ([`climecv`](@ref), [`aclimecv`](@ref)) and a choice of solvers
+  ([`CLIMESolver`](@ref));
 * the graphical lasso by ADMM ([`covsel!`](@ref), [`covselpath`](@ref));
 * the fused graphical lasso for two groups ([`fusedGraphicalLasso`](@ref)) and
   fused neighborhood selection ([`fusedNeighborhoodSelection`](@ref));
