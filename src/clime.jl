@@ -27,8 +27,9 @@ of `S` with a vector.
 - `refactor`: number of pivots between two factorizations of the basis block
 - `maxpivots`: maximum number of pivots for one penalty; `0` means `1000 + 50p`
 
-See also [`ParametricSimplex`](@ref), which follows the solution path through
-all its breakpoints.
+In the benchmarks of `benchmark/clime`, [`ParametricSimplex`](@ref), which
+follows the solution path through all its breakpoints, was as fast for one
+penalty and up to twice as fast for a path, so it is the default.
 """
 Base.@kwdef struct DualSimplex <: CLIMESolver
   tol::Float64 = 1e-9
