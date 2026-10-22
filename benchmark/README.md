@@ -23,6 +23,8 @@ allocations of each benchmark.
   sparse plus rank one `differenceLatentPrecisionIHT`. Before the timings,
   `run.jl` checks that the package solver agrees with the reference solver.
 - **ADMM**: `covsel!` and `fusedGraphicalLasso` on the same covariances.
+- **generateData**: 1000 draws from a tridiagonal precision matrix, from `Ω`
+  and from its precomputed Cholesky factor.
 
 ## Setup and running
 

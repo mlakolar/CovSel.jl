@@ -42,7 +42,7 @@ julia --project=examples examples/graphical_lasso.jl
 or, in the REPL, `] activate examples` followed by
 `include("examples/graphical_lasso.jl")`.
 
-Each script takes a few seconds, except `inference.jl`, whose default
-(p = 500, n = 400, 500 replications) takes about half a minute. With the
-environment variable `COVSEL_EXAMPLES_QUICK=1` it uses a small setting instead;
-CI runs all the examples this way.
+Each script takes a few seconds. With the environment variable
+`COVSEL_EXAMPLES_QUICK=1`, `inference.jl` uses a smaller setting than its
+default (p = 500, n = 400, 500 replications); CI runs all the examples this
+way.

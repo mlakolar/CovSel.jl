@@ -1,12 +1,23 @@
 """
-    generateData(Ω, n)
+    generateData([rng,] Ω, n)
+    generateData([rng,] F::Cholesky, n)
 
-Draw `n` observations from `N(0, Ω⁻¹)`, returned as the rows of an `n × p` matrix.
+Draw `n` observations from `N(0, Ω⁻¹)`, returned as the rows of an `n × p`
+matrix with the element type of `Ω`. With the Cholesky factorization
+`Ω = RᵀR`, the rows are `R⁻¹z` for standard normal vectors `z`.
+
+To draw many samples from the same `Ω`, factor it once with
+`F = cholesky(Symmetric(Ω))` and pass `F`. Pass a random number generator
+`rng` for draws that do not depend on the global one. Throws a
+`PosDefException` if `Ω` is not positive definite.
 """
-function generateData(Ω, n)
-  d, U = eigen(Symmetric(Ω))
-  X = randn(n, size(Ω, 1)) * (U * Diagonal(1 ./ sqrt.(d)) * U')
-end
+generateData(rng::AbstractRNG, F::Cholesky, n::Integer) =
+  rdiv!(randn(rng, eltype(F), n, size(F, 1)), F.U')
+
+generateData(rng::AbstractRNG, Ω::AbstractMatrix, n::Integer) =
+  generateData(rng, cholesky(Symmetric(Ω)), n)
+
+generateData(Ω::Union{AbstractMatrix, Cholesky}, n::Integer) = generateData(default_rng(), Ω, n)
 
 
 ############################

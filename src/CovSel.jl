@@ -17,6 +17,7 @@ module CovSel
 using ProximalBase
 using CoordinateDescent
 using SparseArrays, LinearAlgebra
+using Random: AbstractRNG, default_rng
 
 export
   ADMMOptions, ADMMInfo, IHTOptions,

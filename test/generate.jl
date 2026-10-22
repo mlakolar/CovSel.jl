@@ -16,6 +16,17 @@ Random.seed!(7)
   @test size(X) == (20000, p)
   @test cov(X) ≈ inv(Ω) rtol=0.1
 
+  # the rows are R⁻¹z for Ω = RᵀR and standard normal z
+  F = cholesky(Symmetric(Ω))
+  X = CovSel.generateData(MersenneTwister(1), Ω, 10)
+  @test X * F.U' ≈ randn(MersenneTwister(1), 10, p)
+  # a precomputed factorization gives the same draws
+  @test CovSel.generateData(MersenneTwister(1), F, 10) == X
+  @test size(CovSel.generateData(F, 4)) == (4, p)
+  @test eltype(CovSel.generateData(Float32.(Ω), 3)) == Float32
+  @test size(CovSel.generateData(Ω, 0)) == (0, p)
+  @test_throws PosDefException CovSel.generateData([1.0 2.0; 2.0 1.0], 3)
+
   Ω1, L = CovSel.genLatentModel(Ω, 2, 0.5)
   @test Ω1 === Ω
   @test rank(L) == 2
