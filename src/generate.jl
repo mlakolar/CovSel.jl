@@ -32,25 +32,6 @@ function generateSparseSPD(p, α=0.95, smallest_coef=.1, largest_coef=.9)
   return prec
 end
 
-# takes as an input a precision matrix,
-# returns a new precision matrix
-# off diagonal elements have some probability of having flipped sign
-function generateRandomDifference(Ω::StridedMatrix, probability_flip)
-
-  p = size(Ω, 1)
-  Ωy = copy(Ω)
-
-  for c=1:p, r=c+1:p
-    if rand() < probability_flip
-      v = -Ω[r,c]
-      Ωy[r,c] = Ωy[c,r] = v
-    end
-  end
-
-  return Ωy
-end
-
-
 # returns Ω and a random rank r matrix L with operator norm relStrength⋅λmax(Ω)
 function genLatentModel(Ω::StridedMatrix, r, relStrength)
   p = size(Ω, 1)

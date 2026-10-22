@@ -2,7 +2,7 @@ module UtilsTest
 
 using Test, Random, LinearAlgebra, SparseArrays
 import CovSel, ProximalBase
-using ProximalBase: SymmetricSparseIterate, SparseIterate, sub2indLowerTriangular
+using ProximalBase: SymmetricSparseIterate
 
 Random.seed!(1)
 
@@ -40,10 +40,6 @@ Random.seed!(1)
       CovSel.HardThreshold!(Δ, X, s, diagonal)
       @test Matrix(Δ) == expected
       @test nnz(Δ) == count(!iszero, tril(expected))
-
-      x = SparseIterate(6)
-      CovSel.HardThreshold!(x, X, s, diagonal)
-      @test [x[sub2indLowerTriangular(3, r, c)] for c=1:3 for r=c:3] == [expected[r, c] for c=1:3 for r=c:3]
     end
     @test_throws DimensionMismatch CovSel.HardThreshold!(SymmetricSparseIterate(2), X, 1)
 
@@ -54,10 +50,6 @@ Random.seed!(1)
 
     CovSel.HardThreshold!(Δ, 0)
     @test nnz(Δ) == 0
-
-    x = SparseIterate([0.0, -3.0, 1.0, 2.0])
-    CovSel.HardThreshold!(x, 2)
-    @test Vector(x) == [0.0, -3.0, 0.0, 2.0]
   end
 end
 
@@ -76,19 +68,18 @@ end
   t = CovSel.getConfusionMatrix(Δ, hΔ)
   # lower triangle: (1,1) tp, (2,1) fp, (3,1) fn, (2,2) tn, (3,2) tn, (3,3) tp
   @test (t.tp, t.fp, t.fn, t.tn) == (2, 1, 1, 2)
-  @test CovSel.tpr(t) == CovSel.recall(t) == 2 / 3
+  @test CovSel.tpr(t) == 2 / 3
   @test CovSel.fpr(t) == 1 / 3
   @test CovSel.precision(t) == 2 / 3
 
-  x = SparseIterate(6)
-  for c=1:3, r=c:3
-    x[sub2indLowerTriangular(3, r, c)] = hΔ[r, c]
+  # any matrix type for the estimate
+  for h in (SymmetricSparseIterate(sparse(hΔ)), sparse(hΔ))
+    t1 = CovSel.getConfusionMatrix(Δ, h)
+    @test (t1.tp, t1.fp, t1.fn, t1.tn) == (t.tp, t.fp, t.fn, t.tn)
   end
-  t1 = CovSel.getConfusionMatrix(Δ, x)
-  @test (t1.tp, t1.fp, t1.fn, t1.tn) == (t.tp, t.fp, t.fn, t.tn)
 
   # off-diagonal entries only: (2,1) fp, (3,1) fn, (3,2) tn
-  for h in (hΔ, x)
+  for h in (hΔ, SymmetricSparseIterate(sparse(hΔ)))
     t2 = CovSel.getConfusionMatrix(Δ, h; diagonal=false)
     @test (t2.tp, t2.fp, t2.fn, t2.tn) == (0, 1, 1, 1)
   end

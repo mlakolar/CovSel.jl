@@ -16,11 +16,6 @@ Random.seed!(7)
   @test size(X) == (20000, p)
   @test cov(X) ≈ inv(Ω) rtol=0.1
 
-  Ωy = CovSel.generateRandomDifference(Ω, 1.0)
-  @test diag(Ωy) == diag(Ω)
-  @test Ωy - Diagonal(Ωy) == -(Ω - Diagonal(Ω))
-  @test CovSel.generateRandomDifference(Ω, 0.0) == Ω
-
   Ω1, L = CovSel.genLatentModel(Ω, 2, 0.5)
   @test Ω1 === Ω
   @test rank(L) == 2

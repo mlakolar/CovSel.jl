@@ -13,9 +13,7 @@ Keep the `s` largest entries of the symmetric matrix `X` in absolute value and
 set the rest to zero. Only entries on or below the main diagonal are ranked.
 With `diagonal=false` the diagonal is excluded from the ranking and always kept.
 Ties at the threshold are all kept, and an entry and its transpose are kept or
-dropped together. `out` is a dense matrix, a
-`SymmetricSparseIterate`, or a `SparseIterate` vector indexed by the lower
-triangle (see `sub2indLowerTriangular`).
+dropped together. `out` is a dense matrix or a `SymmetricSparseIterate`.
 """
 function HardThreshold!(out::StridedMatrix{T}, X::StridedMatrix{T}, s::Int, diagonal::Bool=true) where {T<:AbstractFloat}
   size(out) == size(X) || throw(DimensionMismatch())
@@ -42,28 +40,24 @@ end
 
 HardThreshold!(X::StridedMatrix, s::Int, diagonal::Bool=true) = HardThreshold!(X, X, s, diagonal)
 
-_setLower!(out::SymmetricSparseIterate, v, p, r, c) = (out[r, c] = v)
-_setLower!(out::SparseIterate{T, 1}, v, p, r, c) where {T} = (out[sub2indLowerTriangular(p, r, c)] = v)
-
-function HardThreshold!(out::Union{SparseIterate{T, 1},SymmetricSparseIterate{T}}, X::StridedMatrix{T}, s::Int, diagonal::Bool=true) where {T<:AbstractFloat}
+function HardThreshold!(out::SymmetricSparseIterate{T}, X::StridedMatrix{T}, s::Int, diagonal::Bool=true) where {T<:AbstractFloat}
   p = size(X, 1)
-  length(out) == div(p * (p + 1), 2) || throw(DimensionMismatch())
+  size(out) == size(X) || throw(DimensionMismatch())
 
   val = s <= 0 ? T(Inf) : _threshold([abs(X[r, c]) for c=1:p for r=(diagonal ? c : c + 1):p], s)
   for c=1:p, r=c:p
-    v = (!diagonal && r == c) || abs(X[r, c]) >= val ? X[r, c] : zero(T)
-    _setLower!(out, v, p, r, c)
+    out[r, c] = (!diagonal && r == c) || abs(X[r, c]) >= val ? X[r, c] : zero(T)
   end
   dropzeros!(out)
 end
 
 """
-    HardThreshold!(X::Union{SparseIterate,SymmetricSparseIterate}, s)
+    HardThreshold!(X::SymmetricSparseIterate, s)
 
 Keep the `s` largest stored entries of `X` in absolute value (ties at the
 threshold are all kept) and drop the rest.
 """
-function HardThreshold!(X::Union{SparseIterate{T},SymmetricSparseIterate{T}}, s::Int) where {T<:AbstractFloat}
+function HardThreshold!(X::SymmetricSparseIterate{T}, s::Int) where {T<:AbstractFloat}
   val = s <= 0 ? T(Inf) : _threshold(abs.(view(X.nzval, 1:nnz(X))), s)
   for i=1:nnz(X)
     if abs(X.nzval[i]) < val
