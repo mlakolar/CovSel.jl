@@ -9,6 +9,8 @@
 #     (the comparison of the removed example1.jl); iterative hard
 #     thresholding, sparse and sparse plus rank one
 #   "ADMM": the graphical lasso and the fused graphical lasso
+#   "CLIME": clime along a path of 20 penalties and at one penalty, and aclime
+#     (the comparison of the CLIME solvers is in clime/)
 #   "generateData": drawing samples, from Ω and from its Cholesky factor
 
 using BenchmarkTools
@@ -66,6 +68,18 @@ for p in DIMENSIONS
   # each sample starts from zero iterates, since covsel! warm starts from them
   g["covsel!"] = @benchmarkable covsel!(X, Z, U, $Sy, 0.1) setup=(X = zeros($p, $p); Z = zeros($p, $p); U = zeros($p, $p)) evals=1
   g["fusedGraphicalLasso"] = @benchmarkable fusedGraphicalLasso($Sx, 1000, $Sy, 1000, 0.05, 0.05)
+end
+
+SUITE["CLIME"] = BenchmarkGroup()
+for p in DIMENSIONS
+  Sx, Sy = PROBLEMS[p]
+  R = Matrix(Sy)
+  R ./= sqrt.(diag(R)) * sqrt.(diag(R))'
+  λs = exp.(range(log(0.6), log(0.1); length=20))
+  g = SUITE["CLIME"]["p = $p"] = BenchmarkGroup()
+  g["clime, path of 20"] = @benchmarkable clime($R, $λs; ntasks=1)
+  g["clime, λ = 0.1"] = @benchmarkable clime($R, 0.1; ntasks=1)
+  g["aclime"] = @benchmarkable aclime($(Matrix(Sy)), 1000; ntasks=1)
 end
 
 SUITE["generateData"] = BenchmarkGroup()

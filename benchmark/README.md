@@ -23,6 +23,10 @@ allocations of each benchmark.
   sparse plus rank one `differenceLatentPrecisionIHT`. Before the timings,
   `run.jl` checks that the package solver agrees with the reference solver.
 - **ADMM**: `covsel!` and `fusedGraphicalLasso` on the same covariances.
+- **CLIME**: `clime` along a path of 20 penalties and at one penalty, and
+  `aclime`, on the correlation and covariance matrices of the AR(1) sample.
+  The comparison of the CLIME solvers with each other and with the R packages
+  is in [`clime/`](clime).
 - **generateData**: 1000 draws from a tridiagonal precision matrix, from `Ω`
   and from its precomputed Cholesky factor.
 
