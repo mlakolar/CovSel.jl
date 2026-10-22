@@ -50,6 +50,8 @@ the lower triangle of `Δ`.
 struct CDDirectDifferenceLoss{T<:AbstractFloat, S} <: CoordinateDifferentiableFunction
   Σx::Symmetric{T, S}
   Σy::Symmetric{T, S}
+  X::Matrix{T}    # Σx and Σy as dense matrices; indexing a Symmetric branches on
+  Y::Matrix{T}    # every access, which dominates the updates below
   A::Matrix{T}    # stores Σx⋅Δ⋅Σy
   p::Int64
 end
@@ -57,23 +59,13 @@ end
 function CDDirectDifferenceLoss(Σx::Symmetric{T,S}, Σy::Symmetric{T,S}) where {T<:AbstractFloat} where S
   (issymmetric(Σx) && issymmetric(Σy)) || throw(DimensionMismatch())
   (p = size(Σx, 1)) == size(Σy, 1) || throw(DimensionMismatch())
-  CDDirectDifferenceLoss{T,S}(Σx, Σy, zeros(T, p, p), p)
+  CDDirectDifferenceLoss{T,S}(Σx, Σy, Matrix(Σx), Matrix(Σy), zeros(T, p, p), p)
 end
 
 CoordinateDescent.numCoordinates(f::CDDirectDifferenceLoss) = div(f.p * (f.p + 1), 2)
 
 function CoordinateDescent.initialize!(f::CDDirectDifferenceLoss{T}, x::SymmetricSparseIterate{T}) where {T<:AbstractFloat}
-  # compute residuals for the loss
-
-  Σx = f.Σx
-  Σy = f.Σy
-  A = f.A
-  p = f.p
-
-  for ac=1:p, ar=1:p
-      @inbounds A[ar,ac] = A_mul_X_mul_B_rc(Σx, x, Σy, ar, ac)
-  end
-
+  copyto!(f.A, A_mul_X_mul_B(f.Σx, x, f.Σy))
   nothing
 end
 
@@ -82,13 +74,9 @@ function CoordinateDescent.gradient(
   x::SymmetricSparseIterate{T},
   j::Int64) where {T<:AbstractFloat}
 
-  Σx = f.Σx
-  Σy = f.Σy
-  A = f.A
-  p = f.p
-
-  ri, ci = ind2subLowerTriangular(p, j)
-  @inbounds return (A[ri,ci] + A[ci,ri]) / 2 - (Σy[ri, ci] - Σx[ri, ci])
+  X, Y, A = f.X, f.Y, f.A
+  ri, ci = ind2subLowerTriangular(f.p, j)
+  @inbounds return (A[ri,ci] + A[ci,ri]) / 2 - (Y[ri, ci] - X[ri, ci])
 end
 
 
@@ -98,31 +86,42 @@ function CoordinateDescent.descendCoordinate!(
   x::SymmetricSparseIterate{T},
   j::Int64) where {T<:AbstractFloat}
 
-  Σx = f.Σx
-  Σy = f.Σy
-  A = f.A
-  p = f.p
-
+  X, Y, A, p = f.X, f.Y, f.A, f.p
   ri, ci = ind2subLowerTriangular(p, j)
 
-  a = zero(T)
-  b = zero(T)
   if ri == ci
-    @inbounds a = Σx[ri,ri] * Σy[ri,ri]
-    @inbounds b = Σy[ri,ri] - Σx[ri,ri] - A[ri,ri]
+    @inbounds a = X[ri,ri] * Y[ri,ri]
+    @inbounds b = Y[ri,ri] - X[ri,ri] - A[ri,ri]
   else
-    @inbounds a = (Σx[ri,ri]*Σy[ci,ci] + Σx[ci,ci]*Σy[ri,ri]) + 2 * Σx[ri,ci] * Σy[ri,ci]
-    @inbounds b = 2 * (Σy[ri,ci] - Σx[ri,ci]) - A[ri,ci] - A[ci,ri]
+    @inbounds a = (X[ri,ri]*Y[ci,ci] + X[ci,ci]*Y[ri,ri]) + 2 * X[ri,ci] * Y[ri,ci]
+    @inbounds b = 2 * (Y[ri,ci] - X[ri,ci]) - A[ri,ci] - A[ci,ri]
   end
   oldVal = x[ri, ci]
   x[ri, ci] += b / a
   newVal = cdprox!(g, x, j, ri == ci ? one(T) / a : 2 / a)
   h = newVal - oldVal
 
-  # update internals
-  for ac=1:p, ar=1:p
-    @inbounds A[ar, ac] += (ri == ci) ? (h * Σx[ar, ri] * Σy[ac, ri]) :
-          (h * (Σx[ar, ri] * Σy[ci, ac] + Σx[ar, ci] * Σy[ri, ac]))
+  # nothing to update when the coordinate did not move, as for most
+  # coordinates that stay at zero in a full pass
+  iszero(h) && return h
+
+  # update A = Σx⋅Δ⋅Σy for the change h in Δ[ri, ci] and Δ[ci, ri]:
+  # A += h⋅(Σx[:, ri]⋅Σy[ci, :] + Σx[:, ci]⋅Σy[ri, :]), or h⋅Σx[:, ri]⋅Σy[ri, :] on the diagonal
+  if ri == ci
+    @inbounds for ac=1:p
+      t = h * Y[ac, ri]
+      @simd for ar=1:p
+        A[ar, ac] += X[ar, ri] * t
+      end
+    end
+  else
+    @inbounds for ac=1:p
+      t1 = h * Y[ac, ci]
+      t2 = h * Y[ac, ri]
+      @simd for ar=1:p
+        A[ar, ac] += X[ar, ri] * t1 + X[ar, ci] * t2
+      end
+    end
   end
   h
 end
@@ -246,11 +245,12 @@ differencePrecision_objective(Σx::Symmetric{T}, Σy::Symmetric{T}, Δ::Symmetri
   differencePrecision_objective(A_mul_X_mul_B(Σx, Δ, Σy), Σx, Σy, Δ)
 
 
-# gradient (A + A')/2 + Σx - Σy of the loss with respect to Θ
+# gradient (A + A')/2 + Σx - Σy of the loss with respect to Θ; the IHT solvers
+# pass Σx and Σy as dense matrices, which are faster to index than a Symmetric
 function diffPrecision_grad_delta!(
   grad_out::StridedMatrix{T},
   A::StridedMatrix{T},
-  Σx::Symmetric{T}, Σy::Symmetric{T}) where {T<:AbstractFloat}
+  Σx::AbstractMatrix{T}, Σy::AbstractMatrix{T}) where {T<:AbstractFloat}
 
   p = size(Σx, 1)
 
@@ -283,6 +283,38 @@ function _gradientStep!(Δ::SymmetricSparseIterate{T}, η, G::StridedMatrix{T}) 
   Δ
 end
 
+# D = Δ as a dense symmetric matrix
+function _densify!(D::StridedMatrix{T}, Δ::SymmetricSparseIterate{T}) where {T<:AbstractFloat}
+  fill!(D, zero(T))
+  for k=1:nnz(Δ)
+    r, c = ind2subLowerTriangular(Δ.p, Δ.nzval2ind[k])
+    D[r, c] = D[c, r] = Δ.nzval[k]
+  end
+  D
+end
+
+# A = Σx⋅D⋅Σy without allocating, with tmp as storage
+function _sandwich!(A::StridedMatrix{T}, tmp::StridedMatrix{T}, Σx::Symmetric{T}, D::StridedMatrix{T}, Σy::Symmetric{T}) where {T<:AbstractFloat}
+  mul!(tmp, Σx, D)
+  mul!(A, tmp, Σy)
+end
+
+# Θ = Δ + L as a dense matrix and A = Σx⋅Θ⋅Σy
+function _latentSandwich!(A, tmp, Θ, Σx, Δ, L, Σy)
+  _densify!(Θ, Δ)
+  Θ .+= L
+  _sandwich!(A, tmp, Σx, Θ, Σy)
+end
+
+# the loss tr(A⋅Θ)/2 - tr(Θ⋅(Σy - Σx)) for a dense symmetric Θ with A = Σx⋅Θ⋅Σy
+function _objective(A::StridedMatrix{T}, X::StridedMatrix{T}, Y::StridedMatrix{T}, Θ::StridedMatrix{T}) where {T<:AbstractFloat}
+  v = zero(T)
+  @inbounds for c in axes(Θ, 2), r in axes(Θ, 1)
+    v += (A[r, c] / 2 + X[r, c] - Y[r, c]) * Θ[r, c]
+  end
+  v
+end
+
 
 """
     differencePrecisionIHT(Σx, Σy, η, s; epsTol=1e-5, maxIter=1000)
@@ -303,24 +335,27 @@ function differencePrecisionIHT(
 
   p = size(Σx, 1)
 
+  X, Y = Matrix(Σx), Matrix(Σy)
   gD = zeros(T, p, p)
-  A = zeros(T, p, p)
+  A = zeros(T, p, p)      # Σx⋅Δ⋅Σy
+  D = zeros(T, p, p)      # Δ as a dense matrix
+  tmp = zeros(T, p, p)
   Δ = SymmetricSparseIterate(T, p)
 
   fvals = T[]
   # gradient descent
   #
-  fv = differencePrecision_objective(A, Σx, Σy, Δ)
+  fv = _objective(A, X, Y, D)
   push!(fvals, fv)
   for iter=1:maxIter
     # update Δ
-    diffPrecision_grad_delta!(gD, A, Σx, Σy)
+    diffPrecision_grad_delta!(gD, A, X, Y)
     _gradientStep!(Δ, η, gD)
     HardThreshold!(Δ, s)
-    A .= A_mul_X_mul_B(Σx, Δ, Σy)
+    _sandwich!(A, tmp, Σx, _densify!(D, Δ), Σy)
 
     # check for convergence
-    fv_new = differencePrecision_objective(A, Σx, Σy, Δ)
+    fv_new = _objective(A, X, Y, D)
     push!(fvals, fv_new)
     if abs(fv_new - fv) <= epsTol
       break
@@ -366,46 +401,38 @@ function differenceLatentPrecisionIHT!(
   epsTol, maxIter, checkEvery = options.epsTol, options.maxIter, options.checkEvery
 
   p = size(Σx, 1)
-  A = A_mul_UUt_mul_B(Σx, U, Σy)
-  for col = 1:p
-      for row = 1:p
-        A[row, col] += A_mul_X_mul_B_rc(Σx, Δ, Σy, row, col)
-      end
-  end
+  X, Y = Matrix(Σx), Matrix(Σy)
+  A = zeros(T, p, p)      # Σx⋅Θ⋅Σy
+  Θ = zeros(T, p, p)      # Δ + L as a dense matrix
+  tmp = zeros(T, p, p)
+  mul!(L, U, U')
+  _latentSandwich!(A, tmp, Θ, Σx, Δ, L, Σy)
 
   fvals = T[]
   # gradient descent
   #
-  fv = differencePrecision_objective(A, Σx, Σy, Δ, U)
+  fv = _objective(A, X, Y, Θ)
   push!(fvals, fv)
   iter = 0
   while iter < maxIter
     iter += 1
     # update Δ
-    diffPrecision_grad_delta!(gD, A, Σx, Σy)
-    max_gD = maximum( abs.(gD) )
+    diffPrecision_grad_delta!(gD, A, X, Y)
+    max_gD = maximum(abs, gD)
     _gradientStep!(Δ, ηΔ, gD)
     HardThreshold!(Δ, s)
 
     # update A
-    for col = 1:p
-        for row = 1:p
-            A[row, col] = A_mul_X_mul_B_rc(Σx, Δ, Σy, row, col) + A_mul_UUt_mul_B_rc(Σx, U, Σy, row, col)
-        end
-    end
+    _latentSandwich!(A, tmp, Θ, Σx, Δ, L, Σy)
 
     # update U and L
-    differencePrecisionIHT_grad_u!(gU, gD, A, Σx, Σy, U)
+    differencePrecisionIHT_grad_u!(gU, gD, A, X, Y, U)
     @. U -= ηU * gU
     mul!(L, U, U')
-    max_gU = maximum( abs.(gU) )
+    max_gU = maximum(abs, gU)
 
     # update A
-    for col = 1:p
-        for row = 1:p
-            A[row, col] = A_mul_X_mul_B_rc(Σx, Δ, Σy, row, col) + A_mul_UUt_mul_B_rc(Σx, U, Σy, row, col)
-        end
-    end
+    _latentSandwich!(A, tmp, Θ, Σx, Δ, L, Σy)
 
     if callback !== nothing
       callback(Δ, L)
@@ -414,7 +441,7 @@ function differenceLatentPrecisionIHT!(
     done = max(max_gD, max_gU) < epsTol
     # check for convergence
     if mod(iter, checkEvery) == 0
-      fv_new = differencePrecision_objective(A, Σx, Σy, Δ, U)
+      fv_new = _objective(A, X, Y, Θ)
       push!(fvals, fv_new)
       done = abs(fv_new - fv) <= epsTol
       fv = fv_new

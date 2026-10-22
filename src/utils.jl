@@ -64,7 +64,7 @@ Keep the `s` largest stored entries of `X` in absolute value (ties at the
 threshold are all kept) and drop the rest.
 """
 function HardThreshold!(X::Union{SparseIterate{T},SymmetricSparseIterate{T}}, s::Int) where {T<:AbstractFloat}
-  val = s <= 0 ? T(Inf) : _threshold(abs.(X.nzval[1:nnz(X)]), s)
+  val = s <= 0 ? T(Inf) : _threshold(abs.(view(X.nzval, 1:nnz(X))), s)
   for i=1:nnz(X)
     if abs(X.nzval[i]) < val
       X.nzval[i] = zero(T)
