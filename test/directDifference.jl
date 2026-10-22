@@ -55,6 +55,23 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
       end
     end
     @test CoordinateDescent.numCoordinates(f) == div(p * (p + 1), 2)
+
+    # the loss keeps A = Σx⋅Δ⋅Σy up to date during the descent
+    f = CovSel.CDDirectDifferenceLoss(Symmetric(hSx), Symmetric(hSy))
+    x1 = SymmetricSparseIterate(p)
+    CoordinateDescent.coordinateDescent!(x1, f, ProximalBase.ProxL1(λ))
+    @test f.A ≈ hSx * Matrix(x1) * hSy
+
+    # only the triangle that each Symmetric refers to is read
+    Mx, My = copy(hSx), copy(hSy)
+    Mx[2, 1] = My[1, 3] = 1e3
+    x2 = CovSel.differencePrecisionActiveShooting(Symmetric(Mx, :U), Symmetric(My, :L), ProximalBase.ProxL1(λ))
+    @test Matrix(x2) ≈ Matrix(x1) atol=1e-6   # random coordinate order, optTol = 1e-7
+
+    # Float32
+    x3 = CovSel.differencePrecisionActiveShooting(Symmetric(Float32.(hSx)), Symmetric(Float32.(hSy)), ProximalBase.ProxL1(Float32(λ)))
+    @test eltype(x3) == Float32
+    @test Matrix(x3) ≈ Matrix(x1) atol=1e-4
     @test_throws DimensionMismatch CovSel.CDDirectDifferenceLoss(Symmetric(hSx), Symmetric(hSy[1:3, 1:3]))
   end
 
@@ -142,6 +159,14 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
     Δ, _ = CovSel.differencePrecisionIHT(Symmetric(Σx), Symmetric(Σy), η, div(p * (p + 1), 2); epsTol=1e-16, maxIter=20000)
     @test Matrix(Δ) ≈ inv(Σx) - inv(Σy) atol=1e-5
     @test_throws DimensionMismatch CovSel.differencePrecisionIHT(Symmetric(Σx), Symmetric(Σy[1:2, 1:2]), η, 1)
+
+    # only the triangle that each Symmetric refers to is read
+    Mx, My = copy(Σx), copy(Σy)
+    Mx[2, 1] = My[1, 3] = 1e3
+    Δ1, fvals1 = CovSel.differencePrecisionIHT(Symmetric(Σx), Symmetric(Σy), η, 4; maxIter=50)
+    Δ2, fvals2 = CovSel.differencePrecisionIHT(Symmetric(Mx, :U), Symmetric(My, :L), η, 4; maxIter=50)
+    @test Matrix(Δ2) ≈ Matrix(Δ1)
+    @test fvals2 ≈ fvals1
   end
 
 end

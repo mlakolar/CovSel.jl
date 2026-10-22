@@ -4,8 +4,9 @@
 #
 # Groups:
 #   "direct difference": the three solvers of the ℓ1 penalized direct difference
-#     estimator (the comparison of the removed example1.jl), with and without
-#     warm starts, and iterative hard thresholding
+#     estimator (the comparison of the removed example1.jl), the package solver
+#     also along a path of λ values (warmStart=false), and iterative hard
+#     thresholding, sparse and sparse plus rank one
 #   "ADMM": the graphical lasso and the fused graphical lasso
 
 using BenchmarkTools
@@ -45,11 +46,15 @@ for p in DIMENSIONS
     g["differencePrecisionActiveShooting, warmStart=false"] =
       @benchmarkable differencePrecisionActiveShooting($Sx, $Sy, ProxL1($λ), CDOptions(; warmStart=false))
   end
-  # at most 2p - 1 nonzero entries in the lower triangle, the size of the true support
+  # at most 2p - 1 nonzero entries in the lower triangle, the size of the true
+  # support; step sizes as in examples/latent_difference.jl
+  s = 2p - 1
   η = 1 / (opnorm(Sx) * opnorm(Sy))
-  SUITE["direct difference"]["p = $p, IHT"] = BenchmarkGroup()
-  SUITE["direct difference"]["p = $p, IHT"]["differencePrecisionIHT"] =
-    @benchmarkable differencePrecisionIHT($Sx, $Sy, $η, $(2p - 1))
+  ηU = η / (4 * opnorm(CovSel.differenceLatentPrecisionIHT_init(Sx, Sy, s, 1)[2]))
+  g = SUITE["direct difference"]["p = $p, IHT"] = BenchmarkGroup()
+  g["differencePrecisionIHT"] = @benchmarkable differencePrecisionIHT($Sx, $Sy, $η, $s)
+  g["differenceLatentPrecisionIHT, r = 1"] = @benchmarkable differenceLatentPrecisionIHT($Sx, $Sy, $η, $ηU, $s, 1;
+    options=IHTOptions(; epsTol=1e-8, maxIter=500))
 end
 
 SUITE["ADMM"] = BenchmarkGroup()
