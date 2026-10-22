@@ -57,7 +57,8 @@ mutable struct _PSMWorkspace{T<:AbstractFloat}
   ρ::Vector{T}           # row of the basis inverse, on R
   x::Vector{T}           # scratch, length p
   y::Vector{T}           # scratch, length p
-  perm::Vector{Int}      # scratch for sorting
+  z::Vector{T}           # scratch, length p
+  perm::Vector{Int}      # scratch
   npivots::Int           # pivots since the last factorization
 end
 
@@ -70,7 +71,7 @@ function _PSMWorkspace(S::Matrix{T}) where {T<:AbstractFloat}
     zeros(T, cap, cap),
     zeros(T, p), zeros(T, p), zeros(T, p),
     zeros(T, p), zeros(T, p), zeros(T, p), zeros(T, p), zeros(T, p),
-    zeros(T, p), zeros(T, p), zeros(Int, p), 0)
+    zeros(T, p), zeros(T, p), zeros(T, p), zeros(Int, p), 0)
 end
 
 function _grow!(ws::_PSMWorkspace{T}, k::Int) where {T}
@@ -127,6 +128,32 @@ function _combine!(out::Vector{T}, S::Matrix{T}, idx::Vector{Int}, coef::Vector{
   out
 end
 
+# out[1:k] = N[1:k, 1:k] v[1:k], column by column
+function _mulN!(out::Vector{T}, N::Matrix{T}, v::Vector{T}, k::Int) where {T}
+  @inbounds for q in 1:k
+    out[q] = zero(T)
+  end
+  @inbounds for t in 1:k
+    vt = v[t]
+    @simd for q in 1:k
+      out[q] += N[q, t] * vt
+    end
+  end
+  out
+end
+
+# out[1:k] = N[1:k, 1:k]' v[1:k]
+function _mulNt!(out::Vector{T}, N::Matrix{T}, v::Vector{T}, k::Int) where {T}
+  @inbounds for t in 1:k
+    acc = zero(T)
+    @simd for q in 1:k
+      acc += N[q, t] * v[q]
+    end
+    out[t] = acc
+  end
+  out
+end
+
 # β_A = a + μ b solves G[R, A] β_A = e_R + μ (s ∘ c)_R; then r0 and r1
 function _primal!(ws::_PSMWorkspace{T}) where {T}
   k, N, S, p, i = ws.k, ws.N, ws.S, ws.p, ws.i
@@ -172,13 +199,7 @@ end
 # η solves M'η = τ, then σ = G[R, :]'η; done from scratch after a factorization
 function _dual!(ws::_PSMWorkspace{T}) where {T}
   k, N = ws.k, ws.N
-  @inbounds for t in 1:k
-    s = zero(T)
-    for q in 1:k
-      s += N[q, t] * ws.τ[q]
-    end
-    ws.η[t] = s
-  end
+  _mulNt!(ws.η, N, ws.τ, k)
   _combine!(ws.σ, ws.S, ws.R, ws.η, k)
   corr = zero(T)
   @inbounds for t in 1:k
@@ -188,61 +209,18 @@ function _dual!(ws::_PSMWorkspace{T}) where {T}
   ws
 end
 
-# N = inv(G[R, A]) from scratch, in place
+# N = inv(G[R, A]) from scratch, in place, by LAPACK
 function _factorize!(ws::_PSMWorkspace{T}) where {T}
   k, N = ws.k, ws.N
   ws.npivots = 0
+  k == 0 && return true
   @inbounds for q in 1:k, t in 1:k
     N[t, q] = _G(ws, ws.R[t], ws.sd[t], ws.A[q])
   end
-  _invert!(N, k, ws.perm)
-end
-
-# Gauss-Jordan inversion of A[1:k, 1:k] in place, with partial pivoting; returns
-# false if A is singular
-function _invert!(A::Matrix{T}, k::Int, ipiv::Vector{Int}) where {T}
-  @inbounds for c in 1:k
-    r, amax = c, abs(A[c, c])
-    for rr in c+1:k
-      if abs(A[rr, c]) > amax
-        r, amax = rr, abs(A[rr, c])
-      end
-    end
-    iszero(amax) && return false
-    ipiv[c] = r
-    if r != c
-      for cc in 1:k
-        A[c, cc], A[r, cc] = A[r, cc], A[c, cc]
-      end
-    end
-    piv = A[c, c]
-    A[c, c] = one(T)
-    for cc in 1:k
-      A[c, cc] /= piv
-    end
-    for cc in 1:k
-      f = cc == c ? zero(T) : A[c, cc]
-      iszero(f) && continue
-      # rows rr ≠ c: A[rr, cc] -= A[rr, c] A[c, cc], done column by column
-      @simd for rr in 1:k
-        A[rr, cc] -= ifelse(rr == c, zero(T), A[rr, c] * f)
-      end
-    end
-    # column c last, as the updates above need its old entries
-    d = A[c, c]
-    for rr in 1:k
-      rr == c && continue
-      A[rr, c] = -A[rr, c] * d
-    end
-  end
-  @inbounds for c in k:-1:1
-    r = ipiv[c]
-    if r != c
-      for rr in 1:k
-        A[rr, c], A[rr, r] = A[rr, r], A[rr, c]
-      end
-    end
-  end
+  M = view(N, 1:k, 1:k)
+  _, ipiv, info = LAPACK.getrf!(M; check=false)
+  info == 0 || return false
+  LAPACK.getri!(M, ipiv)
   true
 end
 
@@ -324,12 +302,9 @@ function _pivot!(ws::_PSMWorkspace{T}, kind::Int, idx::Int, s::T, tol::T) where 
     @inbounds for q in 1:k
       x[q] = _G(ws, j, s, ws.A[q])
     end
+    _mulNt!(ρ, N, x, k)
     @inbounds for t in 1:k
-      acc = zero(T)
-      @simd for q in 1:k
-        acc += N[q, t] * x[q]
-      end
-      ρ[t] = -s * acc
+      ρ[t] *= -s
     end
     _combine!(g, S, ws.R, ρ, k)
     @inbounds @simd for l in 1:p
@@ -445,13 +420,7 @@ function _replace_column!(ws::_PSMWorkspace{T}, q::Int, l::Int, τl::T) where {T
   @inbounds for t in 1:k
     ws.y[t] = _G(ws, ws.R[t], ws.sd[t], l)
   end
-  @inbounds for qq in 1:k
-    acc = zero(T)
-    for t in 1:k
-      acc += N[qq, t] * ws.y[t]
-    end
-    w[qq] = acc
-  end
+  _mulN!(w, N, ws.y, k)
   piv = w[q]
   @inbounds for t in 1:k
     N[q, t] /= piv
@@ -509,28 +478,19 @@ end
 function _border!(ws::_PSMWorkspace{T}, j::Int, s::T, l::Int, τl::T, ηj::T) where {T}
   k = ws.k
   _grow!(ws, k + 1)
-  N, xx, yy = ws.N, ws.x, ws.y
-  # xx = N G[R, l] (on A), yy = G[(j, s), A] N (on R)
+  N, xx, yy, u, v = ws.N, ws.x, ws.y, ws.ρ, ws.z
+  # u = G[R, l], v = G[(j, s), A], xx = N u (on A), yy = N'v (on R)
   @inbounds for t in 1:k
-    ws.ρ[t] = _G(ws, ws.R[t], ws.sd[t], l)
+    u[t] = _G(ws, ws.R[t], ws.sd[t], l)
   end
   @inbounds for q in 1:k
-    acc = zero(T)
-    for t in 1:k
-      acc += N[q, t] * ws.ρ[t]
-    end
-    xx[q] = acc
+    v[q] = _G(ws, j, s, ws.A[q])
   end
+  _mulN!(xx, N, u, k)
+  _mulNt!(yy, N, v, k)
   schur = _G(ws, j, s, l)
   @inbounds for q in 1:k
-    schur -= _G(ws, j, s, ws.A[q]) * xx[q]
-  end
-  @inbounds for t in 1:k
-    acc = zero(T)
-    for q in 1:k
-      acc += _G(ws, j, s, ws.A[q]) * N[q, t]
-    end
-    yy[t] = acc
+    schur -= v[q] * xx[q]
   end
   @inbounds for t in 1:k
     f = yy[t] / schur
@@ -558,13 +518,7 @@ function _replace_row!(ws::_PSMWorkspace{T}, r::Int, j::Int, s::T, ηj::T) where
   @inbounds for q in 1:k
     ws.x[q] = _G(ws, j, s, ws.A[q])
   end
-  @inbounds for t in 1:k
-    acc = zero(T)
-    for q in 1:k
-      acc += ws.x[q] * N[q, t]
-    end
-    yy[t] = acc
-  end
+  _mulNt!(yy, N, ws.x, k)
   piv = yy[r]
   @inbounds for q in 1:k
     N[q, r] /= piv

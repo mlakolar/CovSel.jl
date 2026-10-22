@@ -479,7 +479,7 @@ path = clime(S, range(0.4, 0.05; length=20))
 path.λ, path[end]
 ```
 """
-function clime(S::AbstractMatrix, λ::Union{Real,AbstractVector{<:Real}}, solver::CLIMESolver=DualSimplex();
+function clime(S::AbstractMatrix, λ::Union{Real,AbstractVector{<:Real}}, solver::CLIMESolver=ParametricSimplex();
                symmetrize::Bool=true, ntasks::Integer=Threads.nthreads())
   λs = λ isa Real ? [λ] : λ
   _checkpenalties(λs, "penalties λ")
@@ -524,7 +524,7 @@ when the variances are large, whole columns of the estimate can be zero, and
 `aclime` warns. Rescaling the data, for example to unit variances (passing the
 correlation matrix as `S`), avoids it.
 """
-function aclime(S::AbstractMatrix, n::Integer, solver::CLIMESolver=DualSimplex();
+function aclime(S::AbstractMatrix, n::Integer, solver::CLIMESolver=ParametricSimplex();
                 δ=2, δ₁::Real=2, symmetrize::Bool=true, ntasks::Integer=Threads.nthreads())
   n > 0 || throw(ArgumentError("the number of observations n must be positive"))
   δ₁ >= 0 || throw(ArgumentError("δ₁ must be nonnegative"))

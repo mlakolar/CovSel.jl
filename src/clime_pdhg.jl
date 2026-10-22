@@ -17,22 +17,29 @@
 # sparse enough.
 
 """
-    PDHG(; tol=1e-6, maxiter=20_000, check=40)
+    PDHG(; tol=1e-6, polish=true, maxiter=20_000, check=40)
 
 The primal-dual hybrid gradient method (Chambolle and Pock, 2011), with the
-adaptive restarts and primal weights of PDLP (Applegate et al., 2021). It
-solves all columns at once, warm started along a sequence of penalties, and an
-iteration costs two products of `S` with the current iterates, which use only
-their nonzero entries when they are sparse. A first order method: the
-solutions are approximate, accurate to the relative tolerance `tol` of the
-optimality conditions (primal and dual feasibility, duality gap), which are
-checked every `check` iterations.
+adaptive restarts, primal weights and step sizes of PDLP (Applegate et al.,
+2021). It solves all columns at once, warm started along a sequence of
+penalties, and an iteration costs two products of `S` with the current
+iterates, which use only their nonzero entries when they are sparse.
+
+A first order method: a column stops when the relative error of its
+optimality conditions (primal and dual feasibility, duality gap), checked every
+`check` iterations, is below `tol`. With `polish=true`, a column whose error is
+below `1e-3` is first *polished*: the linear program restricted to the support
+of the primal iterate and the active constraints of the dual one is solved
+exactly, and the result is kept, as the exact solution, if it satisfies all
+the optimality conditions (it usually does at that point, since the iterates
+are exactly sparse).
 
 Step 1 of [`aclime`](@ref) is not of the form PDHG handles and is solved by
 [`ParametricSimplex`](@ref).
 """
 Base.@kwdef struct PDHG <: CLIMESolver
   tol::Float64 = 1e-6
+  polish::Bool = true
   maxiter::Int = 20_000
   check::Int = 40
 end
@@ -234,7 +241,7 @@ function _solve_columns(solver::PDHG, S::Matrix{T}, spec::_CLIMESpec{T},
               kkt = kkta
             end
           end
-          if kkt <= tol
+          if (solver.polish && kkt <= 1e-3 && _polish!(st, S, c, k)) || kkt <= tol
             _freeze!(st, k, m)
             m -= 1
             continue
@@ -277,6 +284,41 @@ function _freeze!(st::_PDHGState, k::Int, m::Int)
     st.Xn[j, m], st.Yn[j, m] = st.X[j, m], st.Y[j, m]
     st.SXn[j, m], st.SYn[j, m] = st.SX[j, m], st.SY[j, m]
   end
+end
+
+# Polish stored column k: with A the support of x, T the nonzero entries of y and
+# s their signs, solve S[T, A] β = eᵢ + μ c ∘ s on T and S[A, T] y = -sign(x) on A.
+# If β and y have the signs of x and y and satisfy |Sβ - eᵢ| ≤ μc and |Sy| ≤ 1,
+# they are optimal: store them and return true.
+function _polish!(st::_PDHGState{T}, S::Matrix{T}, c::Vector{T}, k::Int) where {T}
+  X, Y = st.X, st.Y
+  p = size(S, 1)
+  i, μ = st.cols[k], st.μ[k]
+  A = findall(!iszero, view(X, :, k))
+  R = findall(!iszero, view(Y, :, k))
+  length(A) == length(R) || return false
+  isempty(A) && return false
+  F = lu!(S[R, A]; check=false)
+  issuccess(F) || return false
+  β = F \ [T(j == i) + μ * c[j] * sign(Y[j, k]) for j in R]
+  y = F' \ [-sign(X[j, k]) for j in A]
+  all(q -> sign(β[q]) == sign(X[A[q], k]), eachindex(A)) || return false
+  all(t -> sign(y[t]) == sign(Y[R[t], k]), eachindex(R)) || return false
+  tol = 100 * eps(T) * p
+  Sβ = S[:, A] * β
+  Sy = S[:, R] * y
+  for j in 1:p
+    abs(Sβ[j] - (j == i)) <= μ * c[j] * (1 + tol) + tol || return false
+    abs(Sy[j]) <= 1 + tol || return false
+  end
+  @inbounds for j in 1:p
+    X[j, k] = Y[j, k] = zero(T)
+    st.SX[j, k] = Sβ[j]
+    st.SY[j, k] = Sy[j]
+  end
+  X[A, k] .= β
+  Y[R, k] .= y
+  true
 end
 
 # PDLP's restart criteria on the KKT error of the candidate: a large enough
