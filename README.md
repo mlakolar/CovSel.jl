@@ -6,6 +6,11 @@
 
 Various methods for learning high-dimensional Gaussian graphical models.
 
+```julia
+using Pkg
+Pkg.add("CovSel")   # or Pkg.add(url="https://github.com/mlakolar/CovSel.jl") until it is registered
+```
+
 * Graphical lasso by ADMM: `covsel!`, `covselpath`
 * Fused graphical lasso for two groups (Danaher, Wang and Witten, 2014): `fusedGraphicalLasso`, `fusedGraphicalLasso!`
 * Fused neighborhood selection: `fusedNeighborhoodSelection`
@@ -33,6 +38,33 @@ Sx, Sy = cov(X), cov(Y)
 Matrix(Δ)
 ```
 
-See [`examples/difference_estimation.jl`](examples/difference_estimation.jl) for more.
-
 Package depends on [ProximalBase.jl](https://github.com/mlakolar/ProximalBase.jl) and [CoordinateDescent.jl](https://github.com/mlakolar/CoordinateDescent.jl).
+
+## Examples
+
+The [`examples`](examples) folder has a script for each estimator: the
+graphical lasso along a path of penalties, direct difference estimation and
+refitting, the fused graphical lasso and fused neighborhood selection, a sparse
+plus low rank difference, and a simulation of inference for one entry of
+`Ωx - Ωy` when p > n. They have their own environment; from the repository
+root:
+
+```sh
+julia --project=examples -e 'using Pkg; Pkg.instantiate()'   # once
+julia --project=examples examples/graphical_lasso.jl
+```
+
+See [`examples/README.md`](examples/README.md) for what each script shows and
+for Julia 1.10.
+
+## Benchmarks
+
+The [`benchmark`](benchmark) folder has a BenchmarkTools suite comparing the
+solvers of the direct difference estimator and timing the ADMM solvers:
+
+```sh
+julia --project=benchmark -e 'using Pkg; Pkg.instantiate()'   # once
+julia --project=benchmark benchmark/run.jl
+```
+
+See [`benchmark/README.md`](benchmark/README.md) for details.

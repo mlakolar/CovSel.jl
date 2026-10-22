@@ -59,3 +59,32 @@ jobs:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+  examples:
+    name: Examples and benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1'
+      - uses: julia-actions/cache@v3
+      - name: Run the examples with small settings
+        env:
+          COVSEL_EXAMPLES_QUICK: '1'
+        run: |
+          julia --project=examples -e 'using Pkg; Pkg.instantiate()'
+          for f in examples/*.jl; do
+            echo "::group::$f"
+            julia --project=examples "$f"
+            echo "::endgroup::"
+          done
+      - name: Run the benchmarks with small settings
+        env:
+          COVSEL_BENCHMARK_QUICK: '1'
+        run: |
+          julia --project=benchmark -e 'using Pkg; Pkg.instantiate()'
+          julia --project=benchmark benchmark/run.jl
