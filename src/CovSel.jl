@@ -16,10 +16,10 @@ module CovSel
 
 using ProximalBase
 using CoordinateDescent
-using Printf, SparseArrays, LinearAlgebra
+using SparseArrays, LinearAlgebra
 
 export
-  ADMMOptions, IHTOptions,
+  ADMMOptions, ADMMInfo, IHTOptions,
   covsel!, covselpath,
   #covsel_refit!, covselpath_refit
 

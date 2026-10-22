@@ -85,5 +85,5 @@ for λ2 in (0.0, 0.05, 0.5)
 end
 println("""
 Fitting each group on its own (λ2 = 0) finds spurious neighbors and
-differences. A moderate λ2 removes them and keeps the one real difference;
-a large λ2 forces the two neighborhoods to be equal.""")
+differences. A moderate λ2 removes the spurious differences and keeps the one
+real difference; a large λ2 forces the two neighborhoods to be equal.""")
