@@ -13,19 +13,21 @@ struct ConfusionMatrix
 end
 
 """
-    getConfusionMatrix(Δ, hΔ, thr=1e-4)
+    getConfusionMatrix(Δ, hΔ, thr=1e-4; diagonal=true)
 
-Compare the support of the lower triangle (diagonal included) of the true
-symmetric matrix `Δ` with that of the estimate `hΔ`, whose entries count as
-nonzero when larger than `thr` in absolute value. `hΔ` is a matrix or a
+Compare the support of the lower triangle of the true symmetric matrix `Δ`
+with that of the estimate `hΔ`, whose entries count as nonzero when larger
+than `thr` in absolute value. The diagonal is included unless
+`diagonal=false`, which is the right choice for the edges of a graph, as a
+precision matrix always has a nonzero diagonal. `hΔ` is a matrix or a
 `SparseIterate` vector indexed by the lower triangle.
 """
-function getConfusionMatrix(Δ::AbstractMatrix{T}, hΔ::AbstractMatrix{T}, thr=1e-4) where T
+function getConfusionMatrix(Δ::AbstractMatrix{T}, hΔ::AbstractMatrix{T}, thr=1e-4; diagonal::Bool=true) where T
   p = size(Δ, 1)
 
   tp = fp = fn = tn = 0
   for c=1:p
-    for r=c:p
+    for r=(diagonal ? c : c + 1):p
       if Δ[r, c] != zero(T)
         if abs(hΔ[r, c]) > thr
           # not zero estimated as not zero
@@ -48,12 +50,12 @@ function getConfusionMatrix(Δ::AbstractMatrix{T}, hΔ::AbstractMatrix{T}, thr=1
   ConfusionMatrix(tp, fp, fn, tn)
 end
 
-function getConfusionMatrix(Δ::AbstractMatrix{T}, hΔ::SparseIterate{T, 1}, thr=1e-4) where T
+function getConfusionMatrix(Δ::AbstractMatrix{T}, hΔ::SparseIterate{T, 1}, thr=1e-4; diagonal::Bool=true) where T
   p = size(Δ, 1)
 
   tp = fp = fn = tn = 0
   for c=1:p
-    for r=c:p
+    for r=(diagonal ? c : c + 1):p
       if Δ[r, c] != zero(T)
         if abs(hΔ[sub2indLowerTriangular(p, r, c)]) > thr
           # not zero estimated as not zero

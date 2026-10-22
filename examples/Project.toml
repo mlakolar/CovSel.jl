@@ -1,0 +1,23 @@
+[deps]
+CoordinateDescent = "c00ed354-b9be-54b8-8a23-c5ac771bc43a"
+CovSel = "f50c8ead-2a5d-5d7a-afef-a6d87c1f6489"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+ProximalBase = "0a755509-c5b1-5d6f-9b24-59bcda3c37a3"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
+
+[sources]
+CovSel = {path = ".."}
+
+[compat]
+CoordinateDescent = "0.4"
+CovSel = "0.2"
+LinearAlgebra = "1"
+Printf = "1"
+ProximalBase = "0.3.2"
+Random = "1"
+Statistics = "1"
+UnicodePlots = "3"
+julia = "1.10"
