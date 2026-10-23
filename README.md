@@ -8,7 +8,11 @@ Various methods for learning high-dimensional Gaussian graphical models.
 
 ```julia
 using Pkg
-Pkg.add(url = "https://github.com/mlakolar/CovarianceSelection.jl")   # not registered yet
+# not registered yet, and neither are the versions of ProximalBase and
+# ProximalSolvers that it needs: add the three from GitHub in one call
+Pkg.add([PackageSpec(url = "https://github.com/mlakolar/ProximalBase.jl", rev = "master"),
+         PackageSpec(url = "https://github.com/mlakolar/ProximalSolvers.jl", rev = "master"),
+         PackageSpec(url = "https://github.com/mlakolar/CovarianceSelection.jl")])
 ```
 
 CovarianceSelection was called CovSel before its first release.

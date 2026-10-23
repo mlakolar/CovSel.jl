@@ -12,6 +12,7 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [sources]
+ProximalBase = {url = "https://github.com/mlakolar/ProximalBase.jl", rev = "master"}
 ProximalSolvers = {url = "https://github.com/mlakolar/ProximalSolvers.jl", rev = "master"}
 
 [weakdeps]
@@ -25,7 +26,7 @@ Aqua = "0.8"
 HiGHS = "1"
 LinearAlgebra = "1"
 MathOptInterface = "1"
-ProximalBase = "0.5"
+ProximalBase = "0.5.3"
 ProximalSolvers = "0.1"
 Random = "1"
 SparseArrays = "1"

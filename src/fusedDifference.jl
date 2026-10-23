@@ -16,9 +16,20 @@ Fused graphical lasso (Danaher, Wang and Witten, 2014) for two groups by ADMM:
 
 where `Σx`, `Σy` are the sample covariances from `nx` and `ny` observations
 and `n = nx + ny`. With `penalize_diag=false` the diagonal is excluded from
-the λ1 penalty. In the in-place version `Θ`, `Z` and `U` are the ADMM iterates.
-Returns `(Zx, Zy)`, the sparse estimates of the precision matrices; see
-[`ADMMInfo`](@ref) for `info`.
+the λ1 penalty, and only fused. In the in-place version `Z` and `U` are the ADMM
+iterates (the sparse estimates and the scaled dual variables); pass zeros, or
+the iterates of a previous call together with its final `info.ρ` to warm start.
+`Θx` and `Θy` are overwritten with copies of the estimates. Returns `(Zx, Zy)`;
+see [`ADMMInfo`](@ref) for `info`.
+
+This is ProximalSolvers' `ADMMSolver` on the stacked `p × p × 2` array
+`(Ωx, Ωy)`, with ProximalBase's `SliceSum` of the two weighted `LogDetLoss`es
+and the penalty `FiberSum(NormL1Fused(λ1, λ2))` on the pairs of entries. The
+options are scaled by the data as in [`covsel!`](@ref), with `s` the average of
+the two average variances. The residuals of the stacked array are measured with
+one norm, where those of the two matrices used to be added; the absolute
+tolerances are divided by √2 and the relative one multiplied by √2, so that the
+test is never stricter than that sum, and looser by at most √2.
 """
 function fusedGraphicalLasso!(
     Θx::StridedMatrix{T}, Θy::StridedMatrix{T},
@@ -31,92 +42,30 @@ function fusedGraphicalLasso!(
     penalize_diag::Bool=true,
     info::ADMMInfo=ADMMInfo()) where {T<:AbstractFloat}
 
-    maxiter = options.maxiter
-    α = T(options.α)
-    reltol = options.reltol
-
+    p = size(Σx, 1)
+    all(A -> size(A) == (p, p), (Θx, Θy, Zx, Zy, Ux, Uy, Σx, Σy)) ||
+      throw(DimensionMismatch("Θ, Z, U and Σ must be p × p matrices"))
     n = nx + ny
     l1, l2 = T(λ1), T(λ2)
-
-    p = size(Σx, 1)
-
-    # scale of the data, as in covsel!
-    s = _dataScale((tr(Σx) + tr(Σy)) / (2p))
-    ρ = T(options.ρ * s^2)
-    abstol_pri, abstol_dual = options.abstol / s, options.abstol * s
-
-    gx = LogDetLoss(Σx)
-    gy = LogDetLoss(Σy)
+    f = SliceSum(LogDetLoss(Σx, T(nx / n)), LogDetLoss(Σy, T(ny / n)))
     # the λ1 penalty is left off the diagonal when penalize_diag is false
-    hd = NormL1Fused(penalize_diag ? l1 : zero(T), l2)
-    ho = NormL1Fused(l1, l2)
+    g = FiberSum(NormL1Fused(l1, l2); diagonal = NormL1Fused(penalize_diag ? l1 : zero(T), l2), symmetric = true)
 
-    Tx = zeros(T, p, p)  # temp storage
-    Ty = zeros(T, p, p)  # temp storage
-
-    Zxold = copy(Zx)
-    Zyold = copy(Zy)
-
-    # ADMM
-    converged = false
-    iter = changes = 0
-    r_norm = s_norm = T(NaN)
-    while iter < maxiter
-        iter += 1
-        γ = one(T) / ρ
-
-        # update Θx and Θy
-        @. Tx = Zx - Ux
-        prox!(Θx, gx, Tx, nx * γ / n)
-        @. Ty = Zy - Uy
-        prox!(Θy, gy, Ty, ny * γ / n)
-
-        copyto!(Zxold, Zx)
-        copyto!(Zyold, Zy)
-        # update Zx and Zy with relaxation
-        # α⋅X + (1-α)⋅Z
-        @. Tx = α * Θx + (1 - α)*Zx + Ux
-        @. Ty = α * Θy + (1 - α)*Zy + Uy
-        for i=1:p
-            for j=i:p
-                if i==j
-                    z1, z2 = prox(hd, (Tx[i,i], Ty[i,i]), γ)
-                    Zx[i,i] = z1
-                    Zy[i,i] = z2
-                else
-                    z1, z2 = prox(ho, (Tx[i,j], Ty[i,j]), γ)
-                    Zx[i,j] = Zx[j,i] = z1
-                    Zy[i,j] = Zy[j,i] = z2
-                end
-            end
-        end
-
-        # update U
-        @. Ux = Tx - Zx
-        @. Uy = Ty - Zy
-
-        # check convergence
-        r_norm = norm_diff(Θx, Zx, 2) + norm_diff(Θy, Zy, 2)
-        s_norm = ρ * (norm_diff(Zx, Zxold, 2) + norm_diff(Zy, Zyold, 2))
-        eps_pri = p*abstol_pri + reltol * max( norm(Θx) + norm(Θy), norm(Zx) + norm(Zy))
-        eps_dual = p*abstol_dual + reltol * ρ * ( norm(Ux) + norm(Uy) )
-        if r_norm < eps_pri && s_norm < eps_dual
-            converged = true
-            break
-        end
-
-        # update ρ, and rescale the scaled dual variables
-        if options.adaptive
-            f = _penaltyFactor(r_norm, eps_pri, s_norm, eps_dual, changes)
-            if f != 1
-                ρ *= f
-                Ux ./= f
-                Uy ./= f
-                changes += 1
-            end
-        end
-    end
-    _finish!(info, "fusedGraphicalLasso!", iter, converged, ρ, s^2, r_norm, s_norm)
+    # the scale of the data, as in covsel!. The two matrices used to add the
+    # norms of their residuals, ‖a‖₁ ≤ p abstol + reltol ‖b‖₁ for a, b the
+    # pairs of norms; ADMMSolver takes the norm of the stack, ‖a‖₂ ≤ √2 p
+    # abstol' + reltol' ‖b‖₂. With abstol' = abstol/√2 and reltol' = √2 reltol
+    # the test is never stricter, and looser by at most √2.
+    s = _dataScale((tr(Σx) + tr(Σy)) / (2p))
+    method = ADMMSolver(; ρ = T(options.ρ * s^2), α = T(options.α), adaptive = options.adaptive,
+                        abstol = T(options.abstol / (sqrt(2) * s)), abstol_dual = T(options.abstol * s / sqrt(2)),
+                        reltol = T(sqrt(2) * options.reltol))
+    Z, U = cat(Zx, Zy; dims = 3), cat(Ux, Uy; dims = 3)
+    r = solve!(Z, f, g, method, ProximalOptions(; maxiter = options.maxiter); u = U)
+    copyto!(Zx, view(Z, :, :, 1)); copyto!(Zy, view(Z, :, :, 2))
+    copyto!(Ux, view(U, :, :, 1)); copyto!(Uy, view(U, :, :, 2))
+    copyto!(Θx, Zx); copyto!(Θy, Zy)
+    _finish!(info, "fusedGraphicalLasso!", r.iterations, r.converged, r.ρ, s^2, r.r_norm, r.s_norm)
     (Zx, Zy)
 end
 
