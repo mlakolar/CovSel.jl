@@ -67,6 +67,76 @@ l1cols(R) = [norm(R[:, i], 1) for i in 1:size(R, 2)]
     end
   end
 
+  @testset "degenerate and dense problems" begin
+    # ties in the ratio tests, singular blocks, and solutions with more nonzero
+    # entries than the initial size of the basis block (32)
+    X = randn(40, 12)
+    for (name, S) in (("compound symmetry", 0.5 * ones(30, 30) + 0.5I),
+                      ("identical blocks", kron(Matrix(1.0I, 8, 8), [1 0.6 0.3; 0.6 1 0.6; 0.3 0.6 1])),
+                      ("duplicated variables", cov(hcat(X, X[:, 1:2]))),
+                      ("rounded", round.(cov(randn(90, 30)); digits=1) + I))
+      λs = [0.9, 0.6, 0.4, 0.25, 0.1]
+      ref = clime(S, λs, LPSolver(HiGHS.Optimizer); symmetrize=false)
+      for solver in (ParametricSimplex(), DualSimplex(), ParametricSimplex(; refactor=1), DualSimplex(; refactor=1))
+        path = clime(S, λs, solver; symmetrize=false)
+        @test path.λ == ref.λ
+        for k in eachindex(path.λ)
+          @test l1cols(path[k]) ≈ l1cols(ref[k]) rtol=1e-7
+        end
+      end
+    end
+    S = samplecov(ar1(40, 0.7), 400)
+    Ω = clime(S, 0.0)                              # all 40 entries of every column
+    @test Ω ≈ inv(S) rtol=1e-8
+    @test clime(S, [0.05, 0.0], ParametricSimplex(; refactor=7))[2] ≈ Ω rtol=1e-8
+    @test clime(S, 0.0, DualSimplex(; refactor=3)) ≈ Ω rtol=1e-8
+  end
+
+  @testset "Bland's rule" begin
+    # the rule that the solvers switch to when they stall, used for every pivot
+    function blandpath(S, i, μs; dual=false)
+      ws = CovSel._PSMWorkspace(S)
+      CovSel._reset!(ws, i)
+      μ, tol, out = 1.0, 1e-9, Float64[]
+      for μt in μs
+        if dual
+          # the dual simplex in Bland's mode from the previous basis
+          while true
+            kind, idx, s = CovSel._most_infeasible(ws, μt, tol, true)
+            kind == 0 && break
+            CovSel._pivot!(ws, kind, idx, s, tol, true) || return out
+            CovSel._primal!(ws)
+          end
+        else
+          while true
+            μn, kind, idx, s = CovSel._next_event(ws, μ, tol, true)
+            μn < μt && break
+            μ = μn
+            CovSel._pivot!(ws, kind, idx, s, tol, true) || return out
+            CovSel._primal!(ws)
+          end
+        end
+        push!(out, sum(q -> abs(ws.a[q] + μt * ws.b[q]), 1:ws.k; init=0.0))
+      end
+      out
+    end
+    for S in (samplecov(ar1(20, 0.6), 60), kron(Matrix(1.0I, 5, 5), [1 0.6 0.3; 0.6 1 0.6; 0.3 0.6 1]))
+      μs = [0.6, 0.3, 0.15]
+      ref = clime(S, μs; symmetrize=false)
+      for i in axes(S, 1), dual in (false, true)
+        @test blandpath(S, i, μs; dual=dual) ≈ [norm(ref[k][:, i], 1) for k in 1:3] rtol=1e-9
+      end
+    end
+  end
+
+  @testset "errors in the column problems" begin
+    S = samplecov(ar1(30, 0.6), 100)
+    for ntasks in (1, 2)   # an error in a task is rethrown as it is
+      @test_throws ErrorException clime(S, 0.1, ParametricSimplex(; maxpivots=1); ntasks=ntasks)
+      @test_throws ErrorException clime(S, 0.1, DualSimplex(; maxpivots=1); ntasks=ntasks)
+    end
+  end
+
   @testset "LPSolver" begin
     S = samplecov(ar1(25, 0.5), 60)
     λs = [0.5, 0.25, 0.1]
@@ -78,6 +148,10 @@ l1cols(R) = [norm(R[:, i], 1) for i in 1:size(R, 2)]
     end
     @test clime(S, 0.25, LPSolver(HiGHS.Optimizer; attributes=("presolve" => "off",))) ≈
       clime(S, 0.25) atol=1e-7
+    # penalties of 1 and more give zero, without calling the solver
+    @test iszero(clime(S, [1.5, 1.0], LPSolver(HiGHS.Optimizer))[1])
+    # a status other than optimal or infeasible is an error
+    @test_throws ErrorException clime(S, 0.1, LPSolver(HiGHS.Optimizer; attributes=("time_limit" => 0.0,)))
     # rank one: column 1 needs 1 - λ ≤ β₁ + β₂ ≤ λ, infeasible for λ < 1/2
     S = [1.0 1.0; 1.0 1.0]
     for solver in (LPSolver(HiGHS.Optimizer), ParametricSimplex(), DualSimplex())

@@ -59,6 +59,8 @@ mutable struct _PSMWorkspace{T<:AbstractFloat}
   y::Vector{T}           # scratch, length p
   z::Vector{T}           # scratch, length p
   npivots::Int           # pivots since the last factorization
+  drift0::T              # _drift right after the last factorization
+  θ::T                   # dual step of the last pivot
 end
 
 function _PSMWorkspace(S::Matrix{T}) where {T<:AbstractFloat}
@@ -70,7 +72,7 @@ function _PSMWorkspace(S::Matrix{T}) where {T<:AbstractFloat}
     zeros(T, cap, cap),
     zeros(T, p), zeros(T, p), zeros(T, p),
     zeros(T, p), zeros(T, p), zeros(T, p), zeros(T, p), zeros(T, p),
-    zeros(T, p), zeros(T, p), zeros(T, p), 0)
+    zeros(T, p), zeros(T, p), zeros(T, p), 0, zero(T), zero(T))
 end
 
 function _grow!(ws::_PSMWorkspace{T}, k::Int) where {T}
@@ -91,7 +93,7 @@ function _reset!(ws::_PSMWorkspace{T}, i::Int) where {T}
     ws.posA[ws.A[q]] = 0
     ws.posR[ws.R[q]] = 0
   end
-  ws.k, ws.i, ws.npivots = 0, i, 0
+  ws.k, ws.i, ws.npivots, ws.drift0 = 0, i, 0, zero(T)
   fill!(ws.σ, zero(T))
   fill!(ws.r0, zero(T))
   fill!(ws.r1, zero(T))
@@ -195,6 +197,35 @@ function _primal!(ws::_PSMWorkspace{T}) where {T}
   ws
 end
 
+# How far the tight constraints are from holding with the computed β_A: the
+# residual of row t of R should be sₜ cₜ (μ + γβᵢ), for all μ, which rounding
+# errors in N, accumulated over the updates, break
+function _drift(ws::_PSMWorkspace{T}) where {T}
+  qi = ws.posA[ws.i]
+  ai = qi == 0 ? zero(T) : ws.a[qi]
+  bi = qi == 0 ? zero(T) : ws.b[qi]
+  d = zero(T)
+  @inbounds for t in 1:ws.k
+    j, sc = ws.R[t], ws.sd[t] * ws.c[ws.R[t]]
+    d = max(d, abs(ws.r0[j] - sc * ws.γ * ai), abs(ws.r1[j] - sc * (one(T) + ws.γ * bi)))
+  end
+  d
+end
+
+# Refactorize after `refactor` pivots, or earlier when the updates have drifted
+# by more than tol and by more than 10 times what a factorization achieves (which
+# depends on the conditioning of the basis)
+function _refactor_if_needed!(ws::_PSMWorkspace{T}, refactor::Int, tol::T) where {T}
+  ws.npivots > 0 || return ws
+  if ws.npivots >= refactor || _drift(ws) > max(tol, 10 * ws.drift0)
+    _factorize!(ws) || error("singular basis in column $(ws.i)")
+    _dual!(ws)
+    _primal!(ws)
+    ws.drift0 = _drift(ws)
+  end
+  ws
+end
+
 # η solves M'η = τ, then σ = G[R, :]'η; done from scratch after a factorization
 function _dual!(ws::_PSMWorkspace{T}) where {T}
   k, N = ws.k, ws.N
@@ -226,16 +257,21 @@ end
 # The largest μ' ≤ μ at which a basic variable reaches its bound: an active
 # variable reaching zero (kind 1, position in A) or the slack of side s of a
 # constraint reaching zero (kind 2, constraint j). Returns μ' = -Inf if the basis
-# stays feasible for all smaller μ.
-function _next_event(ws::_PSMWorkspace{T}, μ::T) where {T}
-  best, kind, idx, side, rate = T(-Inf), 0, 0, zero(T), zero(T)
+# stays feasible for all smaller μ. Rates of the slacks that are zero up to
+# rounding are ignored: a slack that stays at zero along the segment, as that of a
+# constraint identical to a tight one, would otherwise trigger pivots that swap
+# the two forever. Ties are broken by the larger rate, or with `bland`, by the
+# smaller index of the variable (see _index).
+function _next_event(ws::_PSMWorkspace{T}, μ::T, tol::T, bland::Bool=false) where {T}
+  best, kind, idx, side, key = T(-Inf), 0, 0, zero(T), T(-Inf)
   k, a, b = ws.k, ws.a, ws.b
   @inbounds for q in 1:k
     tb = ws.τ[q] * b[q]
     tb > 0 || continue
     μx = min(-a[q] / b[q], μ)
-    if μx > best || (μx == best && tb > rate)
-      best, kind, idx, side, rate = μx, 1, q, zero(T), tb
+    kx = bland ? -T(ws.A[q]) : tb
+    if μx > best || (μx == best && kx > key)
+      best, kind, idx, side, key = μx, 1, q, zero(T), kx
     end
   end
   qi = ws.posA[ws.i]
@@ -247,26 +283,42 @@ function _next_event(ws::_PSMWorkspace{T}, μ::T) where {T}
   @inbounds for j in 1:ws.p
     cj = ws.c[j]
     tj = ws.posR[j]
-    tight = tj == 0 ? zero(T) : ws.sd[tj]
     w1, w0 = cj * u1, cj * u0
+    if tj != 0
+      # the other side of a tight constraint: its slack is 2cⱼ(μ + γβᵢ) exactly,
+      # which reaches zero at μ = -γaᵢ/(1 + γbᵢ) ≤ 0; from r0 and r1 the rounding
+      # could put that point slightly above zero
+      if u1 > 0
+        μx = min(-u0 / u1, μ)
+        s = -ws.sd[tj]
+        kx = bland ? -T(_index(ws, j, s)) : 2w1
+        if μx > best || (μx == best && kx > key)
+          best, kind, idx, side, key = μx, 2, j, s, kx
+        end
+      end
+      continue
+    end
     r1j, r0j = ws.r1[j], ws.r0[j]
+    ztol = tol * w1
     z1 = w1 - r1j
-    if z1 > 0 && tight != one(T)
+    if z1 > ztol
       z0 = w0 - r0j
       if -z0 >= best * z1
         μx = min(-z0 / z1, μ)
-        if μx > best || (μx == best && z1 > rate)
-          best, kind, idx, side, rate = μx, 2, j, one(T), z1
+        kx = bland ? -T(_index(ws, j, one(T))) : z1
+        if μx > best || (μx == best && kx > key)
+          best, kind, idx, side, key = μx, 2, j, one(T), kx
         end
       end
     end
     z1 = w1 + r1j
-    if z1 > 0 && tight != -one(T)
+    if z1 > ztol
       z0 = w0 + r0j
       if -z0 >= best * z1
         μx = min(-z0 / z1, μ)
-        if μx > best || (μx == best && z1 > rate)
-          best, kind, idx, side, rate = μx, 2, j, -one(T), z1
+        kx = bland ? -T(_index(ws, j, -one(T))) : z1
+        if μx > best || (μx == best && kx > key)
+          best, kind, idx, side, key = μx, 2, j, -one(T), kx
         end
       end
     end
@@ -274,10 +326,14 @@ function _next_event(ws::_PSMWorkspace{T}, μ::T) where {T}
   best, kind, idx, side
 end
 
+# The order of the variables for Bland's rule: the entries of β first, then the
+# slacks of the constraints, side +1 before side -1
+@inline _index(ws::_PSMWorkspace, j::Int, s) = ws.p + 2j - (s > 0 ? 1 : 0)
+
 # One dual simplex pivot at a breakpoint, for the leaving variable given by
 # _next_event. Returns false if no variable can enter, in which case (Pμ) is
 # infeasible below the breakpoint.
-function _pivot!(ws::_PSMWorkspace{T}, kind::Int, idx::Int, s::T, tol::T) where {T}
+function _pivot!(ws::_PSMWorkspace{T}, kind::Int, idx::Int, s::T, tol::T, bland::Bool=false) where {T}
   k, N, S, p, i, γ = ws.k, ws.N, ws.S, ws.p, ws.i, ws.γ
   ρ, g, x = ws.ρ, ws.g, ws.x
 
@@ -316,9 +372,10 @@ function _pivot!(ws::_PSMWorkspace{T}, kind::Int, idx::Int, s::T, tol::T) where 
     @inbounds g[i] -= γ * corr
   end
 
-  # dual ratio test, with the two passes of Harris (1973): the largest step that
-  # keeps every reduced cost above -tol, then among the variables whose ratio is
-  # within that step the one with the largest pivot
+  # dual ratio test, with the tolerance of Harris (1973): the variable that
+  # minimizes (d + tol)/|α|, d its reduced cost and α its entry of the pivot row,
+  # which among nearly tied variables prefers the largest pivot; with `bland`, the
+  # variable of smallest index among those of minimal ratio
   gmax = zero(T)
   @inbounds for l in 1:p
     gmax = max(gmax, abs(g[l]))
@@ -328,11 +385,16 @@ function _pivot!(ws::_PSMWorkspace{T}, kind::Int, idx::Int, s::T, tol::T) where 
   end
   ptol = tol * max(gmax, one(T))
   leaving = kind == 1 ? ws.A[idx] : 0
+  if bland
+    found, ekind, eidx, esign, epiv, ed = _ratio_bland(ws, g, ρ, leaving, ptol, tol)
+    found || return false
+    @goto update
+  end
   # the variable l enters with the sign -sign(gₗ), and its reduced cost is
   # d = 1 + sign(gₗ) σₗ; divisions are only done for improvements
   θmax = T(Inf)
-  ekind, eidx = 0, 0      # the minimizer of the first pass, in case rounding
-  @inbounds for l in 1:p  # makes the second pass reject every variable
+  ekind, eidx = 0, 0
+  @inbounds for l in 1:p
     gl = g[l]
     ag = abs(gl)
     ag > ptol || continue
@@ -358,26 +420,9 @@ function _pivot!(ws::_PSMWorkspace{T}, kind::Int, idx::Int, s::T, tol::T) where 
     esign, epiv, ed = zero(T), -ws.sd[eidx] * ρ[eidx], -ws.sd[eidx] * ws.η[eidx]
   end
 
-  # second pass: enter = (1, l, sign) for a variable, (2, t) for a slack
-  @inbounds for l in 1:p
-    gl = g[l]
-    ag = abs(gl)
-    ag > epiv || continue
-    (ws.posA[l] != 0 && l != leaving) && continue
-    d = one(T) + (gl > 0 ? ws.σ[l] : -ws.σ[l])
-    if d <= θmax * ag
-      ekind, eidx, esign, epiv, ed = 1, l, gl > 0 ? -one(T) : one(T), ag, d
-    end
-  end
-  @inbounds for t in 1:k
-    α = ws.sd[t] * ρ[t]
-    -α > epiv || continue
-    d = -ws.sd[t] * ws.η[t]
-    if d <= -θmax * α
-      ekind, eidx, esign, epiv, ed = 2, t, zero(T), -α, d
-    end
-  end
+  @label update
   θ = max(ed, zero(T)) / epiv
+  ws.θ = θ
 
   # dual update: η ← η - θρ, σ ← σ - θg
   @inbounds for t in 1:k
@@ -410,6 +455,46 @@ function _pivot!(ws::_PSMWorkspace{T}, kind::Int, idx::Int, s::T, tol::T) where 
   end
   ws.npivots += 1
   true
+end
+
+# Bland's rule for the dual ratio test: among the candidates whose ratio is
+# within rounding of the smallest, the one of smallest index (the entries of β
+# come before the slacks). Returns (found, kind, idx, sign, |pivot|, reduced cost).
+function _ratio_bland(ws::_PSMWorkspace{T}, g::Vector{T}, ρ::Vector{T}, leaving::Int, ptol::T, tol::T) where {T}
+  p, k = ws.p, ws.k
+  θmin = T(Inf)
+  @inbounds for l in 1:p
+    ag = abs(g[l])
+    ag > ptol || continue
+    (ws.posA[l] != 0 && l != leaving) && continue
+    d = one(T) + (g[l] > 0 ? ws.σ[l] : -ws.σ[l])
+    θmin = min(θmin, max(d, zero(T)) / ag)
+  end
+  @inbounds for t in 1:k
+    α = ws.sd[t] * ρ[t]
+    α < -ptol || continue
+    θmin = min(θmin, max(-ws.sd[t] * ws.η[t], zero(T)) / -α)
+  end
+  isfinite(θmin) || return (false, 0, 0, zero(T), zero(T), zero(T))
+  window = θmin + tol * max(one(T), θmin)
+  @inbounds for l in 1:p
+    gl = g[l]
+    ag = abs(gl)
+    ag > ptol || continue
+    (ws.posA[l] != 0 && l != leaving) && continue
+    d = one(T) + (gl > 0 ? ws.σ[l] : -ws.σ[l])
+    max(d, zero(T)) / ag <= window && return (true, 1, l, gl > 0 ? -one(T) : one(T), ag, d)
+  end
+  best, bidx = typemax(Int), 0
+  @inbounds for t in 1:k
+    α = ws.sd[t] * ρ[t]
+    α < -ptol || continue
+    max(-ws.sd[t] * ws.η[t], zero(T)) / -α <= window || continue
+    ix = _index(ws, ws.R[t], ws.sd[t])
+    ix < best && ((best, bidx) = (ix, t))
+  end
+  t = bidx
+  (true, 2, t, zero(T), -ws.sd[t] * ρ[t], -ws.sd[t] * ws.η[t])
 end
 
 # variable l (sign τl) replaces the active variable at position q:
@@ -539,32 +624,43 @@ end
 # The basic variable that is most infeasible at μ, as (kind, idx, side) in the
 # convention of _next_event, or kind = 0 if none is infeasible by more than tol.
 # The slacks are measured relative to their weight cⱼ, in the units of μ.
-function _most_infeasible(ws::_PSMWorkspace{T}, μ::T, tol::T) where {T}
+function _most_infeasible(ws::_PSMWorkspace{T}, μ::T, tol::T, bland::Bool=false) where {T}
   k, a, b = ws.k, ws.a, ws.b
   scale = one(T)
   @inbounds for q in 1:k
     scale = max(scale, abs(a[q] + μ * b[q]))
   end
   worst, kind, idx, side = tol * scale, 0, 0, zero(T)
+  key = typemax(Int)    # with `bland`, the smallest index among the infeasible variables
   @inbounds for q in 1:k
     x = ws.τ[q] * (a[q] + μ * b[q])
-    if -x > worst
+    if bland
+      if -x > tol * scale && ws.A[q] < key
+        kind, idx, side, key = 1, q, zero(T), ws.A[q]
+      end
+    elseif -x > worst
       worst, kind, idx, side = -x, 1, q, zero(T)
     end
   end
   qi = ws.posA[ws.i]
   βi = qi == 0 ? zero(T) : a[qi] + μ * b[qi]
-  ztol = tol * max(μ, tol)
+  ztol = tol * max(μ, one(T))
+  bound = μ + ws.γ * βi
   @inbounds for j in 1:ws.p
     cj = ws.c[j]
     tj = ws.posR[j]
     tight = tj == 0 ? zero(T) : ws.sd[tj]
     rj = ws.r0[j] + μ * ws.r1[j]
-    bound = μ + ws.γ * βi
     for s in (one(T), -one(T))
       s == tight && continue
-      v = s * rj / cj - bound     # minus the slack, relative to cⱼ
-      if v > ztol && v > worst
+      # minus the slack, relative to cⱼ; for the other side of a tight
+      # constraint the slack is 2cⱼ(μ + γβᵢ) exactly
+      v = tight == 0 ? s * rj / cj - bound : -2bound
+      if bland
+        if v > ztol && kind != 1 && _index(ws, j, s) < key
+          kind, idx, side, key = 2, j, s, _index(ws, j, s)
+        end
+      elseif v > ztol && v > worst
         worst, kind, idx, side = v, 2, j, s
       end
     end
@@ -576,17 +672,17 @@ end
 # primal feasible at μ. Returns the number of pivots, or -1 if the problem is
 # infeasible at μ.
 function _dual_simplex!(ws::_PSMWorkspace{T}, μ::T, tol::T, refactor::Int, maxpivots::Int) where {T}
-  pivots = 0
+  pivots = stall = 0
   while true
-    kind, idx, s = _most_infeasible(ws, μ, tol)
+    # Bland's rule, which cannot cycle, after many degenerate pivots in a row
+    bland = stall > max(50, 2 * ws.k)
+    kind, idx, s = _most_infeasible(ws, μ, tol, bland)
     kind == 0 && return pivots
-    _pivot!(ws, kind, idx, s, tol) || return -1
+    _pivot!(ws, kind, idx, s, tol, bland) || return -1
+    stall = ws.θ > tol ? 0 : stall + 1
     pivots += 1
     pivots > maxpivots && error("DualSimplex: column $(ws.i) needed more than $maxpivots pivots")
-    if ws.npivots >= refactor
-      _factorize!(ws) || error("DualSimplex: singular basis in column $(ws.i)")
-      _dual!(ws)
-    end
     _primal!(ws)
+    _refactor_if_needed!(ws, refactor, tol)
   end
 end

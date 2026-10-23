@@ -24,7 +24,8 @@ operations, so a pivot costs O(pk) operations, mostly two products of k columns
 of `S` with a vector.
 
 - `tol`: tolerance of the feasibility and ratio tests
-- `refactor`: number of pivots between two factorizations of the basis block
+- `refactor`: largest number of pivots between two factorizations of the basis
+  block, which is also refactorized when its updates have drifted
 - `maxpivots`: maximum number of pivots for one penalty; `0` means `1000 + 50p`
 
 In the benchmarks of `benchmark/clime`, [`ParametricSimplex`](@ref), which
@@ -49,7 +50,8 @@ same pivots as [`DualSimplex`](@ref), which can skip breakpoints, and is faster
 when the penalties are close together.
 
 - `tol`: tolerance of the ratio tests
-- `refactor`: number of pivots between two factorizations of the basis block
+- `refactor`: largest number of pivots between two factorizations of the basis
+  block, which is also refactorized when its updates have drifted
 - `maxpivots`: maximum number of pivots for one column; `0` means `1000 + 50p`
 """
 Base.@kwdef struct ParametricSimplex <: CLIMESolver
@@ -266,16 +268,19 @@ function _column_path!(ws::_PSMWorkspace{T}, i::Int, μs::AbstractVector{T}, col
     _pushempty!(col)
     t += 1
   end
-  pivots = 0
+  pivots = stall = 0
   while t <= nμ
-    μn, kind, idx, s = _next_event(ws, μ)
+    # Bland's rule, which cannot cycle, after many pivots without progress
+    bland = stall > max(50, 2 * ws.k)
+    μn, kind, idx, s = _next_event(ws, μ, tol, bland)
     while t <= nμ && μs[t] >= μn
       _record!(col, ws, μs[t])
       t += 1
     end
     t > nμ && break
+    stall = μn < μ ? 0 : stall + 1
     μ = μn
-    if !_pivot!(ws, kind, idx, s, tol)
+    if !_pivot!(ws, kind, idx, s, tol, bland)
       μbad = μs[t]
       while t <= nμ
         _pushempty!(col)
@@ -285,11 +290,8 @@ function _column_path!(ws::_PSMWorkspace{T}, i::Int, μs::AbstractVector{T}, col
     end
     pivots += 1
     pivots > maxpivots && error("ParametricSimplex: column $i needed more than $maxpivots pivots")
-    if ws.npivots >= solver.refactor
-      _factorize!(ws) || error("ParametricSimplex: singular basis in column $i")
-      _dual!(ws)
-    end
     _primal!(ws)
+    _refactor_if_needed!(ws, solver.refactor, tol)
   end
   -one(T)
 end

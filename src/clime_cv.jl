@@ -66,18 +66,17 @@ function _cvloss(S::AbstractMatrix, Ω::SparseMatrixCSC, loss::Symbol)
       tr += S[rows[k], c] * vals[k]
     end
     return tr - logdet(F)
-  elseif loss == :trace
-    l = 0.0
-    for i in axes(Ω, 2)
-      d = -1.0
-      for k in nzrange(Ω, i)
-        d += S[i, rows[k]] * vals[k]
-      end
-      l += abs2(d)
-    end
-    return l
   end
-  throw(ArgumentError("loss must be :likelihood or :trace"))
+  # :trace (the loss is checked by _crossvalidate)
+  l = 0.0
+  for i in axes(Ω, 2)
+    d = -1.0
+    for k in nzrange(Ω, i)
+      d += S[i, rows[k]] * vals[k]
+    end
+    l += abs2(d)
+  end
+  l
 end
 
 function _folds(n::Integer, k::Integer, rng::AbstractRNG)
