@@ -9,7 +9,8 @@ tests = [
   "fusedDifference",
   "latent",
   "generate",
-  "clime"
+  "clime",
+  "scaledlasso"
 ]
 
 @testset "CovSel" begin
