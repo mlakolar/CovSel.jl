@@ -17,8 +17,8 @@ Pkg.add("CovSel")   # or Pkg.add(url="https://github.com/mlakolar/CovSel.jl") un
   exact solution path of each column by the parametric simplex method, so a
   whole path of penalties costs about as much as its smallest penalty; the
   columns are solved in parallel on Julia's threads.
-* The scaled lasso estimator of Sun and Zhang (2013), which needs no tuning:
-  `scaledlasso`
+* Sparse matrix inversion with the scaled lasso of each column (Sun and Zhang,
+  2013), which needs no tuning: `slassoinv`
 * Graphical lasso by ADMM: `covsel!`, `covselpath`
 * Fused graphical lasso for two groups (Danaher, Wang and Witten, 2014): `fusedGraphicalLasso`, `fusedGraphicalLasso!`
 * Fused neighborhood selection: `fusedNeighborhoodSelection`
@@ -79,7 +79,7 @@ columns in parallel. See [`examples/clime.jl`](examples/clime.jl), and
 [`benchmark/clime`](benchmark/clime) for a comparison of the solvers with each
 other and with the R packages fastclime, flare and clime.
 
-### Scaled lasso
+### Sparse matrix inversion with the scaled lasso
 
 Column `j` of the estimate of Sun and Zhang (2013) is the scaled lasso of
 variable `j` on the others, which estimates the residual standard deviation
@@ -89,12 +89,12 @@ constant, so there is nothing to tune, and the estimate is equivariant to the
 units of the variables.
 
 ```julia
-Ω = scaledlasso(cov(X), size(X, 1))               # λ₀ of Sun and Zhang's simulations
-Ω = scaledlasso(cov(X), size(X, 1); refit=true)   # least squares on the selected support
+Ω = slassoinv(cov(X), size(X, 1))               # λ₀ of Sun and Zhang's simulations
+Ω = slassoinv(cov(X), size(X, 1); refit=true)   # least squares on the selected support
 ```
 
 Each column follows its lasso path exactly until the penalty of the scaled
-lasso; see [`benchmark/scaledlasso`](benchmark/scaledlasso) for its speed
+lasso; see [`benchmark/slassoinv`](benchmark/slassoinv) for its speed
 against the R package scalreg and its accuracy against CLIME and ACLIME.
 
 Package depends on [ProximalBase.jl](https://github.com/mlakolar/ProximalBase.jl) and [CoordinateDescent.jl](https://github.com/mlakolar/CoordinateDescent.jl).

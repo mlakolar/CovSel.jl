@@ -1,6 +1,6 @@
 # Tables of the scaled lasso benchmark from the results of campaign.sbatch.
 #
-#   julia benchmark/scaledlasso/summarize.jl RESULTS_DIR
+#   julia benchmark/slassoinv/summarize.jl RESULTS_DIR
 #
 # Prints Markdown tables: speed (julia_*.csv and r_*.csv in RESULTS_DIR/speed) and
 # accuracy (RESULTS_DIR/accuracy/*.csv): mean errors with standard errors, and
@@ -104,7 +104,9 @@ function accuracy_tables(d)
   end
 end
 
-csvlines(prefix) = [split(l, ',') for f in readdir(joinpath(RES, "speed"); join=true)
+# (results computed before the rename label the method scaledlasso)
+csvlines(prefix) = [split(replace(l, "scaledlasso" => "slassoinv"), ',')
+                    for f in readdir(joinpath(RES, "speed"); join=true)
                     if startswith(basename(f), prefix) && endswith(f, ".csv") for l in eachline(f)]
 
 function speed_tables()
@@ -118,15 +120,15 @@ function speed_tables()
   rrows = csvlines("r_")
   getr(k) = (r = filter(x -> x[1] == "$(k[1])_p$(k[2])_n$(k[3])_s$(7 + k[2] + k[3])", rrows); isempty(r) ? nothing : r[end])
   fmt(t) = t < 0.01 ? @sprintf("%.4f", t) : t < 1 ? @sprintf("%.3f", t) : t < 100 ? @sprintf("%.2f", t) : @sprintf("%.0f", t)
-  println("\n### Seconds for the whole estimate (relative to scaledlasso on one thread)\n")
-  println("| problem | scaledlasso | refit | 8 threads | CoordinateDescent | scalreg | nonzero entries |")
+  println("\n### Seconds for the whole estimate (relative to slassoinv on one thread)\n")
+  println("| problem | slassoinv | refit | 8 threads | CoordinateDescent | scalreg | nonzero entries |")
   println("|---|---:|---:|---:|---:|---:|---:|")
   for k in probs
-    s = get1(k, "scaledlasso", 1)
+    s = get1(k, "slassoinv", 1)
     s === nothing && continue
     t1 = parse(Float64, s[6])
-    r = get1(k, "scaledlasso refit", 1)
-    th = get1(k, "scaledlasso", 8)
+    r = get1(k, "slassoinv refit", 1)
+    th = get1(k, "slassoinv", 8)
     c = get1(k, "CoordinateDescent", 1)
     R = getr(k)
     name = Dict("ar1" => "AR(1)", "band" => "band", "er" => "Erdős–Rényi")[k[1]]
@@ -137,7 +139,7 @@ function speed_tables()
       R === nothing ? "—" : @sprintf("%s (%.0f×)", fmt(parse(Float64, R[3])), parse(Float64, R[3]) / t1), " | ",
       s[7], " |")
   end
-  println("\nLargest difference to scaledlasso, relative to its largest entry: CoordinateDescent ",
+  println("\nLargest difference to slassoinv, relative to its largest entry: CoordinateDescent ",
     join(unique(@sprintf("%.0e", parse(Float64, x[8])) for x in rows if x[4] == "CoordinateDescent"), ", "),
     isempty(rrows) ? "" : "; scalreg " * join((@sprintf("%.0e", parse(Float64, x[5])) for x in rrows), ", "))
 end

@@ -34,7 +34,7 @@ end
 
 penalty(λ₀, p, n) = CovSel._penalty_level(λ₀, p, n)
 
-@testset "scaledlasso" begin
+@testset "slassoinv" begin
 
   @testset "penalty levels" begin
     for p in (1, 2, 30, 1000), n in (50, 400)
@@ -60,7 +60,7 @@ penalty(λ₀, p, n) = CovSel._penalty_level(λ₀, p, n)
        (:quantile, :universal, 0.05, 1.0)))
     p = size(S, 1)
     for λ₀ in λs
-      R = scaledlasso(S, n; λ₀, symmetrize=false)
+      R = slassoinv(S, n; λ₀, symmetrize=false)
       λ = penalty(λ₀, p, n)
       @test all(certificate(S, R, j, λ) < 1e-9 for j in 1:p)
     end
@@ -69,15 +69,15 @@ penalty(λ₀, p, n) = CovSel._penalty_level(λ₀, p, n)
   @testset "closed forms" begin
     # uncorrelated variables: β = 0 and σ̂² = Sⱼⱼ
     D = Diagonal([1.0, 2.0, 0.5, 4.0])
-    @test scaledlasso(Matrix(D), 10) ≈ inv(D)
-    @test scaledlasso(fill(2.0, 1, 1), 5) ≈ fill(0.5, 1, 1)
+    @test slassoinv(Matrix(D), 10) ≈ inv(D)
+    @test slassoinv(fill(2.0, 1, 1), 5) ≈ fill(0.5, 1, 1)
     # a penalty above all correlations: the inverse marginal variances
     S = samplecov(ar1(10, 0.5), 50)
-    @test scaledlasso(S, 50; λ₀=10.0) ≈ Diagonal(1 ./ diag(S))
+    @test slassoinv(S, 50; λ₀=10.0) ≈ Diagonal(1 ./ diag(S))
     # 2 × 2, to a tight tolerance
     S = [2.0 0.9; 0.9 1.0]
     λ₀ = 0.2
-    R = scaledlasso(S, 100; λ₀, symmetrize=false)
+    R = slassoinv(S, 100; λ₀, symmetrize=false)
     @test all(certificate(S, R, j, λ₀) < 1e-12 for j in 1:2)
   end
 
@@ -87,7 +87,7 @@ penalty(λ₀, p, n) = CovSel._penalty_level(λ₀, p, n)
     for (Σ, n) in ((ar1(12, 0.5), 100), ([1.0 0.5 0.5; 0.5 1.0 0.0; 0.5 0.0 1.0], 50),
                    (Matrix(SymTridiagonal(fill(2.0, 10), fill(0.7, 9))), 200))
       for λ₀ in (0.05, 0.1, :quantile)
-        R = scaledlasso(Σ, n; λ₀, symmetrize=false)
+        R = slassoinv(Σ, n; λ₀, symmetrize=false)
         @test all(certificate(Σ, R, j, penalty(λ₀, size(Σ, 1), n)) < 1e-10 for j in axes(Σ, 1))
       end
     end
@@ -95,8 +95,8 @@ penalty(λ₀, p, n) = CovSel._penalty_level(λ₀, p, n)
 
   @testset "least squares refit" begin
     S = samplecov(ar1(40, 0.6), 100)
-    R = scaledlasso(S, 100; symmetrize=false)
-    F = scaledlasso(S, 100; refit=true, symmetrize=false)
+    R = slassoinv(S, 100; symmetrize=false)
+    F = slassoinv(S, 100; refit=true, symmetrize=false)
     for j in 1:40
       A = filter(!=(j), findall(!iszero, R[:, j]))
       @test sort(filter(!=(j), findall(!iszero, F[:, j]))) == A
@@ -112,8 +112,8 @@ penalty(λ₀, p, n) = CovSel._penalty_level(λ₀, p, n)
     S = samplecov(Diagonal(1 .+ 4rand(30)) * ar1(30, 0.5) * Diagonal(1 .+ 4rand(30)), 80)
     D = Diagonal(0.5 .+ 3rand(30))
     for refit in (false, true)
-      Ω = scaledlasso(S, 80; refit)
-      Ωd = scaledlasso(D * S * D, 80; refit)
+      Ω = slassoinv(S, 80; refit)
+      Ωd = slassoinv(D * S * D, 80; refit)
       @test Ωd ≈ inv(D) * Ω * inv(D) rtol=1e-10
       @test findnz(Ωd)[1:2] == findnz(Ω)[1:2]
     end
@@ -121,13 +121,13 @@ penalty(λ₀, p, n) = CovSel._penalty_level(λ₀, p, n)
 
   @testset "symmetrization, threads, element type" begin
     S = samplecov(ar1(50, 0.6), 100)
-    R = scaledlasso(S, 100; symmetrize=false)
-    Ω = scaledlasso(S, 100)
+    R = slassoinv(S, 100; symmetrize=false)
+    Ω = slassoinv(S, 100)
     @test issymmetric(Ω)
     @test Ω == symmetrize_minabs(R)
-    @test scaledlasso(S, 100; ntasks=1) == scaledlasso(S, 100; ntasks=4) == Ω
-    @test scaledlasso(Symmetric(S), 100) == Ω
-    Ω32 = scaledlasso(Float32.(S), 100)
+    @test slassoinv(S, 100; ntasks=1) == slassoinv(S, 100; ntasks=4) == Ω
+    @test slassoinv(Symmetric(S), 100) == Ω
+    Ω32 = slassoinv(Float32.(S), 100)
     @test eltype(Ω32) == Float32
     @test Ω32 ≈ Ω rtol=1e-3
   end
@@ -152,19 +152,19 @@ penalty(λ₀, p, n) = CovSel._penalty_level(λ₀, p, n)
   @testset "estimation" begin
     Ω0 = Matrix(SymTridiagonal(fill(1.5, 100), fill(0.5, 99)))
     S = cov(randn(2000, 100) / cholesky(Symmetric(Ω0)).U')
-    @test opnorm(Matrix(scaledlasso(S, 2000)) - Ω0) < 0.4
-    @test opnorm(Matrix(scaledlasso(S, 2000; refit=true)) - Ω0) < 0.4
+    @test opnorm(Matrix(slassoinv(S, 2000)) - Ω0) < 0.4
+    @test opnorm(Matrix(slassoinv(S, 2000; refit=true)) - Ω0) < 0.4
   end
 
   @testset "input" begin
     S = samplecov(ar1(10, 0.5), 50)
-    @test_throws ArgumentError scaledlasso(S, 0)
-    @test_throws ArgumentError scaledlasso(S, 50; λ₀=-1)
-    @test_throws ArgumentError scaledlasso(S, 50; λ₀=:theory)
-    @test_throws DimensionMismatch scaledlasso(randn(3, 4), 10)
+    @test_throws ArgumentError slassoinv(S, 0)
+    @test_throws ArgumentError slassoinv(S, 50; λ₀=-1)
+    @test_throws ArgumentError slassoinv(S, 50; λ₀=:theory)
+    @test_throws DimensionMismatch slassoinv(randn(3, 4), 10)
     # p > n with a tiny penalty: the path reaches a singular block of S
     X = randn(10, 40)
-    @test_throws DomainError scaledlasso(X' * X / 10, 10; λ₀=1e-4)
+    @test_throws DomainError slassoinv(X' * X / 10, 10; λ₀=1e-4)
   end
 end
 

@@ -1,6 +1,6 @@
-# The scaled lasso estimator
+# slassoinv: sparse matrix inversion with the scaled lasso
 
-[`scaledlasso`](../../src/scaledlasso.jl) estimates a precision matrix one
+[`slassoinv`](../../src/slassoinv.jl) estimates a precision matrix one
 column at a time by the scaled lasso of Sun and Zhang (2013): column `j`
 regresses variable `j` on the others, estimates the residual standard deviation
 `σ̂ⱼ` jointly with the coefficients, with the penalty `λ₀ σ̂ⱼ √Sₖₖ` on
@@ -17,7 +17,7 @@ Zhang), so the estimator has nothing to tune. This directory compares it
 
 ## Summary
 
-- **Exact, and fast.** `scaledlasso` follows the lasso path of each column by
+- **Exact, and fast.** `slassoinv` follows the lasso path of each column by
   the homotopy method until the penalty `λ₀σ̂` of the scaled lasso, which it
   finds exactly: on each segment of the path the residual variance is a
   quadratic in the penalty. On one CPU it took 0.85–1.7 s for p = 4000, and 8
@@ -25,7 +25,7 @@ Zhang), so the estimator has nothing to tune. This directory compares it
   lasso of CoordinateDescent column by column, with tight tolerances, and
   1,500–45,000 times faster than scalreg, which computes the whole lars path of
   every column (701 s for p = 500, n = 1000, against 0.026 s). Their estimates
-  agree with those of `scaledlasso` to 2e-6 (CoordinateDescent) and 2e-4
+  agree with those of `slassoinv` to 2e-6 (CoordinateDescent) and 2e-4
   (scalreg, whose noise level is iterated to an absolute tolerance of 1e-4).
 - **It reproduces Table 1 of Sun and Zhang (2013).** The mean spectral errors
   of the scaled lasso are within 0.02 of those of the paper in 15 of the 18
@@ -66,15 +66,15 @@ Zhang), so the estimator has nothing to tune. This directory compares it
 
 USC CARC Discovery, AMD EPYC 7513, Julia 1.13.2 and R 4.5.3 with
 single-threaded OpenBLAS; one CPU per run, with 8 runs at a time on a node
-(which share its memory bandwidth: on an otherwise idle node `scaledlasso` was
+(which share its memory bandwidth: on an otherwise idle node `slassoinv` was
 up to twice as fast). The data are n draws from the AR(1), band and Erdős–Rényi
 precision matrices of [`../clime/problems.jl`](../clime/problems.jl), and
-`S = X'X/n`; all methods use the penalty level `λ₀` of `scaledlasso`.
+`S = X'X/n`; all methods use the penalty level `λ₀` of `slassoinv`.
 CoordinateDescent ran up to p = 1000, scalreg up to p = 500.
 
-Seconds for the whole estimate (in parentheses, relative to `scaledlasso` on one thread):
+Seconds for the whole estimate (in parentheses, relative to `slassoinv` on one thread):
 
-| problem | scaledlasso | refit | 8 threads | CoordinateDescent | scalreg | nonzero entries |
+| problem | slassoinv | refit | 8 threads | CoordinateDescent | scalreg | nonzero entries |
 |---|---:|---:|---:|---:|---:|---:|
 | AR(1), p = 100, n = 50 | 0.0007 | 0.0006 | — | 0.012 (18×) | 1.33 (2039×) | 462 |
 | AR(1), p = 100, n = 200 | 0.0006 | 0.0006 | — | 0.015 (23×) | 2.42 (3745×) | 424 |
@@ -116,7 +116,7 @@ Seconds for the whole estimate (in parentheses, relative to `scaledlasso` on one
 ## Accuracy
 
 Mean errors over the replications, with standard errors in parentheses.
-SLasso is `scaledlasso(S, n)`, SLasso/LSE `scaledlasso(S, n; refit=true)`;
+SLasso is `slassoinv(S, n)`, SLasso/LSE `slassoinv(S, n; refit=true)`;
 CLIME runs on the correlation matrix, its estimate scaled back, with its
 penalty chosen from 45 values between 1 and 0.02; ACLIME chooses δ from
 `(1:100)/50` for p ≤ 100 in the design of Cai, Liu and Zhou (as in the
@@ -266,14 +266,14 @@ under GNU Parallel with one CPU per task, then the threaded timings;
 estimates stored by another run. Run `20261023T0951Z-covsel-scaledlasso`, at
 commit `95a36d0`; the accuracy of the design of Sun and Zhang with p ≤ 90 and
 p = 1000, of the design of Cai, Liu and Zhou with p ≤ 100 and of the Hadamard
-blocks comes from a first job at `df4dfd4`, whose `scaledlasso` gives the
+blocks comes from a first job at `df4dfd4`, whose `slassoinv` gives the
 same estimates to the last bit (`verify.jl`). Later commits take the normal
 quantile of the default `λ₀` from SpecialFunctions, which changes `λ₀` by less
 than 1e-12. On a laptop:
 
 ```sh
-julia --project=benchmark/scaledlasso -e 'using Pkg; Pkg.instantiate()'
-julia --project=benchmark/scaledlasso benchmark/scaledlasso/accuracy.jl sz 1 60 1 10 /tmp/sz_1_p60.csv
-julia --project=benchmark/scaledlasso benchmark/scaledlasso/speed.jl ar1 500 1000 /tmp/speed
-julia benchmark/scaledlasso/summarize.jl /tmp            # with /tmp/accuracy and /tmp/speed
+julia --project=benchmark/slassoinv -e 'using Pkg; Pkg.instantiate()'
+julia --project=benchmark/slassoinv benchmark/slassoinv/accuracy.jl sz 1 60 1 10 /tmp/sz_1_p60.csv
+julia --project=benchmark/slassoinv benchmark/slassoinv/speed.jl ar1 500 1000 /tmp/speed
+julia benchmark/slassoinv/summarize.jl /tmp            # with /tmp/accuracy and /tmp/speed
 ```

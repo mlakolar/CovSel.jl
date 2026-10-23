@@ -10,7 +10,7 @@ tests = [
   "latent",
   "generate",
   "clime",
-  "scaledlasso"
+  "slassoinv"
 ]
 
 @testset "CovSel" begin

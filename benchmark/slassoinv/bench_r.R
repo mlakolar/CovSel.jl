@@ -1,5 +1,5 @@
 # Time the precision matrix estimator of the R package scalreg (Sun, 2013) on the
-# data written by speed.jl, at the penalty level of scaledlasso, and write its
+# data written by speed.jl, at the penalty level of slassoinv, and write its
 # estimate for the comparison.
 #
 #   Rscript bench_r.R DIR N P OUT.csv [lib=PATH]

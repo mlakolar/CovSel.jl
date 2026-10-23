@@ -1,16 +1,16 @@
 # Time the scaled lasso estimator on one problem of ../clime/problems.jl.
 #
-#   julia -t T --project=benchmark/scaledlasso benchmark/scaledlasso/speed.jl MODEL P N OUTDIR [threads]
+#   julia -t T --project=benchmark/slassoinv benchmark/slassoinv/speed.jl MODEL P N OUTDIR [threads]
 #
 # The data X (n × p, mean zero) are drawn with the seed 7 + p + n, and S = X'X/n.
-# Times scaledlasso (λ₀ = :quantile, with and without the least squares refit) on
+# Times slassoinv (λ₀ = :quantile, with and without the least squares refit) on
 # one thread, the best of up to 5 runs; with `threads`, on all of Julia's threads
 # instead. Writes OUTDIR/julia_MODEL_pP_nN_MODE.csv. Without `threads`, also
 # writes X.bin and the estimate est.bin for the
 # R package scalreg (bench_r.R), when p ≤ RPMAX (default 1000), and times the
 # scaled lasso of CoordinateDescent column by column, when p ≤ CDPMAX (default
 # 1000). One line per method: model,p,n,method,threads,seconds,nnz,maxdiff
-# where maxdiff is the largest difference to scaledlasso, relative to its largest
+# where maxdiff is the largest difference to slassoinv, relative to its largest
 # entry.
 
 include(joinpath(@__DIR__, "common.jl"))
@@ -32,8 +32,8 @@ function best_time(f; runs=5, budget=2.0)
 end
 
 # column j of the precision matrix from CoordinateDescent's scaled lasso of x_j on
-# the other columns, with the penalty weights √Sₖₖ of scaledlasso
-function cd_scaledlasso(X, λ₀)
+# the other columns, with the penalty weights √Sₖₖ of slassoinv
+function cd_slassoinv(X, λ₀)
   n, p = size(X)
   w = vec(sqrt.(sum(abs2, X; dims=1) / n))
   opts = IterLassoOptions(maxIter=100, optTol=1e-6, optionsCD=CDOptions(optTol=1e-7))
@@ -55,19 +55,19 @@ function main(model, p, n, outdir, mode)
   X = sample(Ω, n; rng=rng)
   S = X' * X / n
   λ₀ = CovSel._penalty_level(:quantile, p, n)
-  scaledlasso(S[1:10, 1:10], n)                      # compile
+  slassoinv(S[1:10, 1:10], n)                      # compile
   mkpath(outdir)
   io = open(joinpath(outdir, "julia_$(model)_p$(p)_n$(n)_$(mode).csv"), "w")
   line(method, nt, t, nz, d) = (@printf(io, "%s,%d,%d,%s,%d,%.6g,%d,%.3g\n", model, p, n, method, nt, t, nz, d); flush(io))
   if mode == "threads"
     nt = Threads.nthreads()
-    Ω1, t = best_time(() -> scaledlasso(S, n; ntasks=nt))
-    line("scaledlasso", nt, t, nnz(Ω1), 0.0)
+    Ω1, t = best_time(() -> slassoinv(S, n; ntasks=nt))
+    line("slassoinv", nt, t, nnz(Ω1), 0.0)
   else
-    Ω1, t = best_time(() -> scaledlasso(S, n; ntasks=1))
-    line("scaledlasso", 1, t, nnz(Ω1), 0.0)
-    Ωr, t = best_time(() -> scaledlasso(S, n; refit=true, ntasks=1))
-    line("scaledlasso refit", 1, t, nnz(Ωr), 0.0)
+    Ω1, t = best_time(() -> slassoinv(S, n; ntasks=1))
+    line("slassoinv", 1, t, nnz(Ω1), 0.0)
+    Ωr, t = best_time(() -> slassoinv(S, n; refit=true, ntasks=1))
+    line("slassoinv refit", 1, t, nnz(Ωr), 0.0)
     if p <= RPMAX
       dir = joinpath(outdir, problem_name(model, p, n, 7 + p + n))
       mkpath(dir)
@@ -78,8 +78,8 @@ function main(model, p, n, outdir, mode)
       end
     end
     if p <= CDPMAX
-      cd_scaledlasso(X[1:20, 1:10], 0.3)                # compile
-      Ωc, t = best_time(() -> cd_scaledlasso(X, λ₀); runs=1)
+      cd_slassoinv(X[1:20, 1:10], 0.3)                # compile
+      Ωc, t = best_time(() -> cd_slassoinv(X, λ₀); runs=1)
       line("CoordinateDescent", 1, t, nnz(Ωc), maximum(abs, Ωc - Ω1) / maximum(abs, Ω1))
     end
   end

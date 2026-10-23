@@ -1,7 +1,7 @@
 # Accuracy of the scaled lasso estimator of Sun and Zhang (2013) against CLIME and
 # ACLIME, for a range of replications of one design, model and dimension.
 #
-#   julia --project=benchmark/scaledlasso benchmark/scaledlasso/accuracy.jl DESIGN MODEL P FIRST LAST OUT.csv
+#   julia --project=benchmark/slassoinv benchmark/slassoinv/accuracy.jl DESIGN MODEL P FIRST LAST OUT.csv
 #
 # DESIGN is
 # - sz: the models 1, 2 and 3 of Sun and Zhang (2013, Section 6), n = 100;
@@ -54,10 +54,10 @@ function replication(design, Θ, S, Sval, n)
   p = size(S, 1)
   rows = Tuple{String,NTuple{3,Float64},Float64,Float64}[]
   λ₀ = CovSel._penalty_level(:quantile, p, n)
-  R, t = timed(() -> scaledlasso(S, n; symmetrize=false, ntasks=1))
+  R, t = timed(() -> slassoinv(S, n; symmetrize=false, ntasks=1))
   Ω, t2 = timed(() -> CovSel.symmetrize_minabs(R))
   push!(rows, ("SLasso", errors(Ω - Θ), λ₀, t + t2))
-  Ω, t = timed(() -> scaledlasso(S, n; refit=true, ntasks=1))
+  Ω, t = timed(() -> slassoinv(S, n; refit=true, ntasks=1))
   push!(rows, ("SLasso/LSE", errors(Ω - Θ), λ₀, t))
   p <= LPMAX || return rows
   λs = exp.(range(log(1.0), log(0.02); length=45))

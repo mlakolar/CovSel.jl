@@ -1,5 +1,5 @@
 #!/bin/bash
-# Benchmark of scaledlasso (Sun and Zhang, 2013): speed against the R package
+# Benchmark of slassoinv (Sun and Zhang, 2013): speed against the R package
 # scalreg and CoordinateDescent's scaled lasso, and accuracy against CLIME and
 # ACLIME. One CPU per task under GNU Parallel, then the threaded runs on 8 CPUs.
 # QUICK=1 runs a canary: every script on small settings, plus one replication at
@@ -26,7 +26,7 @@ set -uo pipefail
 : "${RUN:?}"
 QUICK=${QUICK:-0}
 RERUN=${RERUN:-0}
-export BENCH=$RUN/CovSel.jl/benchmark/scaledlasso
+export BENCH=$RUN/CovSel.jl/benchmark/slassoinv
 export JULIA=$HOME/juliaPkg/julia-1.13.2/bin/julia
 export JULIA_DEPOT_PATH=$HOME/juliaPkg/depot:
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1

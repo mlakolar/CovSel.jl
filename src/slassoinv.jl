@@ -1,5 +1,5 @@
-# The precision matrix estimator of Sun and Zhang (2013): the scaled lasso of each
-# variable on the others, then the columns symmetrized.
+# Sparse matrix inversion with the scaled lasso (Sun and Zhang, 2013): the scaled
+# lasso of each variable on the others, then the columns symmetrized.
 #
 # Column j is the scaled lasso
 #
@@ -334,12 +334,13 @@ function _sl_record!(col::_ColumnPath{T}, ws::_SLWorkspace{T}, λ::T, σ2::T, re
 end
 
 """
-    scaledlasso(S, n; λ₀=:quantile, refit=false, symmetrize=true, ntasks=Threads.nthreads())
+    slassoinv(S, n; λ₀=:quantile, refit=false, symmetrize=true, ntasks=Threads.nthreads())
 
-Estimate of the precision matrix `Ω = Σ⁻¹` by the scaled lasso of Sun and Zhang
-(2013), from the sample covariance matrix `S` of `n` observations. Column `j` is
-the scaled lasso of variable `j` on the others, which estimates the regression
-coefficients `β` and the residual standard deviation `σ` jointly:
+Sparse matrix inversion with the scaled lasso (Sun and Zhang, 2013): an estimate
+of the precision matrix `Ω = Σ⁻¹` from the sample covariance matrix `S` of `n`
+observations, whose column `j` comes from the scaled lasso of variable `j` on the
+others, which estimates the regression coefficients `β` and the residual
+standard deviation `σ` jointly:
 
     minimize (β - eⱼ)'S(β - eⱼ) / (2σ) + σ/2 + λ₀ ∑ₖ √Sₖₖ |βₖ|  over βⱼ = 0 and σ > 0,
 
@@ -362,7 +363,7 @@ equivariant to rescaling the variables (the estimate from `D S D` is
 Each column follows the lasso path by the homotopy method until the penalty
 `λ₀σ̂` of the scaled lasso, which it finds exactly; a column with `k` events on
 its path costs `O(p k²)` operations. When `p > n` and `λ₀` is small, the path
-can reach a singular block of `S` before the solution, and `scaledlasso` throws a
+can reach a singular block of `S` before the solution, and `slassoinv` throws a
 `DomainError`.
 
 Returns a `SparseMatrixCSC`. Sun and Zhang (2013) prove that the error in the
@@ -374,7 +375,7 @@ bounded instead.
 T. Sun and C.-H. Zhang (2013). Sparse matrix inversion with scaled lasso.
 Journal of Machine Learning Research 14, 3385–3418.
 """
-function scaledlasso(S::AbstractMatrix, n::Integer; λ₀::Union{Real,Symbol}=:quantile,
+function slassoinv(S::AbstractMatrix, n::Integer; λ₀::Union{Real,Symbol}=:quantile,
                      refit::Bool=false, symmetrize::Bool=true,
                      ntasks::Integer=Threads.nthreads())
   n > 0 || throw(ArgumentError("the number of observations n must be positive"))
