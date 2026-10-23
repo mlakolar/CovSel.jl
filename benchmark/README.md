@@ -11,7 +11,7 @@ allocations of each benchmark.
 - **direct difference**: the ℓ1 penalized direct difference estimator on the
   problem of the removed `example1.jl` (Σx = I, Σy the AR(1) covariance with
   ρ = 0.7, n = 1000), for p = 20, 50, 100 and λ = 0.1, 0.2, solved by
-  - `differencePrecisionActiveShooting`: the package solver, ProximalOPT's
+  - `differencePrecisionActiveShooting`: the package solver, ProximalSolvers'
     coordinate descent, at λ directly from zero, and along a path of 50
     decreasing λ values from λmax (`solve!` with `continuation = 50`),
   - `Reference.differencePrecisionNaive` from
@@ -62,10 +62,10 @@ julia --project=benchmark -e '
   display(judge(median(after), median(before)))'
 ```
 
-## Against the code before ProximalOPT (`compare/`)
+## Against the code before ProximalSolvers (`compare/`)
 
 [`compare/`](compare) times the solvers of CovSel master before the move onto
-ProximalOPT (its own coordinate descent loss and ADMM loop, on
+ProximalSolvers (its own coordinate descent loss and ADMM loop, on
 CoordinateDescent 0.6.0 and ProximalBase 0.4.1; `compare/old/`) against this
 version (`compare/new/`), on the same problems and seeds. `run.jl` runs one side
 in a fresh process; `ab.sh` alternates the sides over a number of rounds, since
@@ -80,7 +80,7 @@ benchmark/compare/ab.sh 4
 
 Results of 23 October 2026: four rounds on one core of an AMD EPYC 7513
 (USC CARC Discovery, job 13326410), Julia 1.13.2, one BLAS thread; this
-version at ProximalOPT 1f82ae5 and ProximalBase 0.5.0. Times are in ms; the
+version at ProximalOPT 1f82ae5 (the solver code of ProximalSolvers 0.1.0) and ProximalBase 0.5.0. Times are in ms; the
 passes are the iterations for ADMM and IHT.
 
 | case | old | new | new / old | passes, old / new | largest difference |
@@ -107,7 +107,7 @@ passes are the iterations for ADMM and IHT.
 No case is slower: over the 18 cases the geometric mean of new / old is 0.53,
 and the ratio within each of the four rounds is at most 1.01.
 
-- The direct difference estimator (`dtrace`, ProximalOPT's coordinate descent
+- The direct difference estimator (`dtrace`, ProximalSolvers' coordinate descent
   on `KronQuadratic`) takes 12 to 24% less time. Its passes differ by up to 15%
   in a random order: the old coordinate step stored a coordinate that ends at
   zero, which reorders the active coordinates. In the cyclic order the passes

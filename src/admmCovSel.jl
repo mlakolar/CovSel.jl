@@ -102,7 +102,7 @@ together with its final `info.ρ` to warm start. `X`, the primal iterate, is
 overwritten with a copy of the estimate; its values on entry are not used.
 Returns `Z`, the sparse estimate; see [`ADMMInfo`](@ref) for `info`.
 
-This is ProximalOPT's `ADMMSolver` on ProximalBase's `LogDetLoss(Σ)` and
+This is ProximalSolvers' `ADMMSolver` on ProximalBase's `LogDetLoss(Σ)` and
 `NormL1(λ)`, with the options scaled by the data as described in
 [`ADMMOptions`](@ref).
 """

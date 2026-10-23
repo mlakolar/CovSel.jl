@@ -28,7 +28,7 @@ Pkg.add("CovSel")   # or Pkg.add(url="https://github.com/mlakolar/CovSel.jl") un
   * sparse plus low rank: `differenceLatentPrecisionIHT`
 
 ```julia
-using CovSel, ProximalBase, ProximalOPT, LinearAlgebra, Statistics
+using CovSel, ProximalBase, ProximalSolvers, LinearAlgebra, Statistics
 
 p, n = 20, 1000
 Ωy = Matrix(1.0I, p, p)
@@ -45,7 +45,7 @@ Sx, Sy = cov(X), cov(Y)
 Δ = differencePrecisionActiveShooting(Symmetric(Sx), Symmetric(Sy), NormL1(0.1))
 Matrix(Δ)
 
-# the same with ProximalOPT's solver options, here a cyclic order, and along a
+# the same with ProximalSolvers' solver options, here a cyclic order, and along a
 # path of 20 penalties from λmax
 Δ = differencePrecisionActiveShooting(Symmetric(Sx), Symmetric(Sy), NormL1(0.1), CDSolver(; order=:cyclic))
 f = directDifferenceLoss(Symmetric(Sx), Symmetric(Sy))
@@ -57,7 +57,7 @@ The losses and penalties are those of
 [ProximalBase.jl](https://github.com/mlakolar/ProximalBase.jl): a penalty is
 `NormL1(λ)`, or `NormL1(λ, W)` with a `p × p` matrix of weights `W`, and the
 direct difference loss is its `KronQuadratic`. The graphical lasso runs on the
-ADMM of [ProximalOPT.jl](https://github.com/mlakolar/ProximalOPT.jl), and the
+ADMM of [ProximalSolvers.jl](https://github.com/mlakolar/ProximalSolvers.jl), and the
 direct difference estimator on its coordinate descent, whose options are
 `CDSolver`'s.
 
@@ -93,7 +93,7 @@ columns in parallel. See [`examples/clime.jl`](examples/clime.jl), and
 [`benchmark/clime`](benchmark/clime) for a comparison of the solvers with each
 other and with the R packages fastclime, flare and clime.
 
-Package depends on [ProximalBase.jl](https://github.com/mlakolar/ProximalBase.jl) and [ProximalOPT.jl](https://github.com/mlakolar/ProximalOPT.jl).
+Package depends on [ProximalBase.jl](https://github.com/mlakolar/ProximalBase.jl) and [ProximalSolvers.jl](https://github.com/mlakolar/ProximalSolvers.jl).
 
 ## Examples
 

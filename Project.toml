@@ -6,12 +6,12 @@ version = "0.2.0"
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 ProximalBase = "0a755509-c5b1-5d6f-9b24-59bcda3c37a3"
-ProximalOPT = "7b454996-d86a-11e8-189a-bd4064dc21e3"
+ProximalSolvers = "fc4971f5-6616-4709-9bfc-89a819252f6b"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [sources]
-ProximalOPT = {url = "https://github.com/mlakolar/ProximalOPT.jl", rev = "aeed6002d0c791b086cc6da18c2f092f35af0439"}
+ProximalSolvers = {url = "https://github.com/mlakolar/ProximalSolvers.jl", rev = "9cdd33c968f7f835743627f2c03114772e0ad068"}
 
 [weakdeps]
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
@@ -25,7 +25,7 @@ HiGHS = "1"
 LinearAlgebra = "1"
 MathOptInterface = "1"
 ProximalBase = "0.5"
-ProximalOPT = "0.2"
+ProximalSolvers = "0.1"
 Random = "1"
 SparseArrays = "1"
 Statistics = "1"

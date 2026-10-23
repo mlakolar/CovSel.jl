@@ -10,7 +10,7 @@
 include("benchmarks.jl")
 using Printf
 
-println("Julia $VERSION, CovSel $(pkgversion(CovSel)), ProximalOPT $(pkgversion(ProximalOPT)), ",
+println("Julia $VERSION, CovSel $(pkgversion(CovSel)), ProximalSolvers $(pkgversion(ProximalSolvers)), ",
   "$(Threads.nthreads()) threads, $(BLAS.get_num_threads()) BLAS threads\n")
 
 println("Largest absolute difference between differencePrecisionActiveShooting and the reference solver:")

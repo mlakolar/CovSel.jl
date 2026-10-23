@@ -1,10 +1,10 @@
 module DirectDiffTest
 
 using Test, Random, LinearAlgebra, SparseArrays, Statistics
-import CovSel, ProximalBase, ProximalOPT
+import CovSel, ProximalBase, ProximalSolvers
 using CovSel: diffLoss
 using ProximalBase: SymmetricSparseIterate, NormL1, coordinates, ncoordinates, tril_cartesian, tril_index
-using ProximalOPT: CDSolver
+using ProximalSolvers: CDSolver
 
 include("reference.jl")
 
@@ -61,7 +61,7 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
     @test f isa ProximalBase.KronQuadratic
     @test f(x) ≈ denseLoss(hSx, hSy, D)
     x1 = SymmetricSparseIterate(p)
-    ProximalOPT.solve!(x1, f, NormL1(λ), CDSolver())
+    ProximalSolvers.solve!(x1, f, NormL1(λ), CDSolver())
     @test Matrix(x1) ≈ D atol=1e-6
 
     # only the triangle that each Symmetric refers to is read
@@ -91,7 +91,7 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
     passes, sols = Int[], Matrix{Float64}[]
     for a in (1e-3, 1.0, 1e3)
       x = SymmetricSparseIterate(p)
-      r = ProximalOPT.solve!(x, CovSel.directDifferenceLoss(Symmetric(a * hSx), Symmetric(a * hSy)),
+      r = ProximalSolvers.solve!(x, CovSel.directDifferenceLoss(Symmetric(a * hSx), Symmetric(a * hSy)),
         NormL1(a * λ), CDSolver(; order=:cyclic))
       @test r.converged
       push!(passes, r.passes)

@@ -18,12 +18,12 @@ Methods for learning high-dimensional Gaussian graphical models:
 
 The losses and penalties are those of ProximalBase, and the graphical lasso and
 the direct difference estimator are solved by the ADMM and the coordinate
-descent of ProximalOPT.
+descent of ProximalSolvers.
 """
 module CovSel
 
 using ProximalBase
-using ProximalOPT: ProximalOPT, ADMMSolver, CDSolver, ProximalOptions, refit!, solve!
+using ProximalSolvers: ProximalSolvers, ADMMSolver, CDSolver, ProximalOptions, refit!, solve!
 using SparseArrays, LinearAlgebra
 using Random: AbstractRNG, default_rng, randperm
 

@@ -1,7 +1,7 @@
-# The solvers of CovSel before and after the move onto ProximalOPT, run by the
+# The solvers of CovSel before and after the move onto ProximalSolvers, run by the
 # version in the active environment: old/ (CovSel master with its own
 # coordinate descent loss and ADMM loop, on CoordinateDescent 0.6.0 and
-# ProximalBase 0.4.1) or new/ (this checkout, on ProximalOPT 0.2 and
+# ProximalBase 0.4.1) or new/ (this checkout, on ProximalSolvers 0.1 and
 # ProximalBase 0.5). The data come from Random and LinearAlgebra only, so that
 # both sides solve the same problems. Each case runs once to compile, then
 # until it has at least 5 runs and half a second of them, each from the same
@@ -30,7 +30,7 @@ if OLD
     x, info.iterations
   end
 else
-  using ProximalOPT
+  using ProximalSolvers
   function dtrace(Sx, Sy, λ, order)
     x = SymmetricSparseIterate(size(Sx, 1))
     r = solve!(x, directDifferenceLoss(Sx, Sy), NormL1(λ), CDSolver(; order))

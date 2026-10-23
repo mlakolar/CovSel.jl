@@ -5,7 +5,7 @@
 # Groups:
 #   "direct difference": the ℓ1 penalized direct difference estimator solved by
 #     differencePrecisionActiveShooting, directly and along a path of λ values
-#     from λmax (ProximalOPT's continuation), and by the naive reference solver
+#     from λmax (ProximalSolvers' continuation), and by the naive reference solver
 #     in test/reference.jl
 #     (the comparison of the removed example1.jl); iterative hard
 #     thresholding, sparse and sparse plus rank one
@@ -15,7 +15,7 @@
 #   "generateData": drawing samples, from Ω and from its Cholesky factor
 
 using BenchmarkTools
-using CovSel, ProximalBase, ProximalOPT
+using CovSel, ProximalBase, ProximalSolvers
 using LinearAlgebra, Random, Statistics
 
 include(joinpath(@__DIR__, "..", "test", "reference.jl"))

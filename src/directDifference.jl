@@ -58,7 +58,7 @@ end
 The direct difference loss `tr(Σx⋅Δ⋅Σy⋅Δ)/2 - tr(Δ⋅(Σy - Σx))` of a symmetric
 `Δ`, as ProximalBase's `KronQuadratic(Σx, Σy, Σx - Σy)`. Its minimizer with
 population covariances is `Δ = Ωx - Ωy`, the difference of the precision
-matrices (Zhao, Cai and Li, 2014). ProximalOPT's coordinate descent minimizes
+matrices (Zhao, Cai and Li, 2014). ProximalSolvers' coordinate descent minimizes
 it, plus a penalty, over a `SymmetricSparseIterate`, whose coordinates are the
 entries of the lower triangle.
 """
@@ -83,7 +83,7 @@ Direct estimation of the difference of precision matrices `Δ = Ωx - Ωy`
 where `g` is a separable penalty of ProximalBase on the entries of the
 symmetric `Δ`, such as `NormL1(λ)`, or `NormL1(λ, W)` with a symmetric `p × p`
 matrix of weights `W`; an off-diagonal entry is counted twice, as `Δ[r, c]`
-and `Δ[c, r]`. `method` is ProximalOPT's `CDSolver`. The in-place version warm
+and `Δ[c, r]`. `method` is ProximalSolvers' `CDSolver`. The in-place version warm
 starts from the `SymmetricSparseIterate` `x`. Returns the
 `SymmetricSparseIterate` estimate.
 """
