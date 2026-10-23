@@ -1,7 +1,7 @@
-name = "CovSel"
-uuid = "f50c8ead-2a5d-5d7a-afef-a6d87c1f6489"
+name = "CovarianceSelection"
+uuid = "fb9f034c-9bf8-4e47-a0a4-723273363029"
 authors = ["Mladen Kolar <mkolar@chicagobooth.edu>"]
-version = "0.2.0"
+version = "0.1.0"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -12,13 +12,13 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [sources]
-ProximalSolvers = {url = "https://github.com/mlakolar/ProximalSolvers.jl", rev = "9cdd33c968f7f835743627f2c03114772e0ad068"}
+ProximalSolvers = {url = "https://github.com/mlakolar/ProximalSolvers.jl", rev = "master"}
 
 [weakdeps]
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 
 [extensions]
-CovSelMathOptInterfaceExt = "MathOptInterface"
+CovarianceSelectionMathOptInterfaceExt = "MathOptInterface"
 
 [compat]
 Aqua = "0.8"

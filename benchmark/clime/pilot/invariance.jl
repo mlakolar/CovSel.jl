@@ -1,6 +1,6 @@
 # Is ACLIME invariant to rescaling single variables? Compares the estimates from
 # S and from a S a, with a uniform on (1, 5), step by step.
-using CovSel, LinearAlgebra, Random, Statistics, SparseArrays
+using CovarianceSelection, LinearAlgebra, Random, Statistics, SparseArrays
 include(joinpath(@__DIR__, "omega1.jl"))
 rng = Xoshiro(1)
 p, n = 50, 200
@@ -11,8 +11,8 @@ S = cov(X)
 a = 1 .+ 4 .* rand(rng, p)          # per-variable rescaling
 Sa = a .* S .* a'
 rel(A, B) = norm(Matrix(A - B)) / norm(Matrix(B))
-for (name, f) in (("step 1 pilot", (S, n) -> CovSel._solve_diagonal(ParametricSimplex(), S + I / n,
-                     CovSel._CLIMESpec(diag(S), true, 2sqrt(log(p) / n)), 1)),)
+for (name, f) in (("step 1 pilot", (S, n) -> CovarianceSelection._solve_diagonal(ParametricSimplex(), S + I / n,
+                     CovarianceSelection._CLIMESpec(diag(S), true, 2sqrt(log(p) / n)), 1)),)
   ω, ωa = f(S, n), f(Sa, n)
   println(name, ": max |a² ω̂(aSa) / ω̂(S) - 1| = ", maximum(abs.(a .^ 2 .* ωa ./ ω .- 1)))
 end
@@ -23,13 +23,13 @@ println("aclime, common factor 2: ", rel(2 .* Ωc, Ω))
 # step 2 alone, with the pilot of S carried over exactly
 function step2(S, n, ω)
   rate = sqrt(log(p) / n)
-  spec = CovSel._CLIMESpec(sqrt.(diag(S)), false, 0.0)
-  only(CovSel._estimate(ParametricSimplex(), S + I / n, spec, [2rate], sqrt.(ω), true, 1, true))
+  spec = CovarianceSelection._CLIMESpec(sqrt.(diag(S)), false, 0.0)
+  only(CovarianceSelection._estimate(ParametricSimplex(), S + I / n, spec, [2rate], sqrt.(ω), true, 1, true))
 end
-ω = CovSel._solve_diagonal(ParametricSimplex(), S + I / n, CovSel._CLIMESpec(diag(S), true, 2sqrt(log(p) / n)), 1)
+ω = CovarianceSelection._solve_diagonal(ParametricSimplex(), S + I / n, CovarianceSelection._CLIMESpec(diag(S), true, 2sqrt(log(p) / n)), 1)
 println("step 2 alone (ℓ1 objective not weighted): ", rel(a .* step2(Sa, n, ω ./ a .^ 2) .* a', step2(S, n, ω)))
 # step 1 on the standardized data
 h = 1 ./ sqrt.(diag(S)); ha = 1 ./ sqrt.(diag(Sa))
-ωs = CovSel._solve_diagonal(ParametricSimplex(), h .* (S + I / n) .* h', CovSel._CLIMESpec(ones(p), true, 2sqrt(log(p) / n)), 1) .* h .^ 2
-ωsa = CovSel._solve_diagonal(ParametricSimplex(), ha .* (Sa + I / n) .* ha', CovSel._CLIMESpec(ones(p), true, 2sqrt(log(p) / n)), 1) .* ha .^ 2
+ωs = CovarianceSelection._solve_diagonal(ParametricSimplex(), h .* (S + I / n) .* h', CovarianceSelection._CLIMESpec(ones(p), true, 2sqrt(log(p) / n)), 1) .* h .^ 2
+ωsa = CovarianceSelection._solve_diagonal(ParametricSimplex(), ha .* (Sa + I / n) .* ha', CovarianceSelection._CLIMESpec(ones(p), true, 2sqrt(log(p) / n)), 1) .* ha .^ 2
 println("standardized step 1: max |a² ω̂(aSa) / ω̂(S) - 1| = ", maximum(abs.(a .^ 2 .* ωsa ./ ωs .- 1)))

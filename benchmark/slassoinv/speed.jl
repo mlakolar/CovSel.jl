@@ -46,7 +46,7 @@ function cd_slassoinv(X, λ₀)
     c[j] = 1 / sol.σ^2
     cols[j] = sparse(c)
   end
-  CovSel.symmetrize_minabs(sparse(reduce(hcat, cols)))
+  CovarianceSelection.symmetrize_minabs(sparse(reduce(hcat, cols)))
 end
 
 function main(model, p, n, outdir, mode)
@@ -54,7 +54,7 @@ function main(model, p, n, outdir, mode)
   Ω = precision_matrix(model, p; rng=rng)
   X = sample(Ω, n; rng=rng)
   S = X' * X / n
-  λ₀ = CovSel._penalty_level(:quantile, p, n)
+  λ₀ = CovarianceSelection._penalty_level(:quantile, p, n)
   slassoinv(S[1:10, 1:10], n)                      # compile
   mkpath(outdir)
   io = open(joinpath(outdir, "julia_$(model)_p$(p)_n$(n)_$(mode).csv"), "w")

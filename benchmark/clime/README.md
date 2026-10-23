@@ -25,7 +25,7 @@ ACLIME.
   literature we surveyed (restarted, adaptive PDHG as in PDLP, plus polishing),
   and it solves most columns exactly, but on a CPU it was 90–350 times slower
   than `ParametricSimplex` for a path, and on the hardest columns it stops at its
-  tolerance. It could pay off on a GPU, which CovSel does not support.
+  tolerance. It could pay off on a GPU, which CovarianceSelection does not support.
 - Of the R packages, fastclime is exact (to its 1e-5 storage threshold), but it
   was 40–590 times slower, runs on one thread, and its memory grows with p² times
   the length of the longest column path (12.4 GB for p = 500 when one column has
@@ -50,7 +50,7 @@ Erdős–Rényi model with p ≤ 100, less for AR(1) and Erdős–Rényi with p 
 
 USC CARC Discovery, AMD EPYC 7513, one CPU per run unless stated otherwise,
 Julia 1.13.2 and R 4.5.3 with single-threaded OpenBLAS. Run
-`20261022T2303Z-covsel-clime`: one job of 24 minutes on 8 CPUs with CovSel at
+`20261022T2303Z-covsel-clime`: one job of 24 minutes on 8 CPUs with CovarianceSelection at
 commit `72a6d55`, a rerun of the two fastclime tasks that needed more memory,
 and a rerun of `ParametricSimplex` and `DualSimplex` (8 minutes) with the
 safeguards against cycling and loss of accuracy of commit `4d9fe8c`, which
@@ -409,7 +409,7 @@ Each is timed on the whole path and on the smallest penalty alone, on one CPU
 (an AMD EPYC 7513 node of USC CARC Discovery), and its column solutions,
 before symmetrization, are compared with those of `ParametricSimplex`.
 
-CovSel:
+CovarianceSelection:
 
 - `ParametricSimplex()`: the parametric simplex method, which follows the
   piecewise linear solution path of each column through all its breakpoints,

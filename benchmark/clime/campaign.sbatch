@@ -1,7 +1,7 @@
 #!/bin/bash
 # The CLIME benchmark campaign on one node (see README.md):
 #
-#   RUN=<run directory with a clone of CovSel.jl in $RUN/CovSel.jl> sbatch campaign.sbatch
+#   RUN=<run directory with a clone of CovarianceSelection.jl in $RUN/CovarianceSelection.jl> sbatch campaign.sbatch
 #
 # With QUICK=1 it runs the small problems of `prepare.jl quick` instead, as a test,
 # writing into $RUN/problems_quick and $RUN/results_quick.
@@ -21,7 +21,7 @@
 
 set -uo pipefail
 : "${RUN:?set RUN to the run directory}"
-export BENCH=$RUN/CovSel.jl/benchmark/clime
+export BENCH=$RUN/CovarianceSelection.jl/benchmark/clime
 export JULIA=$HOME/juliaPkg/julia-1.13.2/bin/julia
 export JULIA_DEPOT_PATH=$HOME/juliaPkg/depot:
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
@@ -40,7 +40,7 @@ mkdir -p "$OUT"/{julia,r,aclime,logs,threads}
 echo "start $(date -u +%FT%TZ) on $(hostname)"
 
 # 1. compile for this CPU, problems, tasks
-$JULIA --project=$BENCH -e 'using Pkg; Pkg.precompile(); using CovSel, HiGHS' || exit 1
+$JULIA --project=$BENCH -e 'using Pkg; Pkg.precompile(); using CovarianceSelection, HiGHS' || exit 1
 [ -d $PROBLEMS ] || OPENBLAS_NUM_THREADS=8 $JULIA --project=$BENCH $BENCH/prepare.jl $PROBLEMS $PREPARE_ARGS > $OUT/problems.txt || exit 1
 $JULIA --project=$BENCH $BENCH/make_tasks.jl $PROBLEMS $OUT > $OUT/tasks.txt || exit 1
 echo "$(wc -l < $OUT/tasks.txt) tasks, $(date -u +%FT%TZ)"

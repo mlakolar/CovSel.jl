@@ -34,7 +34,7 @@ function draw(design, model, p, rng)
     U = cholesky(Σ).U
     X = randn(rng, n, p) * U
     Xval = randn(rng, n, p) * U
-    CovSel._folds(n, 5, rng)          # as aclime_table.jl, to keep the draws in step
+    CovarianceSelection._folds(n, 5, rng)          # as aclime_table.jl, to keep the draws in step
     return inv(Σ), cov(X), cov(Xval), n
   end
   Θ, n = design == "sz" ? (sz_precision(parse(Int, model), p, rng), 100) :
@@ -53,9 +53,9 @@ rngseed(design, model, p) =
 function replication(design, Θ, S, Sval, n)
   p = size(S, 1)
   rows = Tuple{String,NTuple{3,Float64},Float64,Float64}[]
-  λ₀ = CovSel._penalty_level(:quantile, p, n)
+  λ₀ = CovarianceSelection._penalty_level(:quantile, p, n)
   R, t = timed(() -> slassoinv(S, n; symmetrize=false, ntasks=1))
-  Ω, t2 = timed(() -> CovSel.symmetrize_minabs(R))
+  Ω, t2 = timed(() -> CovarianceSelection.symmetrize_minabs(R))
   push!(rows, ("SLasso", errors(Ω - Θ), λ₀, t + t2))
   Ω, t = timed(() -> slassoinv(S, n; refit=true, ntasks=1))
   push!(rows, ("SLasso/LSE", errors(Ω - Θ), λ₀, t))

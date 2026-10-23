@@ -1,9 +1,9 @@
 # The column problems of CLIME and ACLIME as linear programs for any
 # MathOptInterface solver (LPSolver).
-module CovSelMathOptInterfaceExt
+module CovarianceSelectionMathOptInterfaceExt
 
-using CovSel
-using CovSel: LPSolver, _CLIMESpec, _ColumnPath, _foreach_column, _weights!, _pushsorted!, _pushempty!
+using CovarianceSelection
+using CovarianceSelection: LPSolver, _CLIMESpec, _ColumnPath, _foreach_column, _weights!, _pushsorted!, _pushempty!
 import MathOptInterface as MOI
 
 # A model for the column problems with γ = 0: with β = u - v,
@@ -68,7 +68,7 @@ function _solve!(m::_Model, i::Int, μ::Float64)
   status in (MOI.INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED) && return false
   error("LPSolver: the solver stopped with status $status (", MOI.get(m.opt, MOI.RawStatusString()),
     ") on column $i at the penalty $μ. Near the smallest feasible penalty of a singular S, the ",
-    "linear programs are badly conditioned; the simplex solvers of CovSel handle them.")
+    "linear programs are badly conditioned; the simplex solvers of CovarianceSelection handle them.")
 end
 
 function _getsolution!(m::_Model)
@@ -77,7 +77,7 @@ function _getsolution!(m::_Model)
   m.β .= m.uval .- m.vval
 end
 
-function CovSel._solve_columns(solver::LPSolver, S::Matrix{T}, spec::_CLIMESpec{T},
+function CovarianceSelection._solve_columns(solver::LPSolver, S::Matrix{T}, spec::_CLIMESpec{T},
                                μgrid::Vector{T}, colscale::Vector{T}, ntasks::Int) where {T}
   iszero(spec.γ) || throw(ArgumentError("LPSolver: γ must be zero"))
   p, nμ = size(S, 1), length(μgrid)
@@ -118,7 +118,7 @@ end
 # Step 1 of ACLIME: with t = βᵢ, the constraints
 #     Sⱼ (u - v) - γ cⱼ t ≤ δᵢⱼ  and  Sⱼ (u - v) + γ cⱼ t ≥ δᵢⱼ,
 # whose coefficients of t, and the row t - uᵢ + vᵢ = 0, change with the column.
-function CovSel._solve_diagonal(solver::LPSolver, S::Matrix{T}, spec::_CLIMESpec{T}, ntasks::Int) where {T}
+function CovarianceSelection._solve_diagonal(solver::LPSolver, S::Matrix{T}, spec::_CLIMESpec{T}, ntasks::Int) where {T}
   p = size(S, 1)
   d = zeros(T, p)
   _foreach_column(() -> _Step1Model(solver, S), p, ntasks) do m, i

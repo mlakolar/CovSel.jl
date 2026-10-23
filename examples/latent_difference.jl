@@ -7,7 +7,7 @@
 #
 #   julia --project=examples examples/latent_difference.jl
 
-using CovSel, ProximalBase
+using CovarianceSelection, ProximalBase
 using LinearAlgebra, Printf, Random, Statistics
 using UnicodePlots
 
@@ -24,13 +24,13 @@ end
 S = zeros(p, p)
 S[4, 3] = S[3, 4] = 0.3         # edge (3, 4) is absent in group y
 S[20, 10] = S[10, 20] = -0.3    # edge (10, 20) is present only in group y
-L = Matrix(CovSel.genLatentModel(Ωx, 1, 0.2)[2])   # random, rank one, ‖L‖ = 0.2 λmax(Ωx)
+L = Matrix(CovarianceSelection.genLatentModel(Ωx, 1, 0.2)[2])   # random, rank one, ‖L‖ = 0.2 λmax(Ωx)
 Ωy = Ωx - S - L
 @assert isposdef(Symmetric(Ωy))
 
 n = 5000
-Sx = Symmetric(cov(CovSel.generateData(Ωx, n)))
-Sy = Symmetric(cov(CovSel.generateData(Ωy, n)))
+Sx = Symmetric(cov(CovarianceSelection.generateData(Ωx, n)))
+Sy = Symmetric(cov(CovarianceSelection.generateData(Ωy, n)))
 @printf("p = %d, n = %d per group, ‖S‖_F = %.3f, ‖L‖_F = %.3f, largest |L[i,j]| = %.3f\n\n",
   p, n, norm(S), norm(L), maximum(abs, L))
 
@@ -48,7 +48,7 @@ s, r = 2, 1
 
 # The starting values hard threshold inv(Sx) - inv(Sy) and take the top r
 # singular vectors of what is left; the in-place solver continues from them.
-Δ, L̂, U, gD, gU = CovSel.differenceLatentPrecisionIHT_init(Sx, Sy, s, r)
+Δ, L̂, U, gD, gU = CovarianceSelection.differenceLatentPrecisionIHT_init(Sx, Sy, s, r)
 ηU = ηΔ / (4 * opnorm(L̂))
 
 # The callback is called after every iteration with the current Δ and L; here

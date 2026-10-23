@@ -51,16 +51,16 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v3
-      # ProximalSolvers 0.1.0 is not registered yet (JuliaRegistries/General#173068):
-      # the commit it is registered from. Julia 1.11 and later take it from
-      # [sources] in Project.toml; Julia 1.10 ignores [sources]. Remove this step
-      # and [sources] once it is registered.
-      - name: Add ProximalSolvers 0.1 from GitHub on Julia 1.10
+      # ProximalSolvers is not registered yet (0.1.0 is JuliaRegistries/General#173068):
+      # its master. Julia 1.11 and later take it from [sources] in Project.toml;
+      # Julia 1.10 ignores [sources]. Remove this step and [sources] once it is
+      # registered.
+      - name: Add ProximalSolvers from GitHub on Julia 1.10
         if: matrix.version == 'lts'
         shell: julia --color=yes --project=. {0}
         run: |
           using Pkg
-          Pkg.add(url="https://github.com/mlakolar/ProximalSolvers.jl", rev="9cdd33c968f7f835743627f2c03114772e0ad068")
+          Pkg.add(url="https://github.com/mlakolar/ProximalSolvers.jl", rev="master")
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1

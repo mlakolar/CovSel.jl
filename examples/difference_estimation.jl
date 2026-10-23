@@ -6,7 +6,7 @@
 #
 #   julia --project=examples examples/difference_estimation.jl
 
-using CovSel, ProximalBase
+using CovarianceSelection, ProximalBase
 using LinearAlgebra, Printf, Random, Statistics
 
 Random.seed!(123)
@@ -17,8 +17,8 @@ p, n = 20, 1000
 Ωy[1, 2] = Ωy[2, 1] = 0.4
 Δ = Ωx - Ωy
 
-X = CovSel.generateData(Ωx, n)
-Y = CovSel.generateData(Ωy, n)
+X = CovarianceSelection.generateData(Ωx, n)
+Y = CovarianceSelection.generateData(Ωy, n)
 Sx, Sy = Symmetric(cov(X)), Symmetric(cov(Y))
 println("p = $p, n = $n per group, Δ = Ωx - Ωy has one nonzero entry, Δ[2, 1] = ", Δ[2, 1])
 
@@ -31,9 +31,9 @@ println("p = $p, n = $n per group, Δ = Ωx - Ωy has one nonzero entry, Δ[2, 1
 # which need not be sparse. The estimate is a SymmetricSparseIterate.
 λ = 0.1
 hΔ = differencePrecisionActiveShooting(Sx, Sy, NormL1(λ))
-c = CovSel.getConfusionMatrix(Δ, hΔ)
+c = CovarianceSelection.getConfusionMatrix(Δ, hΔ)
 @printf("\ndirect estimate (λ = %.2f): %d nonzero entries in the lower triangle, TPR = %.2f, FPR = %.3f\n",
-  λ, nnz(hΔ), CovSel.tpr(c), CovSel.fpr(c))
+  λ, nnz(hΔ), CovarianceSelection.tpr(c), CovarianceSelection.fpr(c))
 @printf("  Δ̂[2, 1] = %.3f, shrunk towards zero by the penalty\n", hΔ[2, 1])
 
 # Refitting minimizes the loss over Δ supported on the estimated support,

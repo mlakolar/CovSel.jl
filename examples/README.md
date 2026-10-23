@@ -1,6 +1,6 @@
 # Examples
 
-Scripts that show how to use CovSel. Each one simulates data, fits one or more
+Scripts that show how to use CovarianceSelection. Each one simulates data, fits one or more
 estimators, and prints what it found; plots are drawn in the terminal with
 [UnicodePlots](https://github.com/JuliaPlots/UnicodePlots.jl).
 
@@ -14,13 +14,13 @@ estimators, and prints what it found; plots are drawn in the terminal with
 | [`inference.jl`](inference.jl) | A simulation of the test for one entry of `Ωx - Ωy` when p > n (the Gaussian case of ROCKET): size, coverage, and the null distribution against N(0, 1). |
 
 These replace the scripts `example1.jl`, `example2.jl` and `exampleInference.jl`
-that were removed in [#3](https://github.com/mlakolar/CovSel.jl/pull/3). The
+that were removed in [#3](https://github.com/mlakolar/CovarianceSelection.jl/pull/3). The
 timing comparison from `example1.jl` is in [`../benchmark`](../benchmark).
 
 ## Setup
 
 The examples have their own environment, [`Project.toml`](Project.toml), which
-uses the CovSel in this repository. From the repository root, on Julia 1.11 or
+uses the CovarianceSelection in this repository. From the repository root, on Julia 1.11 or
 later:
 
 ```sh
@@ -34,11 +34,10 @@ repository, so add it explicitly:
 julia --project=examples -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
 ```
 
-Until ProximalSolvers 0.1.0 and CoordinateDescent 0.7 are registered,
-`[sources]` also takes them from GitHub, with ProximalOPT, the former name of
-ProximalSolvers, which CoordinateDescent's pull request still uses. On Julia 1.10
-they must be added in the same call:
-`Pkg.add([PackageSpec(url="https://github.com/mlakolar/ProximalSolvers.jl", rev="9cdd33c968f7f835743627f2c03114772e0ad068"), PackageSpec(url="https://github.com/mlakolar/ProximalOPT.jl", rev="aeed6002d0c791b086cc6da18c2f092f35af0439"), PackageSpec(url="https://github.com/mlakolar/CoordinateDescent.jl", rev="fd3f1da29b92982c1092d956d7b98f1f3a7b56b4")])`.
+Until ProximalSolvers 0.1.1 and CoordinateDescent 0.7 are registered,
+`[sources]` also takes them from their masters on GitHub. On Julia 1.10 they
+must be added in the same call:
+`Pkg.add([PackageSpec(url="https://github.com/mlakolar/ProximalSolvers.jl", rev="master"), PackageSpec(url="https://github.com/mlakolar/CoordinateDescent.jl", rev="master")])`.
 
 ## Running
 

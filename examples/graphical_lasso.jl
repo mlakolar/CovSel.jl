@@ -5,7 +5,7 @@
 #
 #   julia --project=examples examples/graphical_lasso.jl
 
-using CovSel
+using CovarianceSelection
 using LinearAlgebra, Printf, Random, Statistics
 using UnicodePlots
 
@@ -15,10 +15,10 @@ Random.seed!(1)
 # variance one (the scale on which λ ≍ sqrt(log p / n) is the right size),
 # and n observations from N(0, Ω⁻¹).
 p, n = 50, 400
-Ω = CovSel.generateSparseSPD(p)
+Ω = CovarianceSelection.generateSparseSPD(p)
 d = sqrt.(diag(inv(Ω)))
 Ω = d .* Ω .* d'
-data = CovSel.generateData(Ω, n)
+data = CovarianceSelection.generateData(Ω, n)
 S = cov(data)
 println("p = $p, n = $n, edges in the true graph: ", count(!iszero, tril(Ω, -1)))
 
@@ -35,9 +35,9 @@ X, Z, U = zeros(p, p), zeros(p, p), zeros(p, p)
 covsel!(X, Z, U, S, λ)
 
 # Edges are the nonzero off-diagonal entries, hence diagonal=false.
-t = CovSel.getConfusionMatrix(Ω, Z; diagonal=false)
+t = CovarianceSelection.getConfusionMatrix(Ω, Z; diagonal=false)
 @printf("\nλ = %.3f: %d estimated edges, TPR = %.2f, FPR = %.3f, precision = %.2f\n",
-  λ, t.tp + t.fp, CovSel.tpr(t), CovSel.fpr(t), CovSel.precision(t))
+  λ, t.tp + t.fp, CovarianceSelection.tpr(t), CovarianceSelection.fpr(t), CovarianceSelection.precision(t))
 @printf("relative error ‖Ẑ - Ω‖_F / ‖Ω‖_F = %.3f\n", norm(Z - Ω) / norm(Ω))
 
 # The path. covselpath warm starts each fit from the previous one, so run it
@@ -50,9 +50,9 @@ path = covselpath(S, λarr)
 println("\n     λ   edges   TPR    FPR   precision")
 tprs, fprs = Float64[], Float64[]
 for (λ, Z) in zip(λarr, path)
-  c = CovSel.getConfusionMatrix(Ω, Z; diagonal=false)
-  push!(tprs, CovSel.tpr(c)); push!(fprs, CovSel.fpr(c))
-  @printf("%6.3f  %5d   %.2f   %.3f   %.2f\n", λ, c.tp + c.fp, CovSel.tpr(c), CovSel.fpr(c), CovSel.precision(c))
+  c = CovarianceSelection.getConfusionMatrix(Ω, Z; diagonal=false)
+  push!(tprs, CovarianceSelection.tpr(c)); push!(fprs, CovarianceSelection.fpr(c))
+  @printf("%6.3f  %5d   %.2f   %.3f   %.2f\n", λ, c.tp + c.fp, CovarianceSelection.tpr(c), CovarianceSelection.fpr(c), CovarianceSelection.precision(c))
 end
 
 println()

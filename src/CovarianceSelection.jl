@@ -1,5 +1,5 @@
 """
-    CovSel
+    CovarianceSelection
 
 Methods for learning high-dimensional Gaussian graphical models:
 
@@ -20,9 +20,10 @@ Methods for learning high-dimensional Gaussian graphical models:
 
 The losses and penalties are those of ProximalBase, and the graphical lasso and
 the direct difference estimator are solved by the ADMM and the coordinate
-descent of ProximalSolvers.
+descent of ProximalSolvers. Before its first release the package was called
+CovSel.
 """
-module CovSel
+module CovarianceSelection
 
 using ProximalBase
 using ProximalSolvers: ProximalSolvers, ADMMSolver, CDSolver, ProximalOptions, refit!, solve!
@@ -55,8 +56,8 @@ export
 
 include("utils.jl")
 
-include("admmCovSel.jl")
-include("LatentCovSel_IHT.jl")
+include("admmCovarianceSelection.jl")
+include("LatentCovarianceSelection_IHT.jl")
 
 include("directDifference.jl")
 include("fusedDifference.jl")

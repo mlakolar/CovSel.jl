@@ -1,15 +1,17 @@
-# CovSel.jl
+# CovarianceSelection.jl
 
-[![CI](https://github.com/mlakolar/CovSel.jl/actions/workflows/CI.yml/badge.svg?branch=master)](https://github.com/mlakolar/CovSel.jl/actions/workflows/CI.yml?query=branch%3Amaster)
-[![codecov](https://codecov.io/gh/mlakolar/CovSel.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/mlakolar/CovSel.jl)
+[![CI](https://github.com/mlakolar/CovarianceSelection.jl/actions/workflows/CI.yml/badge.svg?branch=master)](https://github.com/mlakolar/CovarianceSelection.jl/actions/workflows/CI.yml?query=branch%3Amaster)
+[![codecov](https://codecov.io/gh/mlakolar/CovarianceSelection.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/mlakolar/CovarianceSelection.jl)
 [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
 Various methods for learning high-dimensional Gaussian graphical models.
 
 ```julia
 using Pkg
-Pkg.add("CovSel")   # or Pkg.add(url="https://github.com/mlakolar/CovSel.jl") until it is registered
+Pkg.add(url = "https://github.com/mlakolar/CovarianceSelection.jl")   # not registered yet
 ```
+
+CovarianceSelection was called CovSel before its first release.
 
 * CLIME (Cai, Liu and Luo, 2011) and adaptive CLIME (Cai, Liu and Zhou, 2016),
   sparse precision matrices by constrained ℓ1 minimization: `clime`, `aclime`,
@@ -30,13 +32,13 @@ Pkg.add("CovSel")   # or Pkg.add(url="https://github.com/mlakolar/CovSel.jl") un
   * sparse plus low rank: `differenceLatentPrecisionIHT`
 
 ```julia
-using CovSel, ProximalBase, ProximalSolvers, LinearAlgebra, Statistics
+using CovarianceSelection, ProximalBase, ProximalSolvers, LinearAlgebra, Statistics
 
 p, n = 20, 1000
 Ωy = Matrix(1.0I, p, p)
 Ωy[1, 2] = Ωy[2, 1] = 0.4
 X = randn(n, p)
-Y = CovSel.generateData(Ωy, n)
+Y = CovarianceSelection.generateData(Ωy, n)
 Sx, Sy = cov(X), cov(Y)
 
 # graphical lasso: minimize tr(SΩ) - log det Ω + λ‖Ω‖₁
@@ -70,7 +72,7 @@ and the columns are symmetrized by keeping the smaller of each pair of
 entries.
 
 ```julia
-using CovSel, Statistics
+using CovarianceSelection, Statistics
 
 # X: n × p data; the penalty of CLIME is in the units of SΩ, so standardize
 Z = (X .- mean(X; dims=1)) ./ std(X; dims=1)

@@ -1,4 +1,4 @@
-# Time the CLIME solvers of CovSel on one problem written by prepare.jl:
+# Time the CLIME solvers of CovarianceSelection on one problem written by prepare.jl:
 #
 #   julia --project=benchmark/clime -t T benchmark/clime/run_julia.jl PROBLEM_DIR OUT_DIR SOLVER...
 #
@@ -9,7 +9,7 @@
 # and, for the path, ...__l1.bin: the ℓ1 norms of the column solutions (before
 # symmetrization), p × nλ Float64, which summarize.jl compares across solvers.
 
-using CovSel, LinearAlgebra, SparseArrays, Printf
+using CovarianceSelection, LinearAlgebra, SparseArrays, Printf
 using HiGHS
 include(joinpath(@__DIR__, "problems.jl"))
 

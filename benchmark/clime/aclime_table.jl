@@ -14,7 +14,7 @@
 # Σᵢ ((S Ω)ᵢᵢ - 1)² ("CLIME") and with the likelihood loss ("CLIMElik"), both
 # computed from the same fold paths.
 
-using CovSel, LinearAlgebra, SparseArrays, Random, Statistics, Printf
+using CovarianceSelection, LinearAlgebra, SparseArrays, Random, Statistics, Printf
 
 function omega1(model, p, rng)
   if model == "band"
@@ -53,16 +53,16 @@ function replication(model, p, rng; n=200, ntest=200)
   path = redirect_stderr(devnull) do        # warnings about zero diagonal entries
     aclime(S, n; δ=δs, truncate=true)
   end
-  lik = [CovSel._cvloss(Stest, Ωh, :likelihood) for Ωh in path]
+  lik = [CovarianceSelection._cvloss(Stest, Ωh, :likelihood) for Ωh in path]
   Ωa = path[argmin(lik)]
   pathu = aclime(S, n; δ=δs, truncate=false)
-  liku = [CovSel._cvloss(Stest, Ωh, :likelihood) for Ωh in pathu]
+  liku = [CovarianceSelection._cvloss(Stest, Ωh, :likelihood) for Ωh in pathu]
   Ωu = pathu[argmin(liku)]
   # CLIME, penalty by 5-fold cross validation with the trace and likelihood losses
   λs = exp.(range(log(1.0), log(0.03); length=40))
   Ltr = zeros(length(λs))
   Llik = zeros(length(λs))
-  for test in CovSel._folds(n, 5, rng)
+  for test in CovarianceSelection._folds(n, 5, rng)
     train = setdiff(1:n, test)
     fold = redirect_stderr(devnull) do      # warnings about infeasible penalties
       clime(cov(X[train, :]), λs)
@@ -70,8 +70,8 @@ function replication(model, p, rng; n=200, ntest=200)
     St = cov(X[test, :])
     for (k, λ) in enumerate(λs)
       kk = findfirst(==(λ), fold.λ)
-      Ltr[k] += kk === nothing ? Inf : CovSel._cvloss(St, fold[kk], :trace)
-      Llik[k] += kk === nothing ? Inf : CovSel._cvloss(St, fold[kk], :likelihood)
+      Ltr[k] += kk === nothing ? Inf : CovarianceSelection._cvloss(St, fold[kk], :trace)
+      Llik[k] += kk === nothing ? Inf : CovarianceSelection._cvloss(St, fold[kk], :likelihood)
     end
   end
   full = clime(S, λs[[argmin(Ltr), argmin(Llik)]])
