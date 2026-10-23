@@ -13,7 +13,7 @@ CovSel = {path = ".."}
 
 [compat]
 BenchmarkTools = "1"
-CoordinateDescent = "0.4, 0.5"
+CoordinateDescent = "0.4, 0.5, 0.6"
 CovSel = "0.2"
 LinearAlgebra = "1"
 Printf = "1"
