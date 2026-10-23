@@ -11,6 +11,12 @@ using Pkg
 Pkg.add("CovSel")   # or Pkg.add(url="https://github.com/mlakolar/CovSel.jl") until it is registered
 ```
 
+* CLIME (Cai, Liu and Luo, 2011) and adaptive CLIME (Cai, Liu and Zhou, 2016),
+  sparse precision matrices by constrained ℓ1 minimization: `clime`, `aclime`,
+  with cross validation `climecv`, `aclimecv`. The default solver follows the
+  exact solution path of each column by the parametric simplex method, so a
+  whole path of penalties costs about as much as its smallest penalty; the
+  columns are solved in parallel on Julia's threads.
 * Graphical lasso by ADMM: `covsel!`, `covselpath`
 * Fused graphical lasso for two groups (Danaher, Wang and Witten, 2014): `fusedGraphicalLasso`, `fusedGraphicalLasso!`
 * Fused neighborhood selection: `fusedNeighborhoodSelection`
@@ -38,6 +44,38 @@ Sx, Sy = cov(X), cov(Y)
 Δ = differencePrecisionActiveShooting(Symmetric(Sx), Symmetric(Sy), ProxL1(0.1))
 Matrix(Δ)
 ```
+
+### CLIME and ACLIME
+
+Column `i` of the CLIME estimate minimizes `‖β‖₁` subject to `‖Sβ - eᵢ‖∞ ≤ λ`,
+and the columns are symmetrized by keeping the smaller of each pair of
+entries.
+
+```julia
+using CovSel, Statistics
+
+# X: n × p data; the penalty of CLIME is in the units of SΩ, so standardize
+Z = (X .- mean(X; dims=1)) ./ std(X; dims=1)
+Θ = clime(cov(Z), 0.2)                       # a SparseMatrixCSC
+λs = exp.(range(log(0.6), log(0.05); length=30))
+path = clime(cov(Z), λs)                     # path.λ, path[k]
+cv = climecv(Z, λs)                          # 5-fold cross validation, likelihood loss
+Θ = bestestimate(cv)
+Ω = Θ ./ (std(X; dims=1)' * std(X; dims=1))  # back to the scale of X
+
+# ACLIME adapts the constraints to the variances; δ = 2 is the theory's value
+Ω = aclime(cov(X), size(X, 1))
+cv = aclimecv(X, (1:100) ./ 50)              # δ by cross validation
+```
+
+The solver is the optional third argument: `ParametricSimplex()` (the
+default), `DualSimplex()`, `LPSolver(optimizer)` for any
+[MathOptInterface](https://github.com/jump-dev/MathOptInterface.jl) solver
+(for example `using HiGHS; LPSolver(HiGHS.Optimizer)`), or the first order
+method `PDHG()`. Start Julia with threads (`julia -t auto`) to solve the
+columns in parallel. See [`examples/clime.jl`](examples/clime.jl), and
+[`benchmark/clime`](benchmark/clime) for a comparison of the solvers with each
+other and with the R packages fastclime, flare and clime.
 
 Package depends on [ProximalBase.jl](https://github.com/mlakolar/ProximalBase.jl) and [CoordinateDescent.jl](https://github.com/mlakolar/CoordinateDescent.jl).
 

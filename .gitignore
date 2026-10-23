@@ -7,3 +7,4 @@
 .vscode/
 /examples/Manifest*.toml
 /benchmark/Manifest*.toml
+/benchmark/*/Manifest*.toml

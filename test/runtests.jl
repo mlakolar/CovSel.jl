@@ -8,7 +8,8 @@ tests = [
   "directDifference",
   "fusedDifference",
   "latent",
-  "generate"
+  "generate",
+  "clime"
 ]
 
 @testset "CovSel" begin

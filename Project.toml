@@ -10,10 +10,18 @@ ProximalBase = "0a755509-c5b1-5d6f-9b24-59bcda3c37a3"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
+[weakdeps]
+MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+
+[extensions]
+CovSelMathOptInterfaceExt = "MathOptInterface"
+
 [compat]
 Aqua = "0.8"
 CoordinateDescent = "0.4, 0.5, 0.6"
+HiGHS = "1"
 LinearAlgebra = "1"
+MathOptInterface = "1"
 ProximalBase = "0.3.2, 0.4"
 Random = "1"
 SparseArrays = "1"
@@ -23,8 +31,10 @@ julia = "1.10"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
+MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "Statistics", "Test"]
+test = ["Aqua", "HiGHS", "MathOptInterface", "Statistics", "Test"]
