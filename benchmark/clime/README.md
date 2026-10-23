@@ -36,10 +36,11 @@ simulation of Cai, Liu and Zhou (2016) for ACLIME.
 On the statistics side (the replication below): the penalty of CLIME is in the
 units of `SΩ`, so standardize the data, and choose λ by `climecv` with the
 likelihood loss; the trace loss of Cai, Liu and Luo (2011) chose penalties much
-too large. ACLIME's δ = 2 is conservative: choose δ by `aclimecv`. Its rule for
-large variances in step 1 matters: in the design of the paper it applies to
-most variables, and without it (`truncate=false`) ACLIME was the most accurate
-estimator for two of the three models.
+too large. ACLIME's δ = 2 is conservative: choose δ by `aclimecv`. With δ
+chosen on validation data, ACLIME was the most accurate estimator in 26 of 27
+cases, but its rule for large variances in step 1 matters: in the design of the
+paper it applies to most variables, and the estimator was more accurate without
+it (`truncate=false`) for the band model, and with it for the AR(1) model.
 
 ## Results
 
@@ -188,7 +189,83 @@ n = 1000, 10 of the 2000 columns take 93% of the time (the hardest alone 42%,
 with 692 nonzero entries at the smallest penalty, close to its feasibility
 boundary), and 8 threads are only 2.4 times faster than one.
 
-<!-- REPLICATION -->
+## Replication of Cai, Liu and Zhou (2016)
+
+[`aclime_table.jl`](aclime_table.jl) repeats the simulation of Section 5 of
+the arXiv version (1212.2882) of the paper: `Σ = D Ω₁⁻¹ D` with `D` diagonal
+with entries uniform on (1, 5), for the band, AR(1) (`ω₁,ᵢⱼ = 0.6^|i-j|`, a dense
+precision matrix) and Erdős–Rényi models; n = 200 observations, and 200 more to
+choose δ of ACLIME, from `(1:100)/50`, by the likelihood (δ = 2 in step 1).
+The paper chooses the penalty of CLIME "by cross validation", without more
+detail; here it is chosen from 40 values between 1 and 0.03 by 5-fold cross
+validation on the training sample, with the likelihood and with the trace loss
+`Σᵢ ((SΩ)ᵢᵢ - 1)²` of Cai, Liu and Luo (2011). Mean errors over 50
+replications (20 for p = 200), standard errors in parentheses, and the values
+of Table 1 of the paper (100 replications).
+
+| model | p | norm | paper: ACLIME | paper: CLIME | ACLIME | ACLIME, `truncate=false` | CLIME, likelihood CV | CLIME, trace CV |
+|---|---:|---|---:|---:|---:|---:|---:|---:|
+| band | 50 | spectral | 0.30 | 0.32 | 0.48 (0.02) | 0.24 (0.01) | 0.40 (0.02) | 0.94 (0.03) |
+| band | 50 | matrix ℓ1 | 0.62 | 0.65 | 0.99 (0.05) | 0.40 (0.01) | 0.71 (0.03) | 1.28 (0.03) |
+| band | 50 | Frobenius | 0.80 | 0.83 | 0.80 (0.04) | 0.45 (0.01) | 0.69 (0.02) | 1.88 (0.04) |
+| band | 100 | spectral | 0.45 | 0.50 | 0.75 (0.02) | 0.33 (0.01) | 0.45 (0.01) | 1.02 (0.03) |
+| band | 100 | matrix ℓ1 | 0.79 | 0.86 | 1.24 (0.04) | 0.52 (0.02) | 0.75 (0.02) | 1.37 (0.03) |
+| band | 100 | Frobenius | 1.61 | 1.73 | 1.51 (0.03) | 0.80 (0.02) | 1.25 (0.02) | 2.64 (0.04) |
+| band | 200 | spectral | 0.65 | 0.72 | 0.95 (0.07) | 0.59 (0.02) | 0.97 (0.04) | 1.15 (0.03) |
+| band | 200 | matrix ℓ1 | 0.94 | 0.99 | 1.35 (0.08) | 0.85 (0.02) | 1.27 (0.04) | 1.51 (0.04) |
+| band | 200 | Frobenius | 3.11 | 3.29 | 2.58 (0.04) | 1.79 (0.05) | 3.20 (0.09) | 3.80 (0.09) |
+| AR(1) | 50 | spectral | 0.75 | 0.73 | 0.35 (0.01) | 0.50 (0.02) | 0.41 (0.01) | 0.95 (0.03) |
+| AR(1) | 50 | matrix ℓ1 | 1.19 | 1.17 | 0.82 (0.03) | 0.90 (0.03) | 0.86 (0.02) | 1.51 (0.04) |
+| AR(1) | 50 | Frobenius | 1.47 | 1.47 | 0.73 (0.02) | 0.85 (0.02) | 0.84 (0.02) | 1.74 (0.04) |
+| AR(1) | 100 | spectral | 1.04 | 1.05 | 0.51 (0.01) | 0.69 (0.02) | 0.71 (0.02) | 1.11 (0.03) |
+| AR(1) | 100 | matrix ℓ1 | 1.62 | 1.59 | 1.12 (0.02) | 1.19 (0.02) | 1.21 (0.02) | 1.71 (0.03) |
+| AR(1) | 100 | Frobenius | 2.73 | 2.82 | 1.45 (0.02) | 1.53 (0.03) | 1.79 (0.03) | 2.60 (0.05) |
+| AR(1) | 200 | spectral | 1.25 | 1.30 | 0.75 (0.03) | 0.96 (0.03) | 1.07 (0.03) | 1.28 (0.03) |
+| AR(1) | 200 | matrix ℓ1 | 1.93 | 1.89 | 1.48 (0.05) | 1.53 (0.05) | 1.63 (0.05) | 1.93 (0.05) |
+| AR(1) | 200 | Frobenius | 4.72 | 4.97 | 2.53 (0.02) | 2.53 (0.03) | 3.06 (0.04) | 3.62 (0.04) |
+| Erdős–Rényi | 50 | spectral | 0.65 | 0.72 | 0.82 (0.05) | 0.62 (0.04) | 0.76 (0.04) | 1.32 (0.05) |
+| Erdős–Rényi | 50 | matrix ℓ1 | 1.47 | 1.53 | 1.89 (0.11) | 1.36 (0.08) | 1.31 (0.06) | 1.92 (0.09) |
+| Erdős–Rényi | 50 | Frobenius | 1.53 | 1.62 | 1.49 (0.07) | 1.17 (0.06) | 1.31 (0.05) | 2.61 (0.08) |
+| Erdős–Rényi | 100 | spectral | 0.95 | 1.21 | 1.13 (0.06) | 0.82 (0.03) | 1.22 (0.05) | 1.91 (0.04) |
+| Erdős–Rényi | 100 | matrix ℓ1 | 2.15 | 2.34 | 2.25 (0.11) | 1.60 (0.07) | 2.12 (0.07) | 3.05 (0.08) |
+| Erdős–Rényi | 100 | Frobenius | 3.15 | 3.61 | 2.61 (0.10) | 2.03 (0.05) | 2.86 (0.08) | 5.02 (0.09) |
+| Erdős–Rényi | 200 | spectral | 2.62 | 2.28 | 1.68 (0.06) | 1.80 (0.05) | 2.32 (0.06) | 2.68 (0.06) |
+| Erdős–Rényi | 200 | matrix ℓ1 | 5.47 | 5.20 | 3.66 (0.13) | 3.78 (0.12) | 4.71 (0.14) | 5.21 (0.14) |
+| Erdős–Rényi | 200 | Frobenius | 9.89 | 8.86 | 5.50 (0.13) | 5.77 (0.12) | 7.92 (0.18) | 9.37 (0.17) |
+
+Mean tuning parameters:
+
+| model | p | δ, ACLIME | δ, `truncate=false` | λ, likelihood CV | λ, trace CV |
+|---|---:|---:|---:|---:|---:|
+| band | 50 | 0.13 | 0.43 | 0.034 | 0.333 |
+| band | 100 | 0.24 | 0.59 | 0.099 | 0.331 |
+| band | 200 | 0.47 | 0.76 | 0.238 | 0.333 |
+| AR(1) | 50 | 0.24 | 0.56 | 0.058 | 0.258 |
+| AR(1) | 100 | 0.39 | 0.67 | 0.118 | 0.268 |
+| AR(1) | 200 | 0.50 | 0.76 | 0.186 | 0.278 |
+| Erdős–Rényi | 50 | 0.17 | 0.26 | 0.037 | 0.413 |
+| Erdős–Rényi | 100 | 0.39 | 0.52 | 0.114 | 0.358 |
+| Erdős–Rényi | 200 | 0.69 | 0.75 | 0.244 | 0.311 |
+
+- The errors are of the same order as those of the paper, but they do not
+  match closely, and neither do the comparisons between methods: the paper's
+  code is not available, and some details are not reported (the cross
+  validation of CLIME; the treatment of estimates that are not positive definite
+  in the likelihood, which here are excluded).
+- ACLIME, with or without the rule of step 1, is the most accurate estimator in
+  26 of the 27 cases. In this design most variances exceed `√(n/log p)` (at
+  p = 100: 87%, 81% and 43% of the variables for the band, AR(1) and Erdős–Rényi
+  models), so the rule replaces most of the estimated diagonal entries by
+  `√(log p/n)`, and it matters: without it (`truncate=false`) ACLIME is much more
+  accurate for the band model and for the Erdős–Rényi model with p ≤ 100, with it
+  for the AR(1) model, whose precision matrix is dense, and for the Erdős–Rényi
+  model with p = 200.
+- CLIME with the likelihood is competitive (more accurate than ACLIME with the
+  rule for the band model with p ≤ 100); with the trace loss it chooses
+  penalties far too large and is the least accurate estimator in every case.
+- This table ran on a laptop (it measures accuracy, not time); with the same
+  seeds, the Discovery run gave the same numbers to the last digit.
+
 
 
 ## What is compared
