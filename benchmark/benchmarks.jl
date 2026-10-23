@@ -9,8 +9,9 @@
 #     (the comparison of the removed example1.jl); iterative hard
 #     thresholding, sparse and sparse plus rank one
 #   "ADMM": the graphical lasso and the fused graphical lasso
-#   "CLIME": clime along a path of 20 penalties and at one penalty, and aclime
-#     (the comparison of the CLIME solvers is in clime/)
+#   "CLIME": clime along a path of 20 penalties and at one penalty, aclime, and
+#     scaledlasso (the comparison of the CLIME solvers is in clime/, the
+#     benchmark of scaledlasso in scaledlasso/)
 #   "generateData": drawing samples, from Ω and from its Cholesky factor
 
 using BenchmarkTools
@@ -80,6 +81,7 @@ for p in DIMENSIONS
   g["clime, path of 20"] = @benchmarkable clime($R, $λs; ntasks=1)
   g["clime, λ = 0.1"] = @benchmarkable clime($R, 0.1; ntasks=1)
   g["aclime"] = @benchmarkable aclime($(Matrix(Sy)), 1000; ntasks=1)
+  g["scaledlasso"] = @benchmarkable scaledlasso($(Matrix(Sy)), 1000; ntasks=1)
 end
 
 SUITE["generateData"] = BenchmarkGroup()

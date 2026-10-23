@@ -1,5 +1,6 @@
 # CLIME and ACLIME: sparse precision matrices by constrained ℓ1 minimization, a
-# path of penalties, cross validation, and the choice of solver.
+# path of penalties, cross validation, and the choice of solver; and the scaled
+# lasso estimator, which needs no tuning.
 #
 # Run from the repository root (see examples/README.md for the setup):
 #
@@ -70,6 +71,14 @@ report("CLIME, λ = $(round(λbest; digits=3)) by CV", rescale(bestestimate(cv))
 report("ACLIME, δ = 2", aclime(S, n))
 cva = aclimecv(X, (1:40) ./ 20)
 report("ACLIME, δ = $(cva.λ[cva.best]) by CV", bestestimate(cva))
+
+# The scaled lasso of Sun and Zhang (2013) regresses each variable on the others
+# and estimates the residual standard deviation σ̂ⱼ jointly, with a penalty that
+# scales with σ̂ⱼ. Its penalty level is a universal constant, so it needs no
+# tuning, and it is equivariant to the units of the variables. refit=true refits
+# each column by least squares on the variables the scaled lasso selects.
+report("scaled lasso", scaledlasso(S, n))
+report("scaled lasso, refit", scaledlasso(S, n; refit=true))
 
 # The solvers all give the same estimate, the exact solution of the linear
 # programs, except PDHG, a first order method accurate to its tolerance (most of

@@ -66,7 +66,7 @@ function replication(design, Θ, S, Sval, n)
   push!(rows, ("ACLIME", errors(Ω - Θ), δ, t))
   if design != "hadamard"
     (Ω, δ), t2 = timed(() -> validated(aclime_step2(S, n, diag(R), δs), Sval))
-    push!(rows, ("ACLIME, scaled lasso pilot", errors(Ω - Θ), δ, t2))
+    push!(rows, ("ACLIME (scaled lasso pilot)", errors(Ω - Θ), δ, t2))
   end
   rows
 end

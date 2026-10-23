@@ -67,7 +67,7 @@ function main(model, p, n, outdir, mode)
     Ω1, t = best_time(() -> scaledlasso(S, n; ntasks=1))
     line("scaledlasso", 1, t, nnz(Ω1), 0.0)
     Ωr, t = best_time(() -> scaledlasso(S, n; refit=true, ntasks=1))
-    line("scaledlasso, refit", 1, t, nnz(Ωr), 0.0)
+    line("scaledlasso refit", 1, t, nnz(Ωr), 0.0)
     if p <= RPMAX
       dir = joinpath(outdir, problem_name(model, p, n, 7 + p + n))
       mkpath(dir)

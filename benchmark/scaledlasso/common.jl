@@ -56,7 +56,7 @@ const PS = ParametricSimplex()
 function aclime_step2(S, n, ω, δs)
   p = size(S, 1)
   spec = CovSel._CLIMESpec(sqrt.(diag(S)), false, 0.0)
-  CovSel._estimate(PS, S + I / n, spec, δs .* sqrt(log(p) / n), sqrt.(ω), true, 1, false)
+  CovSel._estimate(PS, S + I / n, spec, δs .* sqrt(log(p) / n), sqrt.(Vector{Float64}(ω)), true, 1, false)
 end
 
 # Run f() and return its value and the elapsed seconds, warnings silenced
