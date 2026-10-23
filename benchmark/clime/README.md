@@ -10,25 +10,25 @@ simulation of Cai, Liu and Zhou (2016) for ACLIME.
   the linear programs, and it was the fastest solver on every problem below, for
   one penalty and for a path: a whole path costs about as much as its smallest
   penalty alone. Start Julia with threads (`julia -t auto`) for the columns to
-  be solved in parallel; 8 threads were 5.6–7.8 times faster than one, except
+  be solved in parallel; 8 threads were 7.1–7.8 times faster than one, except
   when a few columns are much harder than the others (below).
-- `DualSimplex()` was never faster: about as fast for one penalty but up to 3.5
-  times slower in the worst cases, and up to 3 times slower for a path. It is
-  there for comparison.
+- `DualSimplex()` was never much faster: for one penalty between 14% faster and
+  3.4 times slower, and for a path up to 2.8 times slower. It is there for
+  comparison.
 - `LPSolver(optimizer)` makes any MathOptInterface solver available, as an
   independent check or for solvers not tried here, but a generic solver does not
-  exploit the structure of the problem: HiGHS was 12–210 times slower for one
-  penalty and 380–3400 times slower for a path, and near the feasibility
+  exploit the structure of the problem: HiGHS was 15–230 times slower for one
+  penalty and 410–3800 times slower for a path, and near the feasibility
   boundary of a singular `S` it can stop with an unknown status.
 - `PDHG()` is the most effective first order method for this problem in the
   literature we surveyed (restarted, adaptive PDHG as in PDLP, plus polishing),
-  and it solves most columns exactly, but on a CPU it was 80–310 times slower
+  and it solves most columns exactly, but on a CPU it was 90–350 times slower
   than `ParametricSimplex` for a path, and on the hardest columns it stops at its
   tolerance. It could pay off on a GPU, which CovSel does not support.
 - Of the R packages, fastclime is exact (to its 1e-5 storage threshold), but it
-  was 40–530 times slower, runs on one thread, and its memory grows with p² times
+  was 40–590 times slower, runs on one thread, and its memory grows with p² times
   the length of the longest column path (12.4 GB for p = 500 when one column has
-  3015 breakpoints). flare and clime were 3000 to 30000 times slower; flare's
+  3015 breakpoints). flare and clime were 3900 to 29000 times slower; flare's
   solutions miss the linear program by up to 20% in ℓ1 norm and violate its
   constraints by up to 8% at its default tolerance, and the interior point
   method of clime is accurate to about 1e-4.
@@ -36,19 +36,20 @@ simulation of Cai, Liu and Zhou (2016) for ACLIME.
 On the statistics side (the replication below): the penalty of CLIME is in the
 units of `SΩ`, so standardize the data, and choose λ by `climecv` with the
 likelihood loss; the trace loss of Cai, Liu and Luo (2011) chose penalties much
-too large. ACLIME's δ = 2 is conservative: choose δ by `aclimecv`. With δ
-chosen on validation data, ACLIME was the most accurate estimator in 26 of 27
-cases, but its rule for large variances in step 1 matters: in the design of the
-paper it applies to most variables, and the estimator was more accurate without
-it (`truncate=false`) for the band model, and with it for the AR(1) model.
+too large. ACLIME's δ = 2 is conservative: choose δ by `aclimecv`. Its rule for
+large variances in step 1 matters: in the design of the paper it applies to
+most variables, and without it (`truncate=false`) ACLIME was the most accurate
+estimator for two of the three models.
 
 ## Results
 
 USC CARC Discovery, AMD EPYC 7513, one CPU per run unless stated otherwise,
-Julia 1.13.2 and R 4.5.3 with single-threaded OpenBLAS, CovSel at commit
-`72a6d55` (later commits do not change the solvers). Run
-`20261022T2303Z-covsel-clime`: one job of 24 minutes on 8 CPUs, plus a rerun of
-the two fastclime tasks that needed more memory. Times of a few milliseconds
+Julia 1.13.2 and R 4.5.3 with single-threaded OpenBLAS. Run
+`20261022T2303Z-covsel-clime`: one job of 24 minutes on 8 CPUs with CovSel at
+commit `72a6d55`, a rerun of the two fastclime tasks that needed more memory,
+and a rerun of `ParametricSimplex` and `DualSimplex` (8 minutes) with the
+safeguards against cycling and loss of accuracy of commit `4d9fe8c`, which
+changed their times by a few percent. Times of a few milliseconds
 include fixed overheads, which is why one penalty can take longer than a whole
 path for the smallest problems. A dash means not run: the slow solvers were
 limited to the smaller problems (HiGHS paths to p ≤ 500, PDHG to p ≤ 1000,
@@ -59,73 +60,73 @@ always compute a whole path.
 
 | model | p | n | ParametricSimplex | DualSimplex | HiGHS | PDHG | fastclime | flare | clime_simplex | clime |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| ar1 | 100 | 50 | 0.0012 | 0.0016 | 1.307 | 0.160 | 0.067 | 6.630 | 32.0 | — |
-| ar1 | 100 | 200 | 0.0014 | 0.0019 | 1.322 | 0.207 | 0.085 | 4.701 | 32.3 | 14.8 |
-| ar1 | 200 | 100 | 0.0042 | 0.0063 | 8.713 | 0.769 | 0.854 | 57.1 | — | — |
-| ar1 | 200 | 400 | 0.0058 | 0.0081 | 8.871 | 0.840 | 1.240 | 53.7 | — | — |
-| ar1 | 500 | 250 | 0.037 | 0.052 | 126 | 5.718 | 19.5 | — | — | — |
-| ar1 | 500 | 1000 | 0.058 | 0.076 | 129 | 7.869 | 27.6 | — | — | — |
-| ar1 | 1000 | 500 | 0.345 | 0.402 | — | — | — | — | — | — |
-| ar1 | 1000 | 2000 | 0.455 | 0.520 | — | 49.0 | — | — | — | — |
-| ar1 | 2000 | 1000 | 3.678 | 4.092 | — | — | — | — | — | — |
-| ar1 | 2000 | 4000 | 4.362 | 4.713 | — | — | — | — | — | — |
-| ar1 | 4000 | 2000 | 39.7 | — | — | — | — | — | — | — |
-| ar1 | 4000 | 8000 | 42.3 | — | — | — | — | — | — | — |
+| ar1 | 100 | 50 | 0.0011 | 0.0015 | 1.307 | 0.160 | 0.067 | 6.630 | 32.0 | — |
+| ar1 | 100 | 200 | 0.0012 | 0.0017 | 1.322 | 0.207 | 0.085 | 4.701 | 32.3 | 14.8 |
+| ar1 | 200 | 100 | 0.0039 | 0.0061 | 8.713 | 0.769 | 0.854 | 57.1 | — | — |
+| ar1 | 200 | 400 | 0.0055 | 0.0079 | 8.871 | 0.840 | 1.240 | 53.7 | — | — |
+| ar1 | 500 | 250 | 0.033 | 0.050 | 126 | 5.718 | 19.5 | — | — | — |
+| ar1 | 500 | 1000 | 0.058 | 0.071 | 129 | 7.869 | 27.6 | — | — | — |
+| ar1 | 1000 | 500 | 0.323 | 0.359 | — | — | — | — | — | — |
+| ar1 | 1000 | 2000 | 0.426 | 0.495 | — | 49.0 | — | — | — | — |
+| ar1 | 2000 | 1000 | 3.516 | 3.653 | — | — | — | — | — | — |
+| ar1 | 2000 | 4000 | 4.270 | 4.393 | — | — | — | — | — | — |
+| ar1 | 4000 | 2000 | 38.0 | — | — | — | — | — | — | — |
+| ar1 | 4000 | 8000 | 40.7 | — | — | — | — | — | — | — |
 | band | 100 | 50 | 0.0011 | 0.0014 | 1.302 | 0.113 | 0.064 | 4.799 | 31.2 | — |
-| band | 100 | 200 | 0.0039 | 0.0039 | 1.462 | 0.429 | 0.175 | 19.6 | 33.1 | 17.6 |
-| band | 200 | 100 | 0.011 | 0.011 | 9.073 | 1.009 | 1.365 | 117 | — | — |
-| band | 200 | 400 | 0.015 | 0.017 | 9.509 | 1.806 | 1.689 | 178 | — | — |
-| band | 500 | 250 | 0.161 | 0.167 | 143 | 13.8 | 33.2 | — | — | — |
-| band | 500 | 1000 | 0.180 | 0.190 | 143 | 20.1 | 36.7 | — | — | — |
-| band | 1000 | 500 | 1.638 | 1.950 | — | — | — | — | — | — |
-| band | 1000 | 2000 | 1.702 | 1.858 | — | 136 | — | — | — | — |
-| band | 2000 | 1000 | 22.4 | 33.5 | — | — | — | — | — | — |
-| band | 2000 | 4000 | 16.7 | 19.7 | — | — | — | — | — | — |
-| er | 100 | 50 | 0.0018 | 0.0020 | 1.324 | 0.284 | 0.076 | 9.590 | 31.8 | — |
-| er | 100 | 200 | 0.0035 | 0.0035 | 1.424 | 1.025 | 0.141 | 20.1 | 32.5 | 16.0 |
-| er | 200 | 100 | 0.010 | 0.011 | 8.786 | 3.089 | 1.065 | 99.8 | — | — |
-| er | 200 | 400 | 0.011 | 0.013 | 9.055 | 3.293 | 1.246 | 127 | — | — |
-| er | 500 | 250 | 0.221 | 0.417 | 138 | 33.3 | 31.9 | — | — | — |
-| er | 500 | 1000 | 0.090 | 0.135 | 138 | 22.0 | 23.6 | — | — | — |
-| er | 1000 | 500 | 1.384 | 2.707 | — | — | — | — | — | — |
-| er | 1000 | 2000 | 0.959 | 1.646 | — | 127 | — | — | — | — |
-| er | 2000 | 1000 | 16.6 | 47.8 | — | — | — | — | — | — |
-| er | 2000 | 4000 | 8.005 | 24.7 | — | — | — | — | — | — |
+| band | 100 | 200 | 0.0036 | 0.0038 | 1.462 | 0.429 | 0.175 | 19.6 | 33.1 | 17.6 |
+| band | 200 | 100 | 0.0099 | 0.0098 | 9.073 | 1.009 | 1.365 | 117 | — | — |
+| band | 200 | 400 | 0.014 | 0.015 | 9.509 | 1.806 | 1.689 | 178 | — | — |
+| band | 500 | 250 | 0.140 | 0.135 | 143 | 13.8 | 33.2 | — | — | — |
+| band | 500 | 1000 | 0.165 | 0.176 | 143 | 20.1 | 36.7 | — | — | — |
+| band | 1000 | 500 | 1.568 | 1.733 | — | — | — | — | — | — |
+| band | 1000 | 2000 | 1.546 | 1.722 | — | 136 | — | — | — | — |
+| band | 2000 | 1000 | 21.1 | 33.2 | — | — | — | — | — | — |
+| band | 2000 | 4000 | 16.3 | 19.2 | — | — | — | — | — | — |
+| er | 100 | 50 | 0.0017 | 0.0019 | 1.324 | 0.284 | 0.076 | 9.590 | 31.8 | — |
+| er | 100 | 200 | 0.0034 | 0.0035 | 1.424 | 1.025 | 0.141 | 20.1 | 32.5 | 16.0 |
+| er | 200 | 100 | 0.0088 | 0.010 | 8.786 | 3.089 | 1.065 | 99.8 | — | — |
+| er | 200 | 400 | 0.0099 | 0.012 | 9.055 | 3.293 | 1.246 | 127 | — | — |
+| er | 500 | 250 | 0.221 | 0.406 | 138 | 33.3 | 31.9 | — | — | — |
+| er | 500 | 1000 | 0.093 | 0.128 | 138 | 22.0 | 23.6 | — | — | — |
+| er | 1000 | 500 | 1.357 | 2.737 | — | — | — | — | — | — |
+| er | 1000 | 2000 | 0.910 | 1.672 | — | 127 | — | — | — | — |
+| er | 2000 | 1000 | 18.2 | 46.2 | — | — | — | — | — | — |
+| er | 2000 | 4000 | 7.366 | 20.5 | — | — | — | — | — | — |
 
 ### Seconds for the smallest penalty alone, one thread
 
 | model | p | n | ParametricSimplex | DualSimplex | HiGHS | PDHG |
 |---|---:|---:|---:|---:|---:|---:|
-| ar1 | 100 | 50 | 0.0079 | 0.0078 | 0.093 | 0.029 |
-| ar1 | 100 | 200 | 0.0061 | 0.0060 | 0.087 | 0.033 |
-| ar1 | 200 | 100 | 0.0081 | 0.0095 | 0.531 | 0.129 |
-| ar1 | 200 | 400 | 0.0096 | 0.0093 | 0.543 | 0.175 |
-| ar1 | 500 | 250 | 0.043 | 0.042 | 7.553 | 1.407 |
-| ar1 | 500 | 1000 | 0.062 | 0.061 | 7.817 | 2.155 |
-| ar1 | 1000 | 500 | 0.350 | 0.342 | 74.4 | — |
-| ar1 | 1000 | 2000 | 0.456 | 0.451 | 74.7 | 14.6 |
-| ar1 | 2000 | 1000 | 3.680 | 3.822 | — | — |
-| ar1 | 2000 | 4000 | 4.403 | 4.353 | — | — |
-| band | 100 | 50 | 0.0051 | 0.0053 | 0.078 | 0.026 |
-| band | 100 | 200 | 0.0083 | 0.0071 | 0.118 | 0.105 |
-| band | 200 | 100 | 0.015 | 0.014 | 0.613 | 0.196 |
-| band | 200 | 400 | 0.019 | 0.020 | 0.712 | 0.311 |
-| band | 500 | 250 | 0.164 | 0.170 | 13.4 | 3.172 |
-| band | 500 | 1000 | 0.180 | 0.179 | 11.6 | 4.880 |
-| band | 1000 | 500 | 1.641 | 2.008 | 228 | — |
-| band | 1000 | 2000 | 1.702 | 1.835 | 137 | 42.8 |
-| band | 2000 | 1000 | 22.4 | 34.5 | — | — |
-| band | 2000 | 4000 | 16.8 | 19.7 | — | — |
-| er | 100 | 50 | 0.0087 | 0.0084 | 0.108 | 0.071 |
-| er | 100 | 200 | 0.0082 | 0.0078 | 0.143 | 0.276 |
-| er | 200 | 100 | 0.014 | 0.015 | 0.706 | 0.772 |
-| er | 200 | 400 | 0.018 | 0.018 | 0.748 | 0.685 |
-| er | 500 | 250 | 0.223 | 0.473 | 10.8 | 7.589 |
-| er | 500 | 1000 | 0.093 | 0.106 | 9.057 | 6.717 |
-| er | 1000 | 500 | 1.412 | 3.257 | 111 | — |
-| er | 1000 | 2000 | 0.994 | 1.425 | 86.6 | 32.5 |
-| er | 2000 | 1000 | 16.7 | 57.8 | — | — |
-| er | 2000 | 4000 | 8.652 | 20.3 | — | — |
+| ar1 | 100 | 50 | 0.0052 | 0.0057 | 0.093 | 0.029 |
+| ar1 | 100 | 200 | 0.0056 | 0.0055 | 0.087 | 0.033 |
+| ar1 | 200 | 100 | 0.0081 | 0.0079 | 0.531 | 0.129 |
+| ar1 | 200 | 400 | 0.0094 | 0.010 | 0.543 | 0.175 |
+| ar1 | 500 | 250 | 0.037 | 0.033 | 7.553 | 1.407 |
+| ar1 | 500 | 1000 | 0.058 | 0.058 | 7.817 | 2.155 |
+| ar1 | 1000 | 500 | 0.319 | 0.302 | 74.4 | — |
+| ar1 | 1000 | 2000 | 0.423 | 0.430 | 74.7 | 14.6 |
+| ar1 | 2000 | 1000 | 3.361 | 3.469 | — | — |
+| ar1 | 2000 | 4000 | 4.054 | 4.254 | — | — |
+| band | 100 | 50 | 0.0051 | 0.0051 | 0.078 | 0.026 |
+| band | 100 | 200 | 0.0078 | 0.0072 | 0.118 | 0.105 |
+| band | 200 | 100 | 0.014 | 0.012 | 0.613 | 0.196 |
+| band | 200 | 400 | 0.018 | 0.017 | 0.712 | 0.311 |
+| band | 500 | 250 | 0.140 | 0.135 | 13.4 | 3.172 |
+| band | 500 | 1000 | 0.164 | 0.165 | 11.6 | 4.880 |
+| band | 1000 | 500 | 1.590 | 1.810 | 228 | — |
+| band | 1000 | 2000 | 1.557 | 1.671 | 137 | 42.8 |
+| band | 2000 | 1000 | 21.0 | 32.1 | — | — |
+| band | 2000 | 4000 | 16.1 | 18.9 | — | — |
+| er | 100 | 50 | 0.0059 | 0.0071 | 0.108 | 0.071 |
+| er | 100 | 200 | 0.0077 | 0.0073 | 0.143 | 0.276 |
+| er | 200 | 100 | 0.013 | 0.012 | 0.706 | 0.772 |
+| er | 200 | 400 | 0.014 | 0.013 | 0.748 | 0.685 |
+| er | 500 | 250 | 0.226 | 0.469 | 10.8 | 7.589 |
+| er | 500 | 1000 | 0.093 | 0.105 | 9.057 | 6.717 |
+| er | 1000 | 500 | 1.368 | 3.289 | 111 | — |
+| er | 1000 | 2000 | 0.910 | 1.367 | 86.6 | 32.5 |
+| er | 2000 | 1000 | 17.3 | 58.5 | — | — |
+| er | 2000 | 4000 | 7.509 | 18.4 | — | — |
 
 ### Accuracy: largest relative difference of the column ℓ1 norms from ParametricSimplex / largest relative constraint violation
 
@@ -155,11 +156,11 @@ always compute a whole path.
 | er | 100 | 200 | 2e-14 / 2e-13 | 4e-12 / 7e-12 | 3e-07 / 3e-06 | 1e-12 / 3e-11 | 1e-01 / 6e-02 | 5e-12 / 2e-11 | 4e-04 / 0 |
 | er | 200 | 100 | 3e-14 / 2e-13 | 1e-11 / 4e-11 | 3e-05 / 4e-05 | 2e-13 / 2e-12 | 2e-01 / 4e-02 | — / — | — / — |
 | er | 200 | 400 | 4e-14 / 1e-13 | 4e-11 / 3e-11 | 5e-06 / 2e-05 | 5e-13 / 3e-11 | 2e-01 / 5e-02 | — / — | — / — |
-| er | 500 | 250 | 1e-13 / 1e-12 | 5e-12 / 6e-11 | 4e-02 / 3e-03 | 5e-10 / 1e-08 | — / — | — / — | — / — |
+| er | 500 | 250 | 1e-13 / 2e-12 | 5e-12 / 6e-11 | 4e-02 / 3e-03 | 5e-10 / 1e-08 | — / — | — / — | — / — |
 | er | 500 | 1000 | 3e-14 / 4e-13 | 5e-10 / 2e-09 | 9e-06 / 9e-05 | 2e-06 / 4e-05 | — / — | — / — | — / — |
 | er | 1000 | 500 | 2e-14 / 3e-13 | — / — | — / — | — / — | — / — | — / — | — / — |
 | er | 1000 | 2000 | 5e-14 / 8e-13 | — / — | 9e-06 / 2e-03 | — / — | — / — | — / — | — / — |
-| er | 2000 | 1000 | 2e-14 / 4e-12 | — / — | — / — | — / — | — / — | — / — | — / — |
+| er | 2000 | 1000 | 2e-14 / 3e-12 | — / — | — / — | — / — | — / — | — / — | — / — |
 | er | 2000 | 4000 | 6e-15 / 3e-13 | — / — | — / — | — / — | — / — | — / — | — / — |
 
 The exact solvers (`DualSimplex`, HiGHS, fastclime, clime's simplex) agree with
@@ -176,18 +177,18 @@ linear algebra.
 
 | model | p | n | 1 | 2 | 4 | 8 |
 |---|---:|---:|---:|---:|---:|---:|
-| ar1 | 2000 | 1000 | 3.678 | 1.816 (2.0×) | 0.900 (4.1×) | 0.652 (5.6×) |
-| ar1 | 2000 | 4000 | 4.362 | 2.109 (2.1×) | 1.058 (4.1×) | 0.563 (7.8×) |
-| ar1 | 4000 | 2000 | 39.7 | 20.2 (2.0×) | 10.2 (3.9×) | 5.387 (7.4×) |
-| ar1 | 4000 | 8000 | 42.3 | 20.9 (2.0×) | 10.7 (4.0×) | 6.591 (6.4×) |
-| band | 2000 | 1000 | 22.4 | 11.2 (2.0×) | 5.534 (4.0×) | 3.716 (6.0×) |
-| er | 2000 | 1000 | 16.6 | 7.960 (2.1×) | 6.867 (2.4×) | 7.063 (2.4×) |
+| ar1 | 2000 | 1000 | 3.516 | 1.676 (2.1×) | 0.880 (4.0×) | 0.454 (7.8×) |
+| ar1 | 2000 | 4000 | 4.270 | 2.054 (2.1×) | 1.064 (4.0×) | 0.561 (7.6×) |
+| ar1 | 4000 | 2000 | 38.0 | 19.9 (1.9×) | 9.979 (3.8×) | 5.277 (7.2×) |
+| ar1 | 4000 | 8000 | 40.7 | 21.6 (1.9×) | 10.9 (3.7×) | 5.763 (7.1×) |
+| band | 2000 | 1000 | 21.1 | 11.0 (1.9×) | 5.560 (3.8×) | 2.841 (7.4×) |
+| er | 2000 | 1000 | 18.2 | 8.060 (2.3×) | 7.714 (2.4×) | 6.327 (2.9×) |
 
 The columns are distributed over the threads, so the time cannot drop below
 that of the hardest column. On the Erdős–Rényi problem with p = 2000 and
 n = 1000, 10 of the 2000 columns take 93% of the time (the hardest alone 42%,
 with 692 nonzero entries at the smallest penalty, close to its feasibility
-boundary), and 8 threads are only 2.4 times faster than one.
+boundary), and 8 threads are only 2.9 times faster than one.
 
 ## Replication of Cai, Liu and Zhou (2016)
 
