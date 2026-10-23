@@ -274,7 +274,7 @@ end
 # and the noise level are those of least squares on the support of the scaled
 # lasso (Sun and Zhang, 2013, Section 5).
 function _sl_column!(ws::_SLWorkspace{T}, j::Int, λ₀::T, refit::Bool, col::_ColumnPath{T};
-                     refactor::Int=100, tol::T=T(1e-9)) where {T}
+                     refactor::Int=100, tol::T=T(1e-9), maxsteps::Int=1000 + 50 * ws.p) where {T}
   _sl_reset!(ws, j)
   S, w, p = ws.S, ws.w, ws.p
   # β = 0 for λ ≥ λmax, where RSS = Sⱼⱼ
@@ -291,7 +291,7 @@ function _sl_column!(ws::_SLWorkspace{T}, j::Int, λ₀::T, refit::Bool, col::_C
   end
   _sl_join!(ws, l0, s0)
   joined, left = l0, 0
-  for _ in 1:(1000 + 50p)
+  for _ in 1:maxsteps
     _sl_direction!(ws)
     _sl_refactor_if_needed!(ws, refactor, tol)
     r0, r2 = S[j, j], zero(T)
@@ -317,7 +317,7 @@ function _sl_column!(ws::_SLWorkspace{T}, j::Int, λ₀::T, refit::Bool, col::_C
     end
     λ = λnext
   end
-  error("the scaled lasso of column $j did not reach its solution in $(1000 + 50p) steps")
+  error("the scaled lasso of column $j did not reach its solution in $maxsteps steps")
 end
 
 # column j of Θ̃: Θ̃ⱼⱼ = 1/σ², Θ̃ₖⱼ = -βₖ/σ², with β_A = a + λ d (or a, refitted)

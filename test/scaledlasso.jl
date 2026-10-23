@@ -145,6 +145,8 @@ penalty(λ₀, p, n) = CovSel._penalty_level(λ₀, p, n)
       R = CovSel._assemble(cols, 1)
       @test all(certificate(S, R, j, λ) < 1e-8 for j in 1:80)
     end
+    # the safeguard against an endless path
+    @test_throws ErrorException CovSel._sl_column!(ws, 1, λ, false, CovSel._ColumnPath{Float64}(1); maxsteps=1)
   end
 
   @testset "estimation" begin
