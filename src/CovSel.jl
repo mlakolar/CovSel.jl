@@ -7,6 +7,8 @@ Methods for learning high-dimensional Gaussian graphical models:
   ([`clime`](@ref), [`aclime`](@ref)), with cross validation
   ([`climecv`](@ref), [`aclimecv`](@ref)) and a choice of solvers
   ([`CLIMESolver`](@ref));
+* the precision matrix by the scaled lasso of each column, which needs no
+  tuning ([`slassoinv`](@ref));
 * the graphical lasso by ADMM ([`covsel!`](@ref), [`covselpath`](@ref));
 * the fused graphical lasso for two groups ([`fusedGraphicalLasso`](@ref)) and
   fused neighborhood selection ([`fusedNeighborhoodSelection`](@ref));
@@ -26,6 +28,7 @@ using ProximalBase
 using ProximalSolvers: ProximalSolvers, ADMMSolver, CDSolver, ProximalOptions, refit!, solve!
 using SparseArrays, LinearAlgebra
 using Random: AbstractRNG, default_rng, randperm
+using SpecialFunctions: erfcinv
 
 export
   ADMMOptions, ADMMInfo, IHTOptions,
@@ -45,7 +48,10 @@ export
 
   # CLIME and ACLIME
   clime, aclime, CLIMEPath, climecv, aclimecv, CLIMECV, bestestimate,
-  CLIMESolver, DualSimplex, ParametricSimplex, LPSolver, PDHG
+  CLIMESolver, DualSimplex, ParametricSimplex, LPSolver, PDHG,
+
+  # scaled lasso of Sun and Zhang
+  slassoinv
 
 include("utils.jl")
 
@@ -59,6 +65,7 @@ include("clime_simplex.jl")
 include("clime.jl")
 include("clime_pdhg.jl")
 include("clime_cv.jl")
+include("slassoinv.jl")
 
 include("generate.jl")
 include("evaluation.jl")
