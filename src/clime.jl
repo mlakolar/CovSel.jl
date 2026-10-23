@@ -205,7 +205,7 @@ function _assemble(cols::Vector{_ColumnPath{T}}, t::Int) where {T}
 end
 
 """
-    CovSel.symmetrize_minabs(Ω)
+    CovarianceSelection.symmetrize_minabs(Ω)
 
 Symmetrize the column estimates of CLIME: entry `(i, j)` of the result is
 whichever of `Ω[i, j]` and `Ω[j, i]` has the smaller absolute value, so an entry

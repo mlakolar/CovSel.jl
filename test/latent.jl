@@ -1,7 +1,7 @@
 module LatentTest
 
 using Test, Random, LinearAlgebra
-import CovSel, ProximalBase
+import CovarianceSelection, ProximalBase
 using ProximalBase: SymmetricSparseIterate, nnz
 
 Random.seed!(11)
@@ -19,9 +19,9 @@ Random.seed!(11)
     @test isposdef(Symmetric(Σy))
 
     η = 0.5 / (opnorm(Σx) * opnorm(Σy))
-    opt = CovSel.IHTOptions(;epsTol=1e-10, maxIter=20000, checkEvery=10)
+    opt = CovarianceSelection.IHTOptions(;epsTol=1e-10, maxIter=20000, checkEvery=10)
     calls = Ref(0)
-    Δ, L, U, fvals, iter = CovSel.differenceLatentPrecisionIHT(Symmetric(Σx), Symmetric(Σy), η, η, 1, r;
+    Δ, L, U, fvals, iter = CovarianceSelection.differenceLatentPrecisionIHT(Symmetric(Σx), Symmetric(Σy), η, η, 1, r;
         options=opt, callback=(Δ, L) -> (calls[] += 1))
     @test calls[] == iter
     @test 1 <= iter <= opt.maxIter
@@ -31,31 +31,31 @@ Random.seed!(11)
 
     # the fit improves on the starting point and the residual of the
     # estimating equation is small
-    Δ0, L0, U0, _, _ = CovSel.differenceLatentPrecisionIHT_init(Symmetric(Σx), Symmetric(Σy), 1, r)
-    res0 = CovSel.diffLoss(Symmetric(Σx), Δ0, U0, Symmetric(Σy), 2)
-    res = CovSel.diffLoss(Symmetric(Σx), Δ, U, Symmetric(Σy), 2)
+    Δ0, L0, U0, _, _ = CovarianceSelection.differenceLatentPrecisionIHT_init(Symmetric(Σx), Symmetric(Σy), 1, r)
+    res0 = CovarianceSelection.diffLoss(Symmetric(Σx), Δ0, U0, Symmetric(Σy), 2)
+    res = CovarianceSelection.diffLoss(Symmetric(Σx), Δ, U, Symmetric(Σy), 2)
     @test res < res0
     @test fvals[end] <= fvals[1]
     @test Matrix(Δ) + L ≈ Θ atol=0.05
 
     # the in-place version continues from the given iterates
-    Δ1, L1, U1, _, iter1 = CovSel.differenceLatentPrecisionIHT!(copy(Δ), copy(L), copy(U), zeros(p, p), zeros(p, r),
-        Symmetric(Σx), Symmetric(Σy), η, η, 1, r; options=CovSel.IHTOptions(;epsTol=1e-10, maxIter=5, checkEvery=10))
+    Δ1, L1, U1, _, iter1 = CovarianceSelection.differenceLatentPrecisionIHT!(copy(Δ), copy(L), copy(U), zeros(p, p), zeros(p, r),
+        Symmetric(Σx), Symmetric(Σy), η, η, 1, r; options=CovarianceSelection.IHTOptions(;epsTol=1e-10, maxIter=5, checkEvery=10))
     @test iter1 == 5
-    @test CovSel.diffLoss(Symmetric(Σx), Δ1, U1, Symmetric(Σy), 2) <= res + 1e-8
+    @test CovarianceSelection.diffLoss(Symmetric(Σx), Δ1, U1, Symmetric(Σy), 2) <= res + 1e-8
 
     # the objective values are those of the loss at Θ = Δ + UU'
     Θ = Matrix(Δ1) + U1 * U1'
-    @test CovSel.differenceLatentPrecisionIHT!(copy(Δ1), zeros(p, p), copy(U1), zeros(p, p), zeros(p, r),
-        Symmetric(Σx), Symmetric(Σy), η, η, 1, r; options=CovSel.IHTOptions(;maxIter=1))[4][1] ≈
+    @test CovarianceSelection.differenceLatentPrecisionIHT!(copy(Δ1), zeros(p, p), copy(U1), zeros(p, p), zeros(p, r),
+        Symmetric(Σx), Symmetric(Σy), η, η, 1, r; options=CovarianceSelection.IHTOptions(;maxIter=1))[4][1] ≈
       tr(Σx * Θ * Σy * Θ) / 2 - tr(Θ * (Σy - Σx))
 
     # only the triangle that each Symmetric refers to is read
     Mx, My = copy(Σx), copy(Σy)
     Mx[2, 1] = My[1, 3] = 1e3
-    short = CovSel.IHTOptions(;epsTol=1e-10, maxIter=20, checkEvery=10)
-    a = CovSel.differenceLatentPrecisionIHT(Symmetric(Σx), Symmetric(Σy), η, η, 1, r; options=short)
-    b = CovSel.differenceLatentPrecisionIHT(Symmetric(Mx, :U), Symmetric(My, :L), η, η, 1, r; options=short)
+    short = CovarianceSelection.IHTOptions(;epsTol=1e-10, maxIter=20, checkEvery=10)
+    a = CovarianceSelection.differenceLatentPrecisionIHT(Symmetric(Σx), Symmetric(Σy), η, η, 1, r; options=short)
+    b = CovarianceSelection.differenceLatentPrecisionIHT(Symmetric(Mx, :U), Symmetric(My, :L), η, η, 1, r; options=short)
     @test Matrix(b[1]) ≈ Matrix(a[1])
     @test b[2] ≈ a[2]
   end
@@ -68,7 +68,7 @@ Random.seed!(11)
     Σ = inv(Ω + 0.5 * u * u')
 
     calls = Ref(0)
-    S, L, U, fvals, iter = CovSel.covselLatentIHT!(Σ, 0.05, 0.05, 1, r;
+    S, L, U, fvals, iter = CovarianceSelection.covselLatentIHT!(Σ, 0.05, 0.05, 1, r;
         epsTol=1e-10, maxIter=200, checkEvery=5, callback=(Σ, S, L) -> (calls[] += 1))
     @test calls[] == iter
     @test L ≈ U * U'
@@ -76,7 +76,7 @@ Random.seed!(11)
     @test isposdef(Symmetric(S + L))
     @test count(!iszero, tril(S, -1)) <= 1
     @test fvals[end] <= fvals[1]
-    @test CovSel.covSel_objective(Σ, S, L) >= CovSel.covSel_objective(Σ, inv(Σ)) - 1e-8
+    @test CovarianceSelection.covSel_objective(Σ, S, L) >= CovarianceSelection.covSel_objective(Σ, inv(Σ)) - 1e-8
   end
 end
 

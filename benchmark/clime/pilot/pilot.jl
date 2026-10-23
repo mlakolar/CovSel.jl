@@ -7,7 +7,7 @@
 # Writes the means and standard errors to OUT.csv and every replication to
 # OUT_raw.csv (for paired comparisons).
 
-using CovSel, LinearAlgebra, SparseArrays, Random, Statistics, Printf
+using CovarianceSelection, LinearAlgebra, SparseArrays, Random, Statistics, Printf
 include(joinpath(@__DIR__, "omega1.jl"))
 
 const PS = ParametricSimplex()
@@ -21,18 +21,18 @@ function pilots(S, n, Ω)
   Ŝ = S + I / n
   P = Pair{String,Vector{Float64}}[]
   for d in D1   # the paper's step 1, constraint scale σᵢᵢ ∨ σⱼⱼ
-    push!(P, "paper $d" => CovSel._solve_diagonal(PS, Ŝ, CovSel._CLIMESpec(σ, true, d * rate), NT))
+    push!(P, "paper $d" => CovarianceSelection._solve_diagonal(PS, Ŝ, CovarianceSelection._CLIMESpec(σ, true, d * rate), NT))
   end
   h = 1 ./ sqrt.(σ)
   R̂ = h .* Ŝ .* h'   # step 1 on the standardized data: scale √(σᵢᵢ σⱼⱼ)
   for d in D1
-    push!(P, "std $d" => CovSel._solve_diagonal(PS, R̂, CovSel._CLIMESpec(ones(p), true, d * rate), NT) ./ σ)
+    push!(P, "std $d" => CovarianceSelection._solve_diagonal(PS, R̂, CovarianceSelection._CLIMESpec(ones(p), true, d * rate), NT) ./ σ)
   end
   # refit: residual variance of the least squares regression on the support of
   # the step-1 column, with the degrees of freedom of the support
   for d in (1.0, 2.0)
-    push!(P, "paper $d refit" => refit(S, n, supports(Ŝ, CovSel._CLIMESpec(σ, true, d * rate))))
-    push!(P, "std $d refit" => refit(S, n, supports(R̂, CovSel._CLIMESpec(ones(p), true, d * rate))))
+    push!(P, "paper $d refit" => refit(S, n, supports(Ŝ, CovarianceSelection._CLIMESpec(σ, true, d * rate))))
+    push!(P, "std $d refit" => refit(S, n, supports(R̂, CovarianceSelection._CLIMESpec(ones(p), true, d * rate))))
   end
   push!(P, "inv(Ŝ)" => diag(inv(Symmetric(Ŝ))))   # δ₁ = 0
   p < n - 3 && push!(P, "inv(S) unbiased" => (n - p - 2) / (n - 1) * diag(inv(Symmetric(S))))
@@ -43,12 +43,12 @@ end
 
 function supports(Ŝ, spec)
   p = size(Ŝ, 1)
-  ws = CovSel._PSMWorkspace(Ŝ)
+  ws = CovarianceSelection._PSMWorkspace(Ŝ)
   map(1:p) do i
-    CovSel._weights!(ws.c, spec, i)
+    CovarianceSelection._weights!(ws.c, spec, i)
     ws.γ = spec.γ
-    col = CovSel._ColumnPath{Float64}(1)
-    CovSel._column_path!(ws, i, [0.0], col, PS)
+    col = CovarianceSelection._ColumnPath{Float64}(1)
+    CovarianceSelection._column_path!(ws, i, [0.0], col, PS)
     col.rows[col.ptr[1]:col.ptr[2]-1]
   end
 end
@@ -67,9 +67,9 @@ function step2(S, n, ω, Stest, δs)
   p = size(S, 1)
   σ = diag(S)
   rate = sqrt(log(p) / n)
-  spec = CovSel._CLIMESpec(sqrt.(σ), false, 0.0)
-  path = CovSel._estimate(PS, S + I / n, spec, δs .* rate, sqrt.(ω), true, NT, false)
-  lik = [CovSel._cvloss(Stest, Ωh, :likelihood) for Ωh in path]
+  spec = CovarianceSelection._CLIMESpec(sqrt.(σ), false, 0.0)
+  path = CovarianceSelection._estimate(PS, S + I / n, spec, δs .* rate, sqrt.(ω), true, NT, false)
+  lik = [CovarianceSelection._cvloss(Stest, Ωh, :likelihood) for Ωh in path]
   k = argmin(lik)
   path.Ω[k], δs[k], path.Ω[findfirst(==(2.0), δs)]
 end
@@ -82,7 +82,7 @@ function replication(model, p, rng; n=200, ntest=200)
   U = cholesky(Σ).U
   X = randn(rng, n, p) * U
   Xtest = randn(rng, ntest, p) * U
-  CovSel._folds(n, 5, rng)          # as aclime_table.jl, to keep the draws in step
+  CovarianceSelection._folds(n, 5, rng)          # as aclime_table.jl, to keep the draws in step
   S, Stest = cov(X), cov(Xtest)
   δs = collect((1:100) ./ 50)
   rows = []
@@ -96,9 +96,9 @@ function replication(model, p, rng; n=200, ntest=200)
   # units of the variables
   h = 1 ./ sqrt.(diag(S))
   R = h .* S .* h'
-  ωs = CovSel._solve_diagonal(PS, R + I / n, CovSel._CLIMESpec(ones(p), true, 2sqrt(log(p) / n)), NT) .* h .^ 2
+  ωs = CovarianceSelection._solve_diagonal(PS, R + I / n, CovarianceSelection._CLIMESpec(ones(p), true, 2sqrt(log(p) / n)), NT) .* h .^ 2
   path = [Diagonal(h) * Θ * Diagonal(h) for Θ in aclime(R, n; δ=δs, ntasks=NT)]
-  lik = [CovSel._cvloss(Stest, Ωh, :likelihood) for Ωh in path]
+  lik = [CovarianceSelection._cvloss(Stest, Ωh, :likelihood) for Ωh in path]
   k = argmin(lik)
   r = ωs ./ diag(Ω)
   push!(rows, ("standardized ACLIME", median(r), quantile(r, 0.1), quantile(r, 0.9), mean(abs.(log.(r))), std(log.(r)),

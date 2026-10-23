@@ -1,8 +1,8 @@
 #!/bin/bash
-# ACLIME step-1 pilot study (CovSel.jl branch clime): pilot accuracy and its
+# ACLIME step-1 pilot study (CovarianceSelection.jl branch clime): pilot accuracy and its
 # effect on step 2 in the design of Cai, Liu and Zhou (2016), the bias of the
 # pilot as n grows, and invariance checks. One CPU per task, GNU Parallel.
-# RUN holds a clone of CovSel.jl and a copy of this directory as RUN/pilot:
+# RUN holds a clone of CovarianceSelection.jl and a copy of this directory as RUN/pilot:
 #   sbatch --export=ALL,RUN=$RUN pilot.sbatch
 #SBATCH --account=mkolar_1314
 #SBATCH --partition=main
@@ -14,7 +14,7 @@
 #SBATCH --time=01:00:00
 set -uo pipefail
 : "${RUN:?}"
-export PROJ=$RUN/CovSel.jl/benchmark/clime
+export PROJ=$RUN/CovarianceSelection.jl/benchmark/clime
 export JULIA=$HOME/juliaPkg/julia-1.13.2/bin/julia
 export JULIA_DEPOT_PATH=$HOME/juliaPkg/depot:
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
@@ -22,7 +22,7 @@ module load parallel/20240522
 OUT=$RUN/results
 mkdir -p $OUT/logs
 echo "start $(date -u +%FT%TZ) on $(hostname)"
-$JULIA --project=$PROJ -e 'using Pkg; Pkg.precompile(); using CovSel' || exit 1
+$JULIA --project=$PROJ -e 'using Pkg; Pkg.precompile(); using CovarianceSelection' || exit 1
 S="srun --exclusive --exact -N1 -n1 -c1 --mem=1800M $JULIA -t 1 --project=$PROJ"
 {
   for p in 200 100 50; do

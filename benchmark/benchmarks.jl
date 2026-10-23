@@ -1,4 +1,4 @@
-# Benchmark suite for CovSel. Defines `SUITE`, a BenchmarkTools.BenchmarkGroup,
+# Benchmark suite for CovarianceSelection. Defines `SUITE`, a BenchmarkTools.BenchmarkGroup,
 # in the format used by PkgBenchmark.jl. run.jl runs it and prints a table; see
 # README.md.
 #
@@ -16,7 +16,7 @@
 #   "generateData": drawing samples, from Ω and from its Cholesky factor
 
 using BenchmarkTools
-using CovSel, ProximalBase, ProximalSolvers
+using CovarianceSelection, ProximalBase, ProximalSolvers
 using LinearAlgebra, Random, Statistics
 
 include(joinpath(@__DIR__, "..", "test", "reference.jl"))
@@ -56,7 +56,7 @@ for p in DIMENSIONS
   # support; step sizes as in examples/latent_difference.jl
   s = 2p - 1
   η = 1 / (opnorm(Sx) * opnorm(Sy))
-  ηU = η / (4 * opnorm(CovSel.differenceLatentPrecisionIHT_init(Sx, Sy, s, 1)[2]))
+  ηU = η / (4 * opnorm(CovarianceSelection.differenceLatentPrecisionIHT_init(Sx, Sy, s, 1)[2]))
   g = SUITE["direct difference"]["p = $p, IHT"] = BenchmarkGroup()
   g["differencePrecisionIHT"] = @benchmarkable differencePrecisionIHT($Sx, $Sy, $η, $s)
   g["differenceLatentPrecisionIHT, r = 1"] = @benchmarkable differenceLatentPrecisionIHT($Sx, $Sy, $η, $ηU, $s, 1;
@@ -90,6 +90,6 @@ for p in DIMENSIONS
   Ω = Matrix(SymTridiagonal(fill(1.0, p), fill(0.3, p - 1)))
   F = cholesky(Symmetric(Ω))
   g = SUITE["generateData"]["p = $p, n = 1000"] = BenchmarkGroup()
-  g["from Ω"] = @benchmarkable CovSel.generateData($Ω, 1000)
-  g["from the Cholesky factor"] = @benchmarkable CovSel.generateData($F, 1000)
+  g["from Ω"] = @benchmarkable CovarianceSelection.generateData($Ω, 1000)
+  g["from the Cholesky factor"] = @benchmarkable CovarianceSelection.generateData($F, 1000)
 end

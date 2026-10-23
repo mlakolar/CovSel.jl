@@ -1,8 +1,8 @@
 module CLIMETest
 
 using Test, Random, LinearAlgebra, SparseArrays, Statistics
-using CovSel
-using CovSel: symmetrize_minabs
+using CovarianceSelection
+using CovarianceSelection: symmetrize_minabs
 using HiGHS
 
 Random.seed!(11)
@@ -95,25 +95,25 @@ l1cols(R) = [norm(R[:, i], 1) for i in 1:size(R, 2)]
   @testset "Bland's rule" begin
     # the rule that the solvers switch to when they stall, used for every pivot
     function blandpath(S, i, μs; dual=false)
-      ws = CovSel._PSMWorkspace(S)
-      CovSel._reset!(ws, i)
+      ws = CovarianceSelection._PSMWorkspace(S)
+      CovarianceSelection._reset!(ws, i)
       μ, tol, out = 1.0, 1e-9, Float64[]
       for μt in μs
         if dual
           # the dual simplex in Bland's mode from the previous basis
           while true
-            kind, idx, s = CovSel._most_infeasible(ws, μt, tol, true)
+            kind, idx, s = CovarianceSelection._most_infeasible(ws, μt, tol, true)
             kind == 0 && break
-            CovSel._pivot!(ws, kind, idx, s, tol, true) || return out
-            CovSel._primal!(ws)
+            CovarianceSelection._pivot!(ws, kind, idx, s, tol, true) || return out
+            CovarianceSelection._primal!(ws)
           end
         else
           while true
-            μn, kind, idx, s = CovSel._next_event(ws, μ, tol, true)
+            μn, kind, idx, s = CovarianceSelection._next_event(ws, μ, tol, true)
             μn < μt && break
             μ = μn
-            CovSel._pivot!(ws, kind, idx, s, tol, true) || return out
-            CovSel._primal!(ws)
+            CovarianceSelection._pivot!(ws, kind, idx, s, tol, true) || return out
+            CovarianceSelection._primal!(ws)
           end
         end
         push!(out, sum(q -> abs(ws.a[q] + μt * ws.b[q]), 1:ws.k; init=0.0))
@@ -154,8 +154,8 @@ l1cols(R) = [norm(R[:, i], 1) for i in 1:size(R, 2)]
     @test_throws ErrorException clime(S, 0.1, LPSolver(HiGHS.Optimizer; attributes=("time_limit" => 0.0,)))
     # without MathOptInterface, LPSolver explains what to load (the extension
     # replaces these methods for the arguments that clime passes)
-    @test_throws ErrorException CovSel._solve_columns(LPSolver(nothing), nothing)
-    @test_throws ErrorException CovSel._solve_diagonal(LPSolver(nothing), nothing)
+    @test_throws ErrorException CovarianceSelection._solve_columns(LPSolver(nothing), nothing)
+    @test_throws ErrorException CovarianceSelection._solve_diagonal(LPSolver(nothing), nothing)
     # rank one: column 1 needs 1 - λ ≤ β₁ + β₂ ≤ λ, infeasible for λ < 1/2
     S = [1.0 1.0; 1.0 1.0]
     for solver in (LPSolver(HiGHS.Optimizer), ParametricSimplex(), DualSimplex())
@@ -261,8 +261,8 @@ l1cols(R) = [norm(R[:, i], 1) for i in 1:size(R, 2)]
     σ = diag(S)
     rate = sqrt(log(p) / n)
     Ŝ = S + I / n
-    spec = CovSel._CLIMESpec(σ, true, 2rate)
-    ω = CovSel._solve_diagonal(ParametricSimplex(), Ŝ, spec, 1)
+    spec = CovarianceSelection._CLIMESpec(σ, true, 2rate)
+    ω = CovarianceSelection._solve_diagonal(ParametricSimplex(), Ŝ, spec, 1)
     raw = aclime(S, n; symmetrize=false)
     @test all(certificate(Ŝ, Vector(raw[:, i]), i, 2rate * sqrt(ω[i]); c=sqrt.(σ)) < 1e-8 for i in 1:p)
     # with the rule of step 1 for large variances

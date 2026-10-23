@@ -1,9 +1,9 @@
 # Recompute the slassoinv estimates stored by speed.jl (est.bin, from the
-# benchmark commit) with the current CovSel, and report the largest difference.
+# benchmark commit) with the current CovarianceSelection, and report the largest difference.
 #
 #   julia --project=benchmark/slassoinv benchmark/slassoinv/verify.jl OTHER_RESULTS/speed
 
-using CovSel, LinearAlgebra, Printf
+using CovarianceSelection, LinearAlgebra, Printf
 
 worst = 0.0
 for d in sort(filter(isdir, readdir(ARGS[1]; join=true)))

@@ -1,8 +1,8 @@
 module DirectDiffTest
 
 using Test, Random, LinearAlgebra, SparseArrays, Statistics
-import CovSel, ProximalBase, ProximalSolvers
-using CovSel: diffLoss
+import CovarianceSelection, ProximalBase, ProximalSolvers
+using CovarianceSelection: diffLoss
 using ProximalBase: SymmetricSparseIterate, NormL1, coordinates, ncoordinates, tril_cartesian, tril_index
 using ProximalSolvers: CDSolver
 
@@ -32,19 +32,19 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
       g = NormL1(λ)
 
       solShoot = Reference.differencePrecisionNaive(hSx, hSy, λ, tmp)
-      solShoot1 = CovSel.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), g)
+      solShoot1 = CovarianceSelection.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), g)
       @test Matrix(solShoot1) ≈ solShoot atol=1e-5
 
       # warm start from the solution
       x = copy(solShoot1)
-      CovSel.differencePrecisionActiveShooting!(x, Symmetric(hSx), Symmetric(hSy), g)
+      CovarianceSelection.differencePrecisionActiveShooting!(x, Symmetric(hSx), Symmetric(hSy), g)
       @test Matrix(x) ≈ solShoot atol=1e-5
     end
 
     # KKT conditions: |gradient| ≤ λ, with equality and opposite sign on the
     # support; the gradient over symmetric matrices is (ΣxΔΣy + ΣyΔΣx)/2 - (Σy - Σx)
     λ = 0.1
-    x = CovSel.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), NormL1(λ), CDSolver(; tol=1e-10))
+    x = CovarianceSelection.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), NormL1(λ), CDSolver(; tol=1e-10))
     D = Matrix(x)
     G = (hSx * D * hSy + hSy * D * hSx) / 2 - (hSy - hSx)
     for c=1:p, r=c:p
@@ -57,7 +57,7 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
     @test ncoordinates(x) == div(p * (p + 1), 2)
 
     # the loss is ProximalBase's KronQuadratic, whose value is the D-trace loss
-    f = CovSel.directDifferenceLoss(Symmetric(hSx), Symmetric(hSy))
+    f = CovarianceSelection.directDifferenceLoss(Symmetric(hSx), Symmetric(hSy))
     @test f isa ProximalBase.KronQuadratic
     @test f(x) ≈ denseLoss(hSx, hSy, D)
     x1 = SymmetricSparseIterate(p)
@@ -67,21 +67,21 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
     # only the triangle that each Symmetric refers to is read
     Mx, My = copy(hSx), copy(hSy)
     Mx[2, 1] = My[1, 3] = 1e3
-    x2 = CovSel.differencePrecisionActiveShooting(Symmetric(Mx, :U), Symmetric(My, :L), NormL1(λ))
+    x2 = CovarianceSelection.differencePrecisionActiveShooting(Symmetric(Mx, :U), Symmetric(My, :L), NormL1(λ))
     @test Matrix(x2) ≈ Matrix(x1) atol=1e-6   # random coordinate order, tol = 1e-7
 
     # Float32
-    x3 = CovSel.differencePrecisionActiveShooting(Symmetric(Float32.(hSx)), Symmetric(Float32.(hSy)), NormL1(Float32(λ)))
+    x3 = CovarianceSelection.differencePrecisionActiveShooting(Symmetric(Float32.(hSx)), Symmetric(Float32.(hSy)), NormL1(Float32(λ)))
     @test eltype(x3) == Float32
     @test Matrix(x3) ≈ Matrix(x1) atol=1e-4
 
     # weights on the p × p matrix: an entry with weight zero is not penalized,
     # and weights λ⋅W give the same solution as the level λ
     W = ones(p, p)
-    x4 = CovSel.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), NormL1(1.0, λ * W), CDSolver(; tol=1e-10))
+    x4 = CovarianceSelection.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), NormL1(1.0, λ * W), CDSolver(; tol=1e-10))
     @test Matrix(x4) ≈ D atol=1e-6
     W[3, 2] = W[2, 3] = 0
-    x5 = CovSel.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), NormL1(λ, W), CDSolver(; tol=1e-10))
+    x5 = CovarianceSelection.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), NormL1(λ, W), CDSolver(; tol=1e-10))
     G5 = (hSx * Matrix(x5) * hSy + hSy * Matrix(x5) * hSx) / 2 - (hSy - hSx)
     @test G5[3, 2] ≈ 0 atol=1e-6
 
@@ -91,7 +91,7 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
     passes, sols = Int[], Matrix{Float64}[]
     for a in (1e-3, 1.0, 1e3)
       x = SymmetricSparseIterate(p)
-      r = ProximalSolvers.solve!(x, CovSel.directDifferenceLoss(Symmetric(a * hSx), Symmetric(a * hSy)),
+      r = ProximalSolvers.solve!(x, CovarianceSelection.directDifferenceLoss(Symmetric(a * hSx), Symmetric(a * hSy)),
         NormL1(a * λ), CDSolver(; order=:cyclic))
       @test r.converged
       push!(passes, r.passes)
@@ -100,14 +100,14 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
     @test passes[1] == passes[2] == passes[3]
     @test sols[1] ≈ sols[2] atol=1e-8
     @test sols[3] ≈ sols[2] atol=1e-8
-    @test_throws DimensionMismatch CovSel.directDifferenceLoss(Symmetric(hSx), Symmetric(hSy[1:3, 1:3]))
+    @test_throws DimensionMismatch CovarianceSelection.directDifferenceLoss(Symmetric(hSx), Symmetric(hSy[1:3, 1:3]))
   end
 
   @testset "no penalty recovers the difference of precisions" begin
     p = 4
     Σx = [0.5^abs(i-j) for i=1:p, j=1:p]
     Σy = Matrix(1.0I, p, p) + 0.3 * ones(p, p)
-    x = CovSel.differencePrecisionActiveShooting(Symmetric(Σx), Symmetric(Σy), NormL1(0.0),
+    x = CovarianceSelection.differencePrecisionActiveShooting(Symmetric(Σx), Symmetric(Σy), NormL1(0.0),
           CDSolver(; tol=1e-12, maxpasses=10000))
     @test Matrix(x) ≈ inv(Σx) - inv(Σy) atol=1e-6
   end
@@ -122,19 +122,19 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
       As = SymmetricSparseIterate(A)
       R = hSx*A*hSy - hSy + hSx
 
-      @test CovSel.diffLoss(Symmetric(hSx), As, Symmetric(hSy), 2)  ≈ norm(R, 2) atol=1e-12
-      @test CovSel.diffLoss(Symmetric(hSx), As, Symmetric(hSy), Inf) ≈ norm(R, Inf) atol=1e-12
-      @test_throws ArgumentError CovSel.diffLoss(Symmetric(hSx), As, Symmetric(hSy), 3)
+      @test CovarianceSelection.diffLoss(Symmetric(hSx), As, Symmetric(hSy), 2)  ≈ norm(R, 2) atol=1e-12
+      @test CovarianceSelection.diffLoss(Symmetric(hSx), As, Symmetric(hSy), Inf) ≈ norm(R, Inf) atol=1e-12
+      @test_throws ArgumentError CovarianceSelection.diffLoss(Symmetric(hSx), As, Symmetric(hSy), 3)
 
       U = randn(p, 2)
       RL = hSx*(A + U*U')*hSy - hSy + hSx
-      @test CovSel.diffLoss(Symmetric(hSx), As, U, Symmetric(hSy), 2)  ≈ norm(RL, 2) atol=1e-10
-      @test CovSel.diffLoss(Symmetric(hSx), As, U, Symmetric(hSy), Inf) ≈ norm(RL, Inf) atol=1e-10
-      @test_throws ArgumentError CovSel.diffLoss(Symmetric(hSx), As, U, Symmetric(hSy), 1)
+      @test CovarianceSelection.diffLoss(Symmetric(hSx), As, U, Symmetric(hSy), 2)  ≈ norm(RL, 2) atol=1e-10
+      @test CovarianceSelection.diffLoss(Symmetric(hSx), As, U, Symmetric(hSy), Inf) ≈ norm(RL, Inf) atol=1e-10
+      @test_throws ArgumentError CovarianceSelection.diffLoss(Symmetric(hSx), As, U, Symmetric(hSy), 1)
 
       # the residual vanishes at the population solution
       Δ = SymmetricSparseIterate(sparse(inv(hSx) - inv(hSy)))
-      @test CovSel.diffLoss(Symmetric(hSx), Δ, Symmetric(hSy), Inf) ≈ 0 atol=1e-10
+      @test CovarianceSelection.diffLoss(Symmetric(hSx), Δ, Symmetric(hSy), Inf) ≈ 0 atol=1e-10
 
       # dense and sparse matrices give the same loss
       for M in (Matrix(A), A)
@@ -157,7 +157,7 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
         indS = findall(x->x!=0, S)
         ilin = LinearIndices(S)[indS]
 
-        x = CovSel.differencePrecisionRefit(Symmetric(hSx), Symmetric(hSy), indS)
+        x = CovarianceSelection.differencePrecisionRefit(Symmetric(hSx), Symmetric(hSy), indS)
 
         x1 = spzeros(p, p)
         x1[ilin] = (0.5 * (kron(hSy, hSx)[ilin, ilin] + kron(hSx, hSy)[ilin, ilin])) \ (hSy - hSx)[ilin]
@@ -165,11 +165,11 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
 
         # the support can be given by its upper triangle only, as linear indices
         iupper = [i for i in ilin if Tuple(CartesianIndices(S)[i])[1] <= Tuple(CartesianIndices(S)[i])[2]]
-        @test Matrix(CovSel.differencePrecisionRefit(Symmetric(hSx), Symmetric(hSy), iupper)) ≈ Matrix(x) atol=1e-10
+        @test Matrix(CovarianceSelection.differencePrecisionRefit(Symmetric(hSx), Symmetric(hSy), iupper)) ≈ Matrix(x) atol=1e-10
       end
       # an empty support gives zero
       hSx, hSy = genData(3)
-      @test iszero(Matrix(CovSel.differencePrecisionRefit(Symmetric(hSx), Symmetric(hSy), Int[])))
+      @test iszero(Matrix(CovarianceSelection.differencePrecisionRefit(Symmetric(hSx), Symmetric(hSy), Int[])))
   end
 
   @testset "IHT" begin
@@ -181,7 +181,7 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
     D = inv(Σx) - inv(Σy)
 
     η = 1 / (opnorm(Σx) * opnorm(Σy))
-    Δ, fvals = CovSel.differencePrecisionIHT(Symmetric(Σx), Symmetric(Σy), η, 1; epsTol=1e-14, maxIter=10000)
+    Δ, fvals = CovarianceSelection.differencePrecisionIHT(Symmetric(Σx), Symmetric(Σy), η, 1; epsTol=1e-14, maxIter=10000)
     @test Matrix(Δ) ≈ D atol=1e-6
     @test nnz(Δ) == 1
     @test fvals[end] ≈ denseLoss(Σx, Σy, D)
@@ -191,15 +191,15 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
     # without the sparsity constraint the iterates converge to inv(Σx) - inv(Σy)
     Σy = [0.3^abs(i-j) for i=1:p, j=1:p]
     η = 1 / (opnorm(Σx) * opnorm(Σy))
-    Δ, _ = CovSel.differencePrecisionIHT(Symmetric(Σx), Symmetric(Σy), η, div(p * (p + 1), 2); epsTol=1e-16, maxIter=20000)
+    Δ, _ = CovarianceSelection.differencePrecisionIHT(Symmetric(Σx), Symmetric(Σy), η, div(p * (p + 1), 2); epsTol=1e-16, maxIter=20000)
     @test Matrix(Δ) ≈ inv(Σx) - inv(Σy) atol=1e-5
-    @test_throws DimensionMismatch CovSel.differencePrecisionIHT(Symmetric(Σx), Symmetric(Σy[1:2, 1:2]), η, 1)
+    @test_throws DimensionMismatch CovarianceSelection.differencePrecisionIHT(Symmetric(Σx), Symmetric(Σy[1:2, 1:2]), η, 1)
 
     # only the triangle that each Symmetric refers to is read
     Mx, My = copy(Σx), copy(Σy)
     Mx[2, 1] = My[1, 3] = 1e3
-    Δ1, fvals1 = CovSel.differencePrecisionIHT(Symmetric(Σx), Symmetric(Σy), η, 4; maxIter=50)
-    Δ2, fvals2 = CovSel.differencePrecisionIHT(Symmetric(Mx, :U), Symmetric(My, :L), η, 4; maxIter=50)
+    Δ1, fvals1 = CovarianceSelection.differencePrecisionIHT(Symmetric(Σx), Symmetric(Σy), η, 4; maxIter=50)
+    Δ2, fvals2 = CovarianceSelection.differencePrecisionIHT(Symmetric(Mx, :U), Symmetric(My, :L), η, 4; maxIter=50)
     @test Matrix(Δ2) ≈ Matrix(Δ1)
     @test fvals2 ≈ fvals1
   end

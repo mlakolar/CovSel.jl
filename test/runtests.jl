@@ -1,4 +1,4 @@
-using CovSel
+using CovarianceSelection
 using Test
 using Aqua
 
@@ -13,7 +13,7 @@ tests = [
   "slassoinv"
 ]
 
-@testset "CovSel" begin
+@testset "CovarianceSelection" begin
   for t in tests
     f = "$t.jl"
     println("* running $f ...")
@@ -21,6 +21,6 @@ tests = [
   end
 
   @testset "Aqua" begin
-    Aqua.test_all(CovSel)
+    Aqua.test_all(CovarianceSelection)
   end
 end

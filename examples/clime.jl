@@ -9,7 +9,7 @@
 # For the column problems to be solved in parallel, start Julia with threads:
 # julia -t auto --project=examples examples/clime.jl
 
-using CovSel
+using CovarianceSelection
 using LinearAlgebra, Printf, Random, SparseArrays, Statistics
 using UnicodePlots
 
@@ -23,14 +23,14 @@ for i in 1:p-1; Ω1[i, i+1] = Ω1[i+1, i] = 0.6; end
 for i in 1:p-2; Ω1[i, i+2] = Ω1[i+2, i] = 0.3; end
 d = 1 .+ rand(p)                       # standard deviations between 1 and 2
 Ω = Ω1 ./ (d * d')                     # Σ = D Ω1⁻¹ D
-X = CovSel.generateData(Ω, n)
+X = CovarianceSelection.generateData(Ω, n)
 println("p = $p, n = $n, edges in the true graph: ", count(!iszero, tril(Ω, -1)))
 
 edges(A) = count(!iszero, tril(A, -1))
 function report(name, Ωhat)
-  c = CovSel.getConfusionMatrix(Ω, Ωhat; diagonal=false)
+  c = CovarianceSelection.getConfusionMatrix(Ω, Ωhat; diagonal=false)
   @printf("%-28s %5d edges  TPR %.2f  FPR %.3f  spectral error %.3f\n", name, edges(Ωhat),
-    CovSel.tpr(c), CovSel.fpr(c), opnorm(Matrix(Ωhat - Ω)))
+    CovarianceSelection.tpr(c), CovarianceSelection.fpr(c), opnorm(Matrix(Ωhat - Ω)))
 end
 
 # CLIME. Column i of the estimate solves

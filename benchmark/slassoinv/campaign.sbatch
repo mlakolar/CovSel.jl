@@ -9,11 +9,11 @@
 # tasks to one file interleave on the cluster file system.
 #
 # VERIFY=DIR adds a task that recomputes the estimates stored in DIR (the speed/
-# directory of another run) with this CovSel (verify.jl).
+# directory of another run) with this CovarianceSelection (verify.jl).
 #
 #   RUN=... sbatch --export=ALL,RUN=$RUN[,QUICK=1][,RERUN=1][,OUTDIR=...][,VERIFY=...] campaign.sbatch
 #
-# RUN holds a clone of CovSel.jl; R packages in $HOME/juliaPkg/Rlib-r4.5.3.
+# RUN holds a clone of CovarianceSelection.jl; R packages in $HOME/juliaPkg/Rlib-r4.5.3.
 #SBATCH --account=mkolar_1314
 #SBATCH --partition=main
 #SBATCH --constraint=epyc-7513
@@ -26,7 +26,7 @@ set -uo pipefail
 : "${RUN:?}"
 QUICK=${QUICK:-0}
 RERUN=${RERUN:-0}
-export BENCH=$RUN/CovSel.jl/benchmark/slassoinv
+export BENCH=$RUN/CovarianceSelection.jl/benchmark/slassoinv
 export JULIA=$HOME/juliaPkg/julia-1.13.2/bin/julia
 export JULIA_DEPOT_PATH=$HOME/juliaPkg/depot:
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
@@ -34,7 +34,7 @@ module load parallel/20240522 apptainer
 OUT=${OUTDIR:-$RUN/results$([ $QUICK = 1 ] && echo _quick)}
 mkdir -p $OUT/{accuracy,speed,logs}
 echo "start $(date -u +%FT%TZ) on $(hostname), QUICK=$QUICK, RERUN=$RERUN, OUT=$OUT"
-$JULIA --project=$BENCH -e 'using Pkg; Pkg.precompile(); using CovSel, CoordinateDescent' || exit 1
+$JULIA --project=$BENCH -e 'using Pkg; Pkg.precompile(); using CovarianceSelection, CoordinateDescent' || exit 1
 J="srun --exclusive --exact -N1 -n1 -c1 --mem=1800M $JULIA -t 1 --project=$BENCH"
 R="srun --exclusive --exact -N1 -n1 -c1 --mem=1800M timeout 1500 apptainer exec --cleanenv --env OPENBLAS_NUM_THREADS=1 /apps/containers/r/4.5/r-4.5.3.sif Rscript"
 acc() {  # design model p first last

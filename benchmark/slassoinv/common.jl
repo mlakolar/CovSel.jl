@@ -1,6 +1,6 @@
 # Designs, estimators and errors shared by the scaled lasso benchmarks.
 
-using CovSel, LinearAlgebra, SparseArrays, Random, Statistics, Printf
+using CovarianceSelection, LinearAlgebra, SparseArrays, Random, Statistics, Printf
 include(joinpath(@__DIR__, "..", "clime", "problems.jl"))      # precision_matrix, sample, writebin
 include(joinpath(@__DIR__, "..", "clime", "pilot", "omega1.jl"))  # omega1: the design of Cai, Liu and Zhou
 
@@ -41,7 +41,7 @@ function hadamard_precision(p::Int, k::Int; ρ=0.6)
 end
 
 errors(E) = (opnorm(Matrix(E)), opnorm(Matrix(E), 1), norm(E))
-likelihood(Sval, Ω) = CovSel._cvloss(Sval, Ω, :likelihood)
+likelihood(Sval, Ω) = CovarianceSelection._cvloss(Sval, Ω, :likelihood)
 
 # the estimate with the smallest validation loss, and its parameter
 function validated(estimates, params, Sval)
@@ -56,8 +56,8 @@ const PS = ParametricSimplex()
 # ACLIME's step 2 with the diagonal of a pilot estimate ω̂ in place of step 1
 function aclime_step2(S, n, ω, δs)
   p = size(S, 1)
-  spec = CovSel._CLIMESpec(sqrt.(diag(S)), false, 0.0)
-  CovSel._estimate(PS, S + I / n, spec, δs .* sqrt(log(p) / n), sqrt.(Vector{Float64}(ω)), true, 1, false)
+  spec = CovarianceSelection._CLIMESpec(sqrt.(diag(S)), false, 0.0)
+  CovarianceSelection._estimate(PS, S + I / n, spec, δs .* sqrt(log(p) / n), sqrt.(Vector{Float64}(ω)), true, 1, false)
 end
 
 # Run f() and return its value and the elapsed seconds, warnings silenced

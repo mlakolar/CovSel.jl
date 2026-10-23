@@ -33,7 +33,7 @@ allocations of each benchmark.
 ## Setup and running
 
 The benchmarks have their own environment, [`Project.toml`](Project.toml),
-which uses the CovSel in this repository. From the repository root, on Julia
+which uses the CovarianceSelection in this repository. From the repository root, on Julia
 1.11 or later:
 
 ```sh
@@ -64,7 +64,7 @@ julia --project=benchmark -e '
 
 ## Against the code before ProximalSolvers (`compare/`)
 
-[`compare/`](compare) times the solvers of CovSel master before the move onto
+[`compare/`](compare) times the solvers of CovarianceSelection master before the move onto
 ProximalSolvers (its own coordinate descent loss and ADMM loop, on
 CoordinateDescent 0.6.0 and ProximalBase 0.4.1; `compare/old/`) against this
 version (`compare/new/`), on the same problems and seeds. `run.jl` runs one side

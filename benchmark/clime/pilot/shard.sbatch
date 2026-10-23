@@ -3,7 +3,7 @@
 # the random stream, so the draws are those of pilot.jl), GNU Parallel, 1 CPU
 # each. Step 2 only for the pilots of the README tables, δ grid from 0.1. First
 # reproduces replication 2 of er, p = 50, from pilot.jl's output (full grid).
-# RUN holds a clone of CovSel.jl and a copy of this directory as RUN/pilot:
+# RUN holds a clone of CovarianceSelection.jl and a copy of this directory as RUN/pilot:
 #   sbatch --export=ALL,RUN=$RUN shard.sbatch
 #SBATCH --account=mkolar_1314
 #SBATCH --partition=main
@@ -15,7 +15,7 @@
 #SBATCH --time=00:55:00
 set -uo pipefail
 : "${RUN:?}"
-export PROJ=$RUN/CovSel.jl/benchmark/clime
+export PROJ=$RUN/CovarianceSelection.jl/benchmark/clime
 export JULIA=$HOME/juliaPkg/julia-1.13.2/bin/julia
 export JULIA_DEPOT_PATH=$HOME/juliaPkg/depot:
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1

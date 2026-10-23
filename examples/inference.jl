@@ -21,7 +21,7 @@
 # The default p = 500, n = 400 and 500 replications takes a few seconds;
 # COVSEL_EXAMPLES_QUICK=1 selects a smaller setting.
 
-using CovSel, CoordinateDescent
+using CovarianceSelection, CoordinateDescent
 using LinearAlgebra, Printf, Random, Statistics
 using UnicodePlots
 
@@ -71,7 +71,7 @@ T = zeros(numRep)
 covered = 0
 selected = 0
 elapsed = @elapsed for rep=1:numRep
-  data = CovSel.generateData(F, 2n)
+  data = CovarianceSelection.generateData(F, 2n)
   x = edgeInference(data[1:n, :], a, b)
   y = edgeInference(data[n+1:end, :], a, b)
   T[rep] = (x.estimate - y.estimate) / sqrt(x.variance + y.variance)

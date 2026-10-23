@@ -1,4 +1,5 @@
-# The solvers of CovSel before and after the move onto ProximalSolvers, run by the
+# The solvers of CovarianceSelection (CovSel before 0.1.0) before and after the
+# move onto ProximalSolvers, run by the
 # version in the active environment: old/ (CovSel master with its own
 # coordinate descent loss and ADMM loop, on CoordinateDescent 0.6.0 and
 # ProximalBase 0.4.1) or new/ (this checkout, on ProximalSolvers 0.1 and
@@ -12,11 +13,20 @@
 #     julia --project=benchmark/compare/old benchmark/compare/run.jl old [regex]
 #     julia --project=benchmark/compare/new benchmark/compare/run.jl new [regex]
 
-using CovSel, ProximalBase, LinearAlgebra, Printf, Random, Serialization, SparseArrays, Statistics
+using ProximalBase, LinearAlgebra, Printf, Random, Serialization, SparseArrays, Statistics
 BLAS.set_num_threads(1)
 
 const SIDE = ARGS[1]
 const OLD = SIDE == "old"
+
+# the package under test: CovSel, its name before 0.1.0, on the old side
+if OLD
+  using CovSel
+  const CS = CovSel
+else
+  using CovarianceSelection
+  const CS = CovarianceSelection
+end
 const ONLY = Regex(length(ARGS) > 1 ? ARGS[2] : ".")
 const SEED = 20261023
 
@@ -136,7 +146,7 @@ function iht_cases()
   s = 2p - 1
   η = 1 / (opnorm(Sx) * opnorm(Sy))
   run_case("differencePrecisionIHT p=50 s=$s", () -> ((Δ, fvals) = differencePrecisionIHT(Sx, Sy, η, s); (vec(Matrix(Δ)), length(fvals))))
-  ηU = η / (4 * opnorm(CovSel.differenceLatentPrecisionIHT_init(Sx, Sy, s, 1)[2]))
+  ηU = η / (4 * opnorm(CS.differenceLatentPrecisionIHT_init(Sx, Sy, s, 1)[2]))
   run_case("differenceLatentPrecisionIHT p=50 s=$s r=1", () -> begin
     Δ, L, U, fvals, iter = differenceLatentPrecisionIHT(Sx, Sy, η, ηU, s, 1; options=IHTOptions(; epsTol=1e-8, maxIter=500))
     (vcat(vec(Matrix(Δ)), vec(L)), iter)

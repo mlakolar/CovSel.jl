@@ -262,7 +262,7 @@ and dimension, [`speed.jl`](speed.jl) for the Julia timings, and
 [`bench_r.R`](bench_r.R) for scalreg (1.0.1, archived on CRAN; it needs lars),
 under GNU Parallel with one CPU per task, then the threaded timings;
 [`summarize.jl`](summarize.jl) makes the tables, and
-[`verify.jl`](verify.jl) checks that a version of CovSel reproduces the
+[`verify.jl`](verify.jl) checks that a version of CovarianceSelection reproduces the
 estimates stored by another run. Run `20261023T0951Z-covsel-scaledlasso`, at
 commit `95a36d0`; the accuracy of the design of Sun and Zhang with p ≤ 90 and
 p = 1000, of the design of Cai, Liu and Zhou with p ≤ 100 and of the Hadamard

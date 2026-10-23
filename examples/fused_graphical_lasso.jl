@@ -6,7 +6,7 @@
 #
 #   julia --project=examples examples/fused_graphical_lasso.jl
 
-using CovSel
+using CovarianceSelection
 using LinearAlgebra, Printf, Random, Statistics
 
 Random.seed!(2)
@@ -27,8 +27,8 @@ end
 Δ = Ωx - Ωy
 
 nx, ny = 300, 300
-X = CovSel.generateData(Ωx, nx)
-Y = CovSel.generateData(Ωy, ny)
+X = CovarianceSelection.generateData(Ωx, nx)
+Y = CovarianceSelection.generateData(Ωy, ny)
 Sx, Sy = cov(X), cov(Y)
 
 # fusedGraphicalLasso solves
@@ -46,10 +46,10 @@ println("   λ2   edges x   edges y   entries differing   TPR    FPR   ‖Ẑx -
 for λ2 in (0.0, 0.01, 0.02, 0.05, 0.1, 0.2)
   Zx, Zy = fusedGraphicalLasso(Sx, nx, Sy, ny, λ1, λ2)
   # the estimated difference is Zx - Zy; compare its support with that of Δ
-  c = CovSel.getConfusionMatrix(Δ, Zx - Zy; diagonal=false)
+  c = CovarianceSelection.getConfusionMatrix(Δ, Zx - Zy; diagonal=false)
   @printf("%5.2f   %7d   %7d   %17d   %.2f   %.3f   %.3f\n", λ2,
     count(x -> abs(x) > 1e-4, tril(Zx, -1)), count(x -> abs(x) > 1e-4, tril(Zy, -1)),
-    c.tp + c.fp, CovSel.tpr(c), CovSel.fpr(c), norm(Zx - Ωx) + norm(Zy - Ωy))
+    c.tp + c.fp, CovarianceSelection.tpr(c), CovarianceSelection.fpr(c), norm(Zx - Ωx) + norm(Zy - Ωy))
 end
 println("""
 λ2 = 0 fits the groups separately, and their estimates differ in many

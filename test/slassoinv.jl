@@ -1,8 +1,8 @@
 module ScaledLassoTest
 
 using Test, Random, LinearAlgebra, SparseArrays, Statistics
-using CovSel
-using CovSel: symmetrize_minabs
+using CovarianceSelection
+using CovarianceSelection: symmetrize_minabs
 
 Random.seed!(17)
 
@@ -32,7 +32,7 @@ function certificate(S, R, j, λ₀)
   viol
 end
 
-penalty(λ₀, p, n) = CovSel._penalty_level(λ₀, p, n)
+penalty(λ₀, p, n) = CovarianceSelection._penalty_level(λ₀, p, n)
 
 @testset "slassoinv" begin
 
@@ -40,7 +40,7 @@ penalty(λ₀, p, n) = CovSel._penalty_level(λ₀, p, n)
     for p in (1, 2, 30, 1000), n in (50, 400)
       λ = penalty(:quantile, p, n)
       L = λ * sqrt(n / 2)              # λ₀ = √2 Lₙ(k/p) = √(2/n) L₁(k/p)
-      @test sqrt(2) * CovSel.erfcinv(2 * (L^4 + 2L^2) / p) ≈ L rtol=1e-8
+      @test sqrt(2) * CovarianceSelection.erfcinv(2 * (L^4 + 2L^2) / p) ≈ L rtol=1e-8
     end
     # the value of the vendored AS 241 normal quantile of an earlier version
     @test penalty(:quantile, 1000, 100) ≈ 0.2809696376222422 rtol=1e-12
@@ -135,18 +135,18 @@ penalty(λ₀, p, n) = CovSel._penalty_level(λ₀, p, n)
   @testset "frequent refactorization and many breakpoints" begin
     # a small penalty on a larger problem passes through many events
     S = samplecov(ar1(80, 0.8), 400)
-    ws = CovSel._SLWorkspace(S)
+    ws = CovarianceSelection._SLWorkspace(S)
     λ = 0.01
     for refactor in (1, 3, 100)
-      cols = [CovSel._ColumnPath{Float64}(1) for _ in 1:80]
+      cols = [CovarianceSelection._ColumnPath{Float64}(1) for _ in 1:80]
       for j in 1:80
-        CovSel._sl_column!(ws, j, λ, false, cols[j]; refactor)
+        CovarianceSelection._sl_column!(ws, j, λ, false, cols[j]; refactor)
       end
-      R = CovSel._assemble(cols, 1)
+      R = CovarianceSelection._assemble(cols, 1)
       @test all(certificate(S, R, j, λ) < 1e-8 for j in 1:80)
     end
     # the safeguard against an endless path
-    @test_throws ErrorException CovSel._sl_column!(ws, 1, λ, false, CovSel._ColumnPath{Float64}(1); maxsteps=1)
+    @test_throws ErrorException CovarianceSelection._sl_column!(ws, 1, λ, false, CovarianceSelection._ColumnPath{Float64}(1); maxsteps=1)
   end
 
   @testset "estimation" begin
