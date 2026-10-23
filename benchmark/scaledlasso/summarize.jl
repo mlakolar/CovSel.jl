@@ -89,14 +89,14 @@ function accuracy_tables(d)
         println(row)
       end
     end
-    println("\nMean tuning parameter (λ₀ of SLasso, λ of CLIME, δ of ACLIME) and seconds per replication:\n")
+    println("\nMean tuning parameter (λ₀ of SLasso, λ of CLIME on the correlation matrix, δ of ACLIME) and median seconds per replication:\n")
     println("| model | p |", join((" $m |" for m in ms)))
     println("|---|---:|", repeat("---:|", length(ms)))
     for (model, p) in cs
       label = design == "hadamard" ? "k = $model" : get(names, model, "model $model")
       println("| $label | $p |", join((begin
         par, sec = values(d, design, model, p, m, 4), values(d, design, model, p, m, 5)
-        isempty(par) ? " — |" : @sprintf(" %.3f, %.2f s |", mean(par), mean(sec))
+        isempty(par) ? " — |" : @sprintf(" %.3f, %.3g s |", mean(par), median(sec))
       end for m in ms)))
     end
   end

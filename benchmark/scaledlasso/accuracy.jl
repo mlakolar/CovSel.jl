@@ -10,7 +10,10 @@
 #   those of replication r there);
 # - hadamard: MODEL = the block size k of hadamard_precision, n = 2000.
 # A validation sample of the same size chooses the penalty of CLIME and the δ of
-# ACLIME by the likelihood; the scaled lasso uses the training sample only. The
+# ACLIME by the likelihood; the scaled lasso uses the training sample only. CLIME
+# runs on the correlation matrix, its estimate scaled back, as recommended in
+# ../clime/README.md; the parameter of ACLIME, also with the diagonal of the
+# scaled lasso in place of its step 1, is δ. The
 # data of the replications before FIRST are drawn and discarded, so a range of
 # replications can run on its own. One row per method and replication is
 # appended to OUT.csv as soon as the replication is done:
@@ -57,16 +60,20 @@ function replication(design, Θ, S, Sval, n)
   Ω, t = timed(() -> scaledlasso(S, n; refit=true, ntasks=1))
   push!(rows, ("SLasso/LSE", errors(Ω - Θ), λ₀, t))
   p <= LPMAX || return rows
-  λs = exp.(range(log(1.0), log(0.03); length=40))
-  (Ω, λ), t = timed(() -> validated(clime(S, λs; ntasks=1), Sval))
+  λs = exp.(range(log(1.0), log(0.02); length=45))
+  h = 1 ./ sqrt.(diag(S))
+  (Ω, λ), t = timed() do
+    path = clime(h .* S .* h', λs; ntasks=1)
+    validated([Diagonal(h) * Θ * Diagonal(h) for Θ in path], path.λ, Sval)
+  end
   push!(rows, ("CLIME", errors(Ω - Θ), λ, t))
   # the grid of the replication; from 0.1 for larger p, where the chosen δ is larger
   δs = collect(((p <= 100 && design == "clz" ? 1 : 5):100) ./ 50)
   (Ω, δ), t = timed(() -> validated(aclime(S, n; δ=δs, ntasks=1), Sval))
   push!(rows, ("ACLIME", errors(Ω - Θ), δ, t))
   if design != "hadamard"
-    (Ω, δ), t2 = timed(() -> validated(aclime_step2(S, n, diag(R), δs), Sval))
-    push!(rows, ("ACLIME (scaled lasso pilot)", errors(Ω - Θ), δ, t2))
+    (Ω, λ), t2 = timed(() -> validated(aclime_step2(S, n, diag(R), δs), Sval))
+    push!(rows, ("ACLIME (scaled lasso pilot)", errors(Ω - Θ), λ / sqrt(log(p) / n), t2))
   end
   rows
 end

@@ -43,12 +43,13 @@ end
 errors(E) = (opnorm(Matrix(E)), opnorm(Matrix(E), 1), norm(E))
 likelihood(Sval, Ω) = CovSel._cvloss(Sval, Ω, :likelihood)
 
-# the estimate of a path with the smallest validation loss, and its parameter
-function validated(path, Sval)
-  loss = [likelihood(Sval, Ω) for Ω in path]
+# the estimate with the smallest validation loss, and its parameter
+function validated(estimates, params, Sval)
+  loss = [likelihood(Sval, Ω) for Ω in estimates]
   k = argmin(loss)
-  path[k], path.λ[k]
+  estimates[k], params[k]
 end
+validated(path, Sval) = validated(path, path.λ, Sval)
 
 const PS = ParametricSimplex()
 

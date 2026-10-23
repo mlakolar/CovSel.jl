@@ -46,7 +46,7 @@ acc() {  # design model p first last
     for m in 1 2 3; do
       for p in 30 60 90; do acc sz $m $p 1 100; done
       acc sz $m 150 1 50; acc sz $m 150 51 100
-      for r in 1 11 21 31 41; do acc sz $m 300 $r $((r + 9)); done
+      for r in 1 6 11 16; do acc sz $m 300 $r $((r + 4)); done
       acc sz $m 1000 1 100
     done
     for m in band ar1 er; do
