@@ -152,6 +152,10 @@ l1cols(R) = [norm(R[:, i], 1) for i in 1:size(R, 2)]
     @test iszero(clime(S, [1.5, 1.0], LPSolver(HiGHS.Optimizer))[1])
     # a status other than optimal or infeasible is an error
     @test_throws ErrorException clime(S, 0.1, LPSolver(HiGHS.Optimizer; attributes=("time_limit" => 0.0,)))
+    # without MathOptInterface, LPSolver explains what to load (the extension
+    # replaces these methods for the arguments that clime passes)
+    @test_throws ErrorException CovSel._solve_columns(LPSolver(nothing), nothing)
+    @test_throws ErrorException CovSel._solve_diagonal(LPSolver(nothing), nothing)
     # rank one: column 1 needs 1 - λ ≤ β₁ + β₂ ≤ λ, infeasible for λ < 1/2
     S = [1.0 1.0; 1.0 1.0]
     for solver in (LPSolver(HiGHS.Optimizer), ParametricSimplex(), DualSimplex())
@@ -203,6 +207,7 @@ l1cols(R) = [norm(R[:, i], 1) for i in 1:size(R, 2)]
   @testset "symmetrization" begin
     R = sparse([1.0 0.2 -0.5; 0.3 2.0 0.0; -0.1 1.0 3.0])
     @test symmetrize_minabs(R) == [1.0 0.2 -0.1; 0.2 2.0 0.0; -0.1 0.0 3.0]
+    @test symmetrize_minabs(Matrix(R)) == symmetrize_minabs(R)
     S = samplecov(ar1(20, 0.5), 50)
     raw = clime(S, 0.15; symmetrize=false)
     @test !issymmetric(raw)
