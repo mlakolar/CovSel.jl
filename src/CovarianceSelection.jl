@@ -12,6 +12,9 @@ Methods for learning high-dimensional Gaussian graphical models:
 * the graphical lasso by ADMM ([`covsel!`](@ref), [`covselpath`](@ref));
 * the fused graphical lasso for two groups ([`fusedGraphicalLasso`](@ref)) and
   fused neighborhood selection ([`fusedNeighborhoodSelection`](@ref));
+* K precision matrices with a shared sparsity pattern, the group graphical
+  lasso ([`groupGraphicalLasso`](@ref)), and graphs that vary over time by
+  kernel smoothing ([`tvCovSel`](@ref), [`kernelCovariances`](@ref));
 * direct estimation of the difference of two precision matrices by coordinate
   descent ([`differencePrecisionActiveShooting`](@ref),
   [`differencePrecisionRefit`](@ref)) or iterative hard thresholding, with an
@@ -40,6 +43,9 @@ export
   fusedGraphicalLasso, fusedGraphicalLasso!,   # Danaher et al.
   fusedNeighborhoodSelection,
 
+  # K precision matrices: shared support, time-varying graphs
+  groupGraphicalLasso, groupGraphicalLasso!, kernelCovariances, tvCovSel,
+
   # Direct Difference Estimation and Inference
   differencePrecisionActiveShooting, differencePrecisionActiveShooting!, differencePrecisionRefit,
   directDifferenceLoss, diffLoss,
@@ -61,6 +67,7 @@ include("LatentCovarianceSelection_IHT.jl")
 
 include("directDifference.jl")
 include("fusedDifference.jl")
+include("groupGraphicalLasso.jl")
 
 include("clime_simplex.jl")
 include("clime.jl")
