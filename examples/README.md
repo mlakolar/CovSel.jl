@@ -37,7 +37,7 @@ julia --project=examples -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()
 Until ProximalBase 0.5, ProximalOPT 0.2 and CoordinateDescent 0.7 are
 registered, `[sources]` also takes them from GitHub, and on Julia 1.10 they
 must be added in the same call:
-`Pkg.add([PackageSpec(url="https://github.com/mlakolar/ProximalBase.jl", rev="proximalbase-0.5"), PackageSpec(url="https://github.com/mlakolar/ProximalOPT.jl", rev="generic-solvers"), PackageSpec(url="https://github.com/mlakolar/CoordinateDescent.jl", rev="proximalopt-0.2")])`.
+`Pkg.add([PackageSpec(url="https://github.com/mlakolar/ProximalBase.jl", rev="51a4caf303804f81edcc13e1fcbf4767ba14f6cb"), PackageSpec(url="https://github.com/mlakolar/ProximalOPT.jl", rev="1f82ae5a30056bd7451b870afde6aec47d556de3"), PackageSpec(url="https://github.com/mlakolar/CoordinateDescent.jl", rev="3ff001d25628f9f9e15c03a63346cbb22b655d3f")])`.
 
 ## Running
 
