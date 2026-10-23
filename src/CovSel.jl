@@ -24,6 +24,7 @@ using ProximalBase
 using CoordinateDescent
 using SparseArrays, LinearAlgebra
 using Random: AbstractRNG, default_rng, randperm
+using SpecialFunctions: erfcinv
 
 export
   ADMMOptions, ADMMInfo, IHTOptions,

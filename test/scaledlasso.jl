@@ -36,23 +36,14 @@ penalty(λ₀, p, n) = CovSel._penalty_level(λ₀, p, n)
 
 @testset "scaledlasso" begin
 
-  @testset "normal quantile" begin
-    # values of Python's statistics.NormalDist().inv_cdf (also AS 241)
-    for (p, q) in ((0.975, 1.9599639845400534), (0.5, 0.0), (0.2, -0.8416212335729142),
-                   (0.01, -2.3263478740408408), (1e-10, -6.361340902404057),
-                   (1e-100, -21.273453560965322), (1 - 1e-10, 6.361340889697423))
-      @test CovSel._qnorm(p) ≈ q rtol=1e-14 atol=1e-300
-    end
-    @test_throws DomainError CovSel._qnorm(0.0)
-    @test_throws DomainError CovSel._qnorm(1.0)
-  end
-
   @testset "penalty levels" begin
     for p in (1, 2, 30, 1000), n in (50, 400)
       λ = penalty(:quantile, p, n)
       L = λ * sqrt(n / 2)              # λ₀ = √2 Lₙ(k/p) = √(2/n) L₁(k/p)
-      @test CovSel._qnorm((L^4 + 2L^2) / p) ≈ -L rtol=1e-8
+      @test sqrt(2) * CovSel.erfcinv(2 * (L^4 + 2L^2) / p) ≈ L rtol=1e-8
     end
+    # the value of the vendored AS 241 normal quantile of an earlier version
+    @test penalty(:quantile, 1000, 100) ≈ 0.2809696376222422 rtol=1e-12
     @test penalty(:universal, 100, 50) ≈ sqrt(2log(100) / 50)
     @test penalty(0.3, 100, 50) == 0.3
     @test_throws ArgumentError penalty(-0.1, 10, 10)
