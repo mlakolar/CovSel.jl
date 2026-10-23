@@ -31,6 +31,23 @@ CovarianceSelection was called CovSel before its first release.
   * sparsity constrained, by iterative hard thresholding: `differencePrecisionIHT`
   * sparse plus low rank: `differenceLatentPrecisionIHT`
 
+CovarianceSelection is one of five Julia packages for high-dimensional
+statistics, three for estimation and inference and two for the optimization
+beneath them:
+
+| Package | |
+|---|---|
+| [CoordinateDescent.jl](https://github.com/mlakolar/CoordinateDescent.jl) | the lasso and its paths; the group, square-root, scaled and heteroscedastic lasso; varying-coefficient models |
+| **CovarianceSelection.jl** (this package) | Gaussian graphical models: the graphical lasso, CLIME and ACLIME, precision matrices by the scaled lasso, the fused graphical lasso, and the difference of two precision matrices |
+| [DiffPrecTest.jl](https://github.com/mlakolar/DiffPrecTest.jl) | confidence intervals and tests for the difference of two precision matrices |
+| [ProximalSolvers.jl](https://github.com/mlakolar/ProximalSolvers.jl) | the solvers: coordinate descent with penalty paths, screening and active sets; proximal gradient methods, proximal Newton and ADMM |
+| [ProximalBase.jl](https://github.com/mlakolar/ProximalBase.jl) | the building blocks: losses, penalties and constraints with their gradients and proximal operators, and sparse iterates; [documentation](https://mlakolar.github.io/ProximalBase.jl/dev/) with the mathematics |
+
+Most users need one of the first three. To solve a problem of your own, use
+ProximalSolvers; to write your own algorithm, ProximalBase.
+
+## Usage
+
 ```julia
 using CovarianceSelection, ProximalBase, ProximalSolvers, LinearAlgebra, Statistics
 
@@ -115,8 +132,6 @@ Each column follows its lasso path exactly until the penalty of the scaled
 lasso; see [`benchmark/slassoinv`](benchmark/slassoinv) for its speed
 against the R package scalreg and its accuracy against CLIME and ACLIME.
 
-Package depends on [ProximalBase.jl](https://github.com/mlakolar/ProximalBase.jl) and [ProximalSolvers.jl](https://github.com/mlakolar/ProximalSolvers.jl).
-
 ## Examples
 
 The [`examples`](examples) folder has a script for each estimator: the
@@ -145,10 +160,3 @@ julia --project=benchmark benchmark/run.jl
 ```
 
 See [`benchmark/README.md`](benchmark/README.md) for details.
-
-## Related packages
-
-- [ProximalBase.jl](https://github.com/mlakolar/ProximalBase.jl): functions with gradients and proximal operators, and sparse iterates, with [documentation](https://mlakolar.github.io/ProximalBase.jl/dev/) of the closed forms.
-- [ProximalSolvers.jl](https://github.com/mlakolar/ProximalSolvers.jl): coordinate descent with penalty paths, screening and active sets, proximal gradient methods and ADMM.
-- [CoordinateDescent.jl](https://github.com/mlakolar/CoordinateDescent.jl): the lasso, group lasso, square-root and scaled lasso, and varying-coefficient models.
-- [DiffPrecTest.jl](https://github.com/mlakolar/DiffPrecTest.jl): confidence intervals and tests for the difference of two precision matrices.
