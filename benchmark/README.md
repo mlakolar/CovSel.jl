@@ -11,9 +11,9 @@ allocations of each benchmark.
 - **direct difference**: the ℓ1 penalized direct difference estimator on the
   problem of the removed `example1.jl` (Σx = I, Σy the AR(1) covariance with
   ρ = 0.7, n = 1000), for p = 20, 50, 100 and λ = 0.1, 0.2, solved by
-  - `differencePrecisionActiveShooting`: the package solver, at λ directly
-    from zero (the default), and with `warmStart=false`, which first solves
-    along a path of 50 decreasing λ values,
+  - `differencePrecisionActiveShooting`: the package solver, ProximalOPT's
+    coordinate descent, at λ directly from zero, and along a path of 50
+    decreasing λ values from λmax (`solve!` with `continuation = 50`),
   - `Reference.differencePrecisionNaive` from
     [`../test/reference.jl`](../test/reference.jl): full coordinate descent
     sweeps over dense matrices, the reference the tests check the package

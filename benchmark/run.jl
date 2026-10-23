@@ -10,14 +10,14 @@
 include("benchmarks.jl")
 using Printf
 
-println("Julia $VERSION, CovSel $(pkgversion(CovSel)), CoordinateDescent $(pkgversion(CoordinateDescent)), ",
+println("Julia $VERSION, CovSel $(pkgversion(CovSel)), ProximalOPT $(pkgversion(ProximalOPT)), ",
   "$(Threads.nthreads()) threads, $(BLAS.get_num_threads()) BLAS threads\n")
 
 println("Largest absolute difference between differencePrecisionActiveShooting and the reference solver:")
 for p in DIMENSIONS, λ in LAMBDAS
   Sx, Sy = PROBLEMS[p]
   naive = Reference.differencePrecisionNaive(Matrix(Sx), Matrix(Sy), λ, ones(p, p))
-  shooting = differencePrecisionActiveShooting(Sx, Sy, ProxL1(λ))
+  shooting = differencePrecisionActiveShooting(Sx, Sy, NormL1(λ))
   @printf("  p = %3d, λ = %.1f: %.1e\n", p, λ, maximum(abs, Matrix(shooting) - naive))
 end
 

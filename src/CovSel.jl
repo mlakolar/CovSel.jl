@@ -15,11 +15,15 @@ Methods for learning high-dimensional Gaussian graphical models:
   [`differencePrecisionRefit`](@ref)) or iterative hard thresholding, with an
   optional low rank component ([`differencePrecisionIHT`](@ref),
   [`differenceLatentPrecisionIHT`](@ref)).
+
+The losses and penalties are those of ProximalBase, and the graphical lasso and
+the direct difference estimator are solved by the ADMM and the coordinate
+descent of ProximalOPT.
 """
 module CovSel
 
 using ProximalBase
-using CoordinateDescent
+using ProximalOPT: ProximalOPT, ADMMSolver, CDSolver, ProximalOptions, refit!, solve!
 using SparseArrays, LinearAlgebra
 using Random: AbstractRNG, default_rng, randperm
 
@@ -34,7 +38,7 @@ export
 
   # Direct Difference Estimation and Inference
   differencePrecisionActiveShooting, differencePrecisionActiveShooting!, differencePrecisionRefit,
-  CDDirectDifferenceLoss, diffLoss,
+  directDifferenceLoss, diffLoss,
 
   differencePrecisionIHT,
   differenceLatentPrecisionIHT, differenceLatentPrecisionIHT!,

@@ -24,33 +24,21 @@ the sample covariances of held-out data it measures how well an estimate fits
 new data, so it serves as a validation loss for choosing the penalty of
 [`differencePrecisionActiveShooting`](@ref).
 """
-diffLoss(Σx::Symmetric{T}, Δ::SymmetricSparseIterate{T}, Σy::Symmetric{T}, p::Real) where {T<:AbstractFloat} =
-  _diffLoss((r, c) -> A_mul_X_mul_B_rc(Σx, Δ, Σy, r, c) - Σy[r, c] + Σx[r, c], size(Σx, 1), p)
-
-diffLoss(Σx::Symmetric{T}, Δ::SymmetricSparseIterate{T}, U::StridedMatrix{T}, Σy::Symmetric{T}, p::Real) where {T<:AbstractFloat} =
-  _diffLoss((r, c) -> A_mul_X_mul_B_rc(Σx, Δ, Σy, r, c) + A_mul_UUt_mul_B_rc(Σx, U, Σy, r, c) - Σy[r, c] + Σx[r, c], size(Σx, 1), p)
-
 diffLoss(Σx::Symmetric{T}, Δ::AbstractMatrix{T}, Σy::Symmetric{T}, p::Real) where {T<:AbstractFloat} =
-  _diffLoss(Σx * Δ * Σy - Σy + Σx, p)
+  _diffLoss(Σx * _dense(Δ) * Σy - Σy + Σx, p)
 
 diffLoss(Σx::Symmetric{T}, Δ::AbstractMatrix{T}, U::StridedMatrix{T}, Σy::Symmetric{T}, p::Real) where {T<:AbstractFloat} =
-  _diffLoss(Σx * (Δ + U * U') * Σy - Σy + Σx, p)
+  _diffLoss(Σx * (_dense(Δ) + U * U') * Σy - Σy + Σx, p)
+
+# products with a dense matrix go to BLAS
+_dense(Δ::SymmetricSparseIterate) = Matrix(Δ)
+_dense(Δ::AbstractMatrix) = Δ
 
 function _diffLoss(R::AbstractMatrix, p::Real)
   if p == 2
     return norm(R)
   elseif p == Inf
     return maximum(abs, R)
-  else
-    throw(ArgumentError("p should be 2 or Inf"))
-  end
-end
-
-function _diffLoss(residual, d::Int, p::Real)
-  if p == 2
-    return sqrt(sum(abs2(residual(r, c)) for c=1:d for r=1:d))
-  elseif p == Inf
-    return maximum(abs(residual(r, c)) for c=1:d for r=1:d)
   else
     throw(ArgumentError("p should be 2 or Inf"))
   end
@@ -65,117 +53,16 @@ end
 #
 ####################################
 """
-    CDDirectDifferenceLoss(Σx::Symmetric, Σy::Symmetric)
+    directDifferenceLoss(Σx::Symmetric, Σy::Symmetric)
 
-The direct difference loss `tr(Σx⋅Δ⋅Σy⋅Δ)/2 - tr(Δ⋅(Σy - Σx))` as a
-`CoordinateDifferentiableFunction` of a `SymmetricSparseIterate` `Δ`. Its
-minimizer with population covariances is `Δ = Ωx - Ωy`, the difference of the
-precision matrices (Zhao, Cai and Li, 2014). The coordinates are the entries of
-the lower triangle of `Δ`.
+The direct difference loss `tr(Σx⋅Δ⋅Σy⋅Δ)/2 - tr(Δ⋅(Σy - Σx))` of a symmetric
+`Δ`, as ProximalBase's `KronQuadratic(Σx, Σy, Σx - Σy)`. Its minimizer with
+population covariances is `Δ = Ωx - Ωy`, the difference of the precision
+matrices (Zhao, Cai and Li, 2014). ProximalOPT's coordinate descent minimizes
+it, plus a penalty, over a `SymmetricSparseIterate`, whose coordinates are the
+entries of the lower triangle.
 """
-struct CDDirectDifferenceLoss{T<:AbstractFloat, S} <: CoordinateDifferentiableFunction
-  Σx::Symmetric{T, S}
-  Σy::Symmetric{T, S}
-  X::Matrix{T}    # Σx and Σy as dense matrices; indexing a Symmetric branches on
-  Y::Matrix{T}    # every access, which dominates the updates below
-  A::Matrix{T}    # stores Σx⋅Δ⋅Σy
-  p::Int64
-end
-
-function CDDirectDifferenceLoss(Σx::Symmetric{T,S}, Σy::Symmetric{T,S}) where {T<:AbstractFloat} where S
-  (issymmetric(Σx) && issymmetric(Σy)) || throw(DimensionMismatch())
-  (p = size(Σx, 1)) == size(Σy, 1) || throw(DimensionMismatch())
-  CDDirectDifferenceLoss{T,S}(Σx, Σy, Matrix(Σx), Matrix(Σy), zeros(T, p, p), p)
-end
-
-CoordinateDescent.numCoordinates(f::CDDirectDifferenceLoss) = div(f.p * (f.p + 1), 2)
-
-# The loss as a function of the coordinate for Δ[r, c] (and Δ[c, r]) is
-# quadratic: this is its second derivative, and (Σy - Σx)[r, c], doubled off the
-# diagonal, is minus its derivative at Δ = 0.
-@inline function _curvature(X, Y, r, c)
-  @inbounds r == c ? X[r, r] * Y[r, r] : (X[r, r] * Y[c, c] + X[c, c] * Y[r, r]) + 2 * X[r, c] * Y[r, c]
-end
-
-# Scales for the stopping rule of CoordinateDescent 0.5 and later (relativeTol),
-# as for its quadratic loss: the change of coordinate k is measured as
-# |Δxₖ| √aₖ, with aₖ the curvature, and compared with optTol ⋅ maxₖ |bₖ| / √aₖ,
-# with -bₖ the derivative at zero. Neither depends on the units of Σx and Σy.
-if isdefined(CoordinateDescent, :coordinateScale)
-  CoordinateDescent.coordinateScale(f::CDDirectDifferenceLoss, k::Int) =
-    sqrt(_curvature(f.X, f.Y, ind2subLowerTriangular(f.p, k)...))
-
-  function CoordinateDescent.responseScale(f::CDDirectDifferenceLoss{T}) where {T<:AbstractFloat}
-    X, Y, p = f.X, f.Y, f.p
-    s = zero(T)
-    for c=1:p, r=c:p
-      b = (r == c ? 1 : 2) * (Y[r, c] - X[r, c])
-      s = max(s, abs(b) / sqrt(_curvature(X, Y, r, c)))
-    end
-    s
-  end
-end
-
-function CoordinateDescent.initialize!(f::CDDirectDifferenceLoss{T}, x::SymmetricSparseIterate{T}) where {T<:AbstractFloat}
-  copyto!(f.A, A_mul_X_mul_B(f.Σx, x, f.Σy))
-  nothing
-end
-
-function CoordinateDescent.gradient(
-  f::CDDirectDifferenceLoss{T},
-  x::SymmetricSparseIterate{T},
-  j::Int64) where {T<:AbstractFloat}
-
-  X, Y, A = f.X, f.Y, f.A
-  ri, ci = ind2subLowerTriangular(f.p, j)
-  @inbounds return (A[ri,ci] + A[ci,ri]) / 2 - (Y[ri, ci] - X[ri, ci])
-end
-
-
-function CoordinateDescent.descendCoordinate!(
-  f::CDDirectDifferenceLoss{T},
-  g::ProxL1{T},
-  x::SymmetricSparseIterate{T},
-  j::Int64) where {T<:AbstractFloat}
-
-  X, Y, A, p = f.X, f.Y, f.A, f.p
-  ri, ci = ind2subLowerTriangular(p, j)
-
-  a = _curvature(X, Y, ri, ci)
-  if ri == ci
-    @inbounds b = Y[ri,ri] - X[ri,ri] - A[ri,ri]
-  else
-    @inbounds b = 2 * (Y[ri,ci] - X[ri,ci]) - A[ri,ci] - A[ci,ri]
-  end
-  oldVal = x[ri, ci]
-  x[ri, ci] += b / a
-  newVal = cdprox!(g, x, j, ri == ci ? one(T) / a : 2 / a)
-  h = newVal - oldVal
-
-  # nothing to update when the coordinate did not move, as for most
-  # coordinates that stay at zero in a full pass
-  iszero(h) && return h
-
-  # update A = Σx⋅Δ⋅Σy for the change h in Δ[ri, ci] and Δ[ci, ri]:
-  # A += h⋅(Σx[:, ri]⋅Σy[ci, :] + Σx[:, ci]⋅Σy[ri, :]), or h⋅Σx[:, ri]⋅Σy[ri, :] on the diagonal
-  if ri == ci
-    @inbounds for ac=1:p
-      t = h * Y[ac, ri]
-      @simd for ar=1:p
-        A[ar, ac] += X[ar, ri] * t
-      end
-    end
-  else
-    @inbounds for ac=1:p
-      t1 = h * Y[ac, ci]
-      t2 = h * Y[ac, ri]
-      @simd for ar=1:p
-        A[ar, ac] += X[ar, ri] * t1 + X[ar, ci] * t2
-      end
-    end
-  end
-  h
-end
+directDifferenceLoss(Σx::Symmetric, Σy::Symmetric) = KronQuadratic(Σx, Σy, Σx - Σy)
 
 
 #####################################################
@@ -185,67 +72,54 @@ end
 #####################################################
 
 """
-    differencePrecisionActiveShooting(Σx, Σy, g::ProxL1, options=CDOptions())
-    differencePrecisionActiveShooting!(x, Σx, Σy, g::ProxL1, options=CDOptions())
+    differencePrecisionActiveShooting(Σx, Σy, g, method=CDSolver())
+    differencePrecisionActiveShooting!(x, Σx, Σy, g, method=CDSolver())
 
 Direct estimation of the difference of precision matrices `Δ = Ωx - Ωy`
 (Zhao, Cai and Li, 2014) by active shooting coordinate descent:
 
     minimize  tr(Σx⋅Δ⋅Σy⋅Δ)/2 - tr(Δ⋅(Σy - Σx)) + g(Δ)
 
-where `g` is a (weighted) ℓ1 penalty on the lower triangle of `Δ`. The
-in-place version warm starts from the `SymmetricSparseIterate` `x`.
-Returns the `SymmetricSparseIterate` estimate.
+where `g` is a separable penalty of ProximalBase on the entries of the
+symmetric `Δ`, such as `NormL1(λ)`, or `NormL1(λ, W)` with a symmetric `p × p`
+matrix of weights `W`; an off-diagonal entry is counted twice, as `Δ[r, c]`
+and `Δ[c, r]`. `method` is ProximalOPT's `CDSolver`. The in-place version warm
+starts from the `SymmetricSparseIterate` `x`. Returns the
+`SymmetricSparseIterate` estimate.
 """
-differencePrecisionActiveShooting!(
+function differencePrecisionActiveShooting!(
   x::SymmetricSparseIterate,
   Σx::Symmetric,
   Σy::Symmetric,
-  g::ProxL1,
-  options=CDOptions()) =
-  coordinateDescent!(x, CDDirectDifferenceLoss(Σx, Σy), g, options)
+  g::AbstractFunction,
+  method::CDSolver=CDSolver())
 
-
-function differencePrecisionActiveShooting(
-  Σx::Symmetric,
-  Σy::Symmetric,
-  g::ProxL1,
-  options=CDOptions())
-
-  f = CDDirectDifferenceLoss(Σx, Σy)
-  coordinateDescent!(SymmetricSparseIterate(eltype(Σx), f.p), f, g, options)
+  solve!(x, directDifferenceLoss(Σx, Σy), g, method)
+  x
 end
 
+differencePrecisionActiveShooting(
+  Σx::Symmetric,
+  Σy::Symmetric,
+  g::AbstractFunction,
+  method::CDSolver=CDSolver()) =
+  differencePrecisionActiveShooting!(SymmetricSparseIterate(float(eltype(Σx)), size(Σx, 1)), Σx, Σy, g, method)
+
 """
-    differencePrecisionRefit(Σx, Σy, S, options=CDOptions())
+    differencePrecisionRefit(Σx, Σy, S)
 
 Minimize the direct difference loss `tr(Σx⋅Δ⋅Σy⋅Δ)/2 - tr(Δ⋅(Σy - Σx))` over
 symmetric `Δ` supported on `S`, a collection of linear or Cartesian indices into
-a `p × p` matrix (an entry and its transpose are the same coordinate).
+a `p × p` matrix (an entry and its transpose are the same coordinate). The
+minimizer solves the linear system of the Hessian on the support; when it is
+singular, a solution of the rank-deficient system.
 """
-function differencePrecisionRefit(
-  Σx::Symmetric{T},
-  Σy::Symmetric{T},
-  S,
-  options=CDOptions()
-  ) where T
-
-  f = CDDirectDifferenceLoss(Σx, Σy)
-  t = CoordinateDescent.numCoordinates(f)
-  # entries outside of S get a huge penalty
-  ω = fill(T(1e10), t)
-  for i=S
-    r, c = Tuple(CartesianIndices(Σx)[i])
-    ω[r >= c ? sub2indLowerTriangular(f.p, r, c) : sub2indLowerTriangular(f.p, c, r)] = zero(T)
-  end
-  g = ProxL1(one(T), ω)
-  x = SymmetricSparseIterate(T, f.p)
-  coordinateDescent!(x, f, g, options)
+function differencePrecisionRefit(Σx::Symmetric, Σy::Symmetric, S)
+  p = size(Σx, 1)
+  entries = CartesianIndices((p, p))
+  support = unique!(sort!([(rc = Tuple(entries[i]); tril_index(p, max(rc...), min(rc...))) for i in S]))
+  refit!(SymmetricSparseIterate(float(eltype(Σx)), p), directDifferenceLoss(Σx, Σy); support)
 end
-
-
-
-
 
 
 
@@ -298,7 +172,7 @@ end
 function _densify!(D::StridedMatrix{T}, Δ::SymmetricSparseIterate{T}) where {T<:AbstractFloat}
   fill!(D, zero(T))
   for k=1:nnz(Δ)
-    r, c = ind2subLowerTriangular(Δ.p, Δ.nzval2ind[k])
+    r, c = tril_cartesian(Δ.p, Δ.nzval2ind[k])
     D[r, c] = D[c, r] = Δ.nzval[k]
   end
   D

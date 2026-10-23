@@ -5,7 +5,8 @@
 # Groups:
 #   "direct difference": the ℓ1 penalized direct difference estimator solved by
 #     differencePrecisionActiveShooting, directly and along a path of λ values
-#     (warmStart=false), and by the naive reference solver in test/reference.jl
+#     from λmax (ProximalOPT's continuation), and by the naive reference solver
+#     in test/reference.jl
 #     (the comparison of the removed example1.jl); iterative hard
 #     thresholding, sparse and sparse plus rank one
 #   "ADMM": the graphical lasso and the fused graphical lasso
@@ -14,7 +15,7 @@
 #   "generateData": drawing samples, from Ω and from its Cholesky factor
 
 using BenchmarkTools
-using CovSel, CoordinateDescent, ProximalBase
+using CovSel, ProximalBase, ProximalOPT
 using LinearAlgebra, Random, Statistics
 
 include(joinpath(@__DIR__, "..", "test", "reference.jl"))
@@ -46,9 +47,9 @@ for p in DIMENSIONS
     g["Reference.differencePrecisionNaive"] =
       @benchmarkable Reference.differencePrecisionNaive($Sxd, $Syd, $λ, $ω)
     g["differencePrecisionActiveShooting"] =
-      @benchmarkable differencePrecisionActiveShooting($Sx, $Sy, ProxL1($λ))
-    g["differencePrecisionActiveShooting, warmStart=false"] =
-      @benchmarkable differencePrecisionActiveShooting($Sx, $Sy, ProxL1($λ), CDOptions(; warmStart=false))
+      @benchmarkable differencePrecisionActiveShooting($Sx, $Sy, NormL1($λ))
+    g["path of 50 λ from λmax"] =
+      @benchmarkable solve!(SymmetricSparseIterate($p), directDifferenceLoss($Sx, $Sy), NormL1($λ), CDSolver(); continuation=50)
   end
   # at most 2p - 1 nonzero entries in the lower triangle, the size of the true
   # support; step sizes as in examples/latent_difference.jl
