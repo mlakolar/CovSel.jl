@@ -143,3 +143,10 @@ julia --project=benchmark benchmark/run.jl
 ```
 
 See [`benchmark/README.md`](benchmark/README.md) for details.
+
+## Related packages
+
+- [ProximalBase.jl](https://github.com/mlakolar/ProximalBase.jl): functions with gradients and proximal operators, and sparse iterates, with [documentation](https://mlakolar.github.io/ProximalBase.jl/dev/) of the closed forms.
+- [ProximalSolvers.jl](https://github.com/mlakolar/ProximalSolvers.jl): coordinate descent with penalty paths, screening and active sets, proximal gradient methods and ADMM.
+- [CoordinateDescent.jl](https://github.com/mlakolar/CoordinateDescent.jl): the lasso, group lasso, square-root and scaled lasso, and varying-coefficient models.
+- [DiffPrecTest.jl](https://github.com/mlakolar/DiffPrecTest.jl): confidence intervals and tests for the difference of two precision matrices.
