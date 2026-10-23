@@ -1,8 +1,9 @@
 # CLIME solvers
 
 A comparison of the solvers of [`clime`](../../src/clime.jl) with each other
-and with the R packages that implement CLIME, and a replication of the
-simulation of Cai, Liu and Zhou (2016) for ACLIME.
+and with the R packages that implement CLIME, a replication of the simulation
+of Cai, Liu and Zhou (2016) for ACLIME, and a study of the first step of
+ACLIME.
 
 ## Recommendations
 
@@ -36,11 +37,14 @@ simulation of Cai, Liu and Zhou (2016) for ACLIME.
 On the statistics side (the replication below): the penalty of CLIME is in the
 units of `SΩ`, so standardize the data, and choose λ by `climecv` with the
 likelihood loss; the trace loss of Cai, Liu and Luo (2011) chose penalties much
-too large. ACLIME's δ = 2 is conservative: choose δ by `aclimecv`. The rule of
-the paper for large variances in step 1 (`truncate=true`) depends on the units
-of the variables and in the design of the paper applies to most variables; it
-is off by default. Without it ACLIME was more accurate for the band model and
-the Erdős–Rényi model with p ≤ 100, less for AR(1) and Erdős–Rényi with p = 200.
+too large. ACLIME's δ = 2 is conservative: choose δ by `aclimecv`. Its first
+step, with δ₁ = 2, underestimates the diagonal of Ω by a factor of 2 to 4 in
+the design of the paper, but better estimates did not improve the estimate of
+Ω once δ is chosen by validation (below). The rule of the paper for large
+variances in step 1 (`truncate=true`) depends on the units of the variables
+and in the design of the paper applies to most variables; it is off by
+default. Without it ACLIME was more accurate for the band model and the
+Erdős–Rényi model with p ≤ 100, less for AR(1) and Erdős–Rényi with p = 200.
 
 ## Results
 
@@ -268,7 +272,134 @@ Mean tuning parameters:
 - This table ran on a laptop (it measures accuracy, not time); with the same
   seeds, the Discovery run gave the same numbers to the last digit.
 
+## The first step of ACLIME
 
+Step 1 of ACLIME estimates the diagonal of Ω, which scales the constraints of
+step 2, by a linear program with the constant δ₁ = 2, and the theory of the
+paper needs `ω̂ᵢᵢ/ωᵢᵢ → 1`. The scripts in [`pilot/`](pilot) measure how good
+that estimate is and how much its quality matters, in the design of the
+replication above, with the same random draws (50 replications for p = 50 and
+100, 20 for p = 200), without the rule for large variances (the default), and
+with δ of step 2 chosen by the validation likelihood from `(1:100)/50`. The
+estimates of the diagonal ("pilots") compared:
+
+- step 1 of the paper with δ₁ = 0.25, 0.5, 1, 1.5, 2 (the default) and 3;
+- step 1 on the standardized data, that is, with the scale `√(Sᵢᵢ Sⱼⱼ)` in
+  place of `Sᵢᵢ ∨ Sⱼⱼ`, which makes it invariant to the units of the variables;
+- refits: the residual variance of the least squares regression of each
+  variable on the support of its column in step 1 (standardized, δ₁ = 2), with
+  `n − 1 − |support|` degrees of freedom;
+- the diagonal of `S⁻¹` with its bias removed, `(n − p − 2)/(n − 1) diag(S⁻¹)`
+  (p < n only);
+- `1/Sᵢᵢ`, the value for a variable unrelated to the others (`ωᵢᵢ ≥ 1/σᵢᵢ`);
+- the true `ωᵢᵢ`;
+- and, for comparison, ACLIME on the correlation matrix `R`, scaled back.
+
+The study ran on Discovery (run `20261023T0701Z-covsel-aclime-pilot`, at
+commit `a8aec49`). For p = 200, to fit the time budget, step 2 ran only for the
+pilots in the tables below and on δ ≥ 0.1; no chosen δ was at 0.1, so this
+changes nothing. With the default pilot the errors equal those of the
+replication above.
+
+Median of `ω̂ᵢᵢ/ωᵢᵢ` over the variables (10% and 90% quantiles), mean over the
+replications:
+
+| model | p | δ₁ = 0.5 | δ₁ = 1 | δ₁ = 2 | δ₁ = 3 | δ₁ = 2, standardized | δ₁ = 2, standardized, refit | 1/Sᵢᵢ |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| band | 50 | 0.56 (0.47–0.65) | 0.39 (0.33–0.47) | 0.28 (0.24–0.33) | 0.24 (0.20–0.28) | 0.32 (0.28–0.37) | 0.78 (0.69–0.91) | 0.34 (0.30–0.40) |
+| band | 100 | 0.54 (0.45–0.62) | 0.38 (0.32–0.44) | 0.26 (0.23–0.31) | 0.23 (0.19–0.26) | 0.30 (0.27–0.34) | 0.77 (0.67–0.88) | 0.33 (0.30–0.39) |
+| band | 200 | 0.52 (0.44–0.60) | 0.36 (0.30–0.42) | 0.25 (0.22–0.29) | 0.22 (0.19–0.25) | 0.28 (0.26–0.32) | 0.76 (0.66–0.87) | 0.33 (0.29–0.38) |
+| AR(1) | 50 | 0.63 (0.55–0.72) | 0.49 (0.42–0.57) | 0.38 (0.33–0.44) | 0.33 (0.29–0.39) | 0.42 (0.38–0.48) | 0.78 (0.69–0.90) | 0.48 (0.42–0.55) |
+| AR(1) | 100 | 0.61 (0.53–0.70) | 0.47 (0.41–0.55) | 0.37 (0.31–0.43) | 0.32 (0.28–0.37) | 0.40 (0.36–0.46) | 0.78 (0.68–0.89) | 0.47 (0.42–0.54) |
+| AR(1) | 200 | 0.60 (0.52–0.69) | 0.46 (0.40–0.53) | 0.36 (0.31–0.41) | 0.32 (0.27–0.36) | 0.39 (0.35–0.44) | 0.77 (0.67–0.88) | 0.47 (0.42–0.54) |
+| Erdős–Rényi | 50 | 0.79 (0.55–0.96) | 0.65 (0.40–0.85) | 0.51 (0.27–0.73) | 0.44 (0.20–0.66) | 0.55 (0.30–0.75) | 0.97 (0.83–1.12) | 0.63 (0.26–0.94) |
+| Erdős–Rényi | 100 | 0.74 (0.54–0.90) | 0.59 (0.39–0.76) | 0.46 (0.27–0.64) | 0.40 (0.21–0.57) | 0.49 (0.30–0.65) | 0.89 (0.75–1.04) | 0.59 (0.30–0.84) |
+| Erdős–Rényi | 200 | 0.69 (0.54–0.84) | 0.55 (0.39–0.69) | 0.43 (0.28–0.57) | 0.37 (0.23–0.51) | 0.44 (0.30–0.58) | 0.77 (0.64–0.92) | 0.56 (0.34–0.77) |
+
+Error in spectral norm with δ chosen by validation, and the mean paired
+difference to the default pilot (* when larger than twice its standard error):
+
+| model | p | δ₁ = 2 (default) | δ₁ = 0.5 | standardized, refit | diag of S⁻¹ | 1/Sᵢᵢ | true ωᵢᵢ | ACLIME on R |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| band | 50 | 0.24 | 0.23 (-0.01*) | 0.24 (+0.00) | 0.23 (-0.00) | 0.24 (+0.00) | 0.25 (+0.01) | 0.26 (+0.02*) |
+| band | 100 | 0.33 | 0.33 (-0.00) | 0.35 (+0.02*) | 0.34 (+0.00) | 0.36 (+0.02*) | 0.37 (+0.04*) | 0.36 (+0.03*) |
+| band | 200 | 0.59 | 0.57 (-0.03*) | 0.62 (+0.03*) | — | 0.62 (+0.02*) | 0.63 (+0.04*) | 0.53 (-0.06*) |
+| AR(1) | 50 | 0.50 | 0.51 (+0.01) | 0.52 (+0.01*) | 0.51 (+0.01) | 0.52 (+0.01*) | 0.52 (+0.02*) | 0.51 (+0.00) |
+| AR(1) | 100 | 0.69 | 0.69 (-0.01*) | 0.71 (+0.02*) | 0.70 (+0.00) | 0.71 (+0.02*) | 0.71 (+0.02*) | 0.68 (-0.01) |
+| AR(1) | 200 | 0.96 | 0.94 (-0.02*) | 0.97 (+0.01) | — | 0.98 (+0.02*) | 0.98 (+0.02*) | 0.87 (-0.08*) |
+| Erdős–Rényi | 50 | 0.62 | 0.62 (+0.00) | 0.57 (-0.05*) | 0.55 (-0.07*) | 0.58 (-0.04*) | 0.60 (-0.02) | 0.53 (-0.09*) |
+| Erdős–Rényi | 100 | 0.82 | 0.82 (+0.00) | 0.83 (+0.01) | 0.81 (-0.01) | 0.82 (+0.00) | 0.89 (+0.07*) | 0.82 (+0.00) |
+| Erdős–Rényi | 200 | 1.80 | 1.69 (-0.11*) | 1.73 (-0.07) | — | 1.94 (+0.14*) | 1.83 (+0.03) | 1.75 (-0.04) |
+
+The δ chosen by validation, and the errors at δ = 2:
+
+| model | p | δ, default pilot | δ, true ωᵢᵢ | spectral at chosen δ | spectral at δ = 2, default pilot | at δ = 2, true ωᵢᵢ |
+|---|---:|---:|---:|---:|---:|---:|
+| band | 50 | 0.43 | 0.23 | 0.24 | 0.96 | 1.13 |
+| band | 100 | 0.59 | 0.31 | 0.33 | 1.08 | 1.24 |
+| band | 200 | 0.76 | 0.39 | 0.59 | 1.22 | 1.37 |
+| AR(1) | 50 | 0.56 | 0.35 | 0.50 | 1.02 | 1.11 |
+| AR(1) | 100 | 0.67 | 0.41 | 0.69 | 1.18 | 1.27 |
+| AR(1) | 200 | 0.76 | 0.46 | 0.96 | 1.35 | 1.44 |
+| Erdős–Rényi | 50 | 0.26 | 0.21 | 0.62 | 1.24 | 1.65 |
+| Erdős–Rényi | 100 | 0.52 | 0.32 | 0.82 | 2.02 | 2.59 |
+| Erdős–Rényi | 200 | 0.75 | 0.41 | 1.80 | 3.15 | 3.90 |
+
+The bias as n grows, p = 100, one sample for each n ([`scaling.jl`](pilot/scaling.jl)):
+
+| model | n | λ₁ (δ₁ = 2) | δ₁ = 0.5 | δ₁ = 2 | δ₁ = 0.5, standardized | δ₁ = 2, standardized |
+|---|---:|---:|---:|---:|---:|---:|
+| band | 200 | 0.303 | 0.54 (0.46–0.63) | 0.26 (0.24–0.30) | 0.64 (0.57–0.71) | 0.30 (0.27–0.34) |
+| band | 800 | 0.152 | 0.71 (0.63–0.77) | 0.38 (0.33–0.44) | 0.77 (0.73–0.82) | 0.45 (0.42–0.47) |
+| band | 3200 | 0.076 | 0.81 (0.73–0.85) | 0.52 (0.44–0.57) | 0.87 (0.84–0.89) | 0.61 (0.59–0.63) |
+| band | 12800 | 0.038 | 0.89 (0.86–0.91) | 0.68 (0.60–0.72) | 0.93 (0.91–0.94) | 0.76 (0.74–0.77) |
+| AR(1) | 200 | 0.303 | 0.62 (0.53–0.71) | 0.37 (0.32–0.42) | 0.70 (0.62–0.80) | 0.40 (0.36–0.46) |
+| AR(1) | 800 | 0.152 | 0.74 (0.67–0.80) | 0.48 (0.42–0.53) | 0.80 (0.75–0.85) | 0.53 (0.50–0.57) |
+| AR(1) | 3200 | 0.076 | 0.82 (0.75–0.86) | 0.60 (0.50–0.63) | 0.88 (0.85–0.90) | 0.66 (0.64–0.68) |
+| AR(1) | 12800 | 0.038 | 0.89 (0.86–0.92) | 0.71 (0.65–0.75) | 0.93 (0.91–0.94) | 0.78 (0.77–0.79) |
+| Erdős–Rényi | 200 | 0.303 | 0.71 (0.54–0.86) | 0.43 (0.25–0.61) | 0.79 (0.60–0.97) | 0.46 (0.31–0.66) |
+| Erdős–Rényi | 800 | 0.152 | 0.84 (0.72–0.94) | 0.60 (0.43–0.73) | 0.89 (0.79–0.96) | 0.64 (0.49–0.76) |
+| Erdős–Rényi | 3200 | 0.076 | 0.90 (0.81–0.96) | 0.68 (0.52–0.82) | 0.93 (0.85–0.98) | 0.75 (0.60–0.87) |
+| Erdős–Rényi | 12800 | 0.038 | 0.96 (0.90–0.99) | 0.84 (0.70–0.92) | 0.97 (0.94–0.99) | 0.89 (0.80–0.93) |
+
+- **The estimates of step 1 are far too small.** With δ₁ = 2 the median of
+  `ω̂ᵢᵢ/ωᵢᵢ` is 0.25–0.51 for n = 200, below even `1/Sᵢᵢ`, and still 0.68–0.84
+  for n = 12800; each fourfold increase of n, which halves λ₁, removed only
+  16–50% of the remaining bias. The constraint of step 1 for entry i of column
+  j, `λ₁ (Sᵢᵢ ∨ Sⱼⱼ) bⱼⱼ`, is wider than the noise of `(Ŝ ωⱼ − eⱼ)ᵢ`, of order
+  `λ₁ √(σᵢᵢ ωⱼⱼ)`, by the factor `(σᵢᵢ ∨ σⱼⱼ) √(ωⱼⱼ/σᵢᵢ) ≥ 1`, which is 1 only
+  when Σ is a multiple of the identity (the case of Remark 1 of the paper); the
+  ℓ1 minimization uses the slack to shrink the regression of variable j on the
+  others, which inflates its residual variance `1/ωⱼⱼ`. A smaller δ₁ is less
+  biased, standardizing helps little, and the least squares refit removes most
+  of the bias.
+- **For step 2 this matters little.** With δ chosen by validation, the errors of
+  all the pilots are mostly within 5% of each other, and the true diagonal was
+  never significantly better than the default in spectral norm (significantly
+  worse, by 2–11%, in 6 of the 9 cases). The constraints of step 2 scale with
+  `√ω̂ᵢᵢ`, so a pilot that is too small by a common factor is offset by a larger
+  δ: with the default pilot the chosen δ is 1.2–2 times that with the true
+  diagonal. The largest gains from better pilots were for the Erdős–Rényi
+  model: for p = 50 the diagonal of `S⁻¹` and the refit reduced the errors by
+  6–14%, depending on the norm, and for p = 200 δ₁ = 0.5 by 6% (8% in
+  Frobenius norm). In spectral norm δ₁ = 0.5 was up to 6% better than δ₁ = 2,
+  or within 0.5%, except for AR(1) with p = 50 (2% worse). The matrix ℓ1 and
+  Frobenius norms give the same picture.
+- **At δ = 2 the pilot does matter,** but there the errors are 1.4–4 times
+  those at the chosen δ, and larger still with the true diagonal: δ = 2 is
+  conservative, and the small pilot partly offsets it: with the true diagonal
+  it would act like the constant `δ √(ω̂ᵢᵢ/ωᵢᵢ)`.
+- ACLIME on the correlation matrix, which is invariant to the units of the
+  variables, was more accurate for the band and AR(1) models with p = 200 and
+  the Erdős–Rényi model with p = 50, and less accurate for the band model with
+  p ≤ 100. Without standardizing, neither step of ACLIME is invariant:
+  rescaling each variable by a factor uniform on (1, 5) changed the estimates
+  of step 1 by up to 30% and the estimate by 17%
+  ([`invariance.jl`](pilot/invariance.jl)).
+
+So δ₁ = 2 gives poor estimates of the diagonal but a good enough pilot: better
+estimates did not give better estimates of Ω once δ is chosen by validation.
+The default stays δ₁ = 2, as in the paper; choose δ by `aclimecv`.
 
 ## What is compared
 
@@ -328,7 +459,10 @@ problems, [`make_tasks.jl`](make_tasks.jl) the list of tasks, which GNU
 Parallel runs one CPU each ([`run_julia.jl`](run_julia.jl) for the Julia
 solvers, [`bench_r.R`](bench_r.R) for the R packages,
 [`aclime_table.jl`](aclime_table.jl) for the replication), and
-[`summarize.jl`](summarize.jl) makes the tables. On a laptop, for one problem:
+[`summarize.jl`](summarize.jl) makes the tables. The study of the first step
+of ACLIME ran as two more jobs, [`pilot/pilot.sbatch`](pilot/pilot.sbatch) and,
+for p = 200 one replication per task, [`pilot/shard.sbatch`](pilot/shard.sbatch).
+On a laptop, for one problem:
 
 ```sh
 julia --project=benchmark/clime -e 'using Pkg; Pkg.instantiate()'
