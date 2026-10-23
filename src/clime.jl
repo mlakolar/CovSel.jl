@@ -554,9 +554,13 @@ end
 
 Adaptive CLIME (ACLIME) estimate of the precision matrix `Ω = Σ⁻¹` from the
 unbiased sample covariance matrix `S` of `n` observations (Cai, Liu and Zhou,
-2016). It is CLIME with a constraint for each entry scaled by its standard
-deviation, which makes it invariant to rescaling the variables and leaves only
-a universal constant `δ`, for which the theory suggests 2.
+2016). It is CLIME with the constraint of each entry scaled by estimated
+standard deviations, which adapts the penalty to the scales of the variables
+and leaves only a universal constant `δ`, for which the theory suggests 2. The
+estimate is not invariant to rescaling single variables, though: the ℓ1 norm
+and the scale `Sⱼⱼ ∨ Sᵢᵢ` of step 1 depend on their units. Passing the
+correlation matrix `R = D^(-1/2) S D^(-1/2)`, with `D` the diagonal of `S`, and
+scaling the estimate back, `D^(-1/2) Ω̂ D^(-1/2)`, gives an estimate that is.
 
 With `Ŝ = S + I/n`, `λₙ = δ √(log p / n)` and `λ₁ = δ₁ √(log p / n)`:
 
