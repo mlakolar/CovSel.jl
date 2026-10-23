@@ -2,7 +2,7 @@
 #
 #   julia benchmark/scaledlasso/summarize.jl RESULTS_DIR
 #
-# Prints Markdown tables: speed (julia.csv and r.csv in RESULTS_DIR/speed) and
+# Prints Markdown tables: speed (julia_*.csv and r_*.csv in RESULTS_DIR/speed) and
 # accuracy (RESULTS_DIR/accuracy/*.csv): mean errors with standard errors, and
 # for the design of Sun and Zhang the means of their Table 1.
 
@@ -102,16 +102,18 @@ function accuracy_tables(d)
   end
 end
 
+csvlines(prefix) = [split(l, ',') for f in readdir(joinpath(RES, "speed"); join=true)
+                    if startswith(basename(f), prefix) && endswith(f, ".csv") for l in eachline(f)]
+
 function speed_tables()
-  f = joinpath(RES, "speed", "julia.csv")
-  isfile(f) || return
-  rows = [split(l, ',') for l in eachline(f)]
+  isdir(joinpath(RES, "speed")) || return
+  rows = csvlines("julia_")
+  isempty(rows) && return
   key(x) = (x[1], parse(Int, x[2]), parse(Int, x[3]))
   probs = sort(unique(key.(rows)); by=k -> (k[1], k[2], k[3]))
   get1(k, method, nt) = (r = filter(x -> key(x) == k && x[4] == method && (nt == 0 || parse(Int, x[5]) == nt), rows);
                          isempty(r) ? nothing : r[end])
-  rfile = joinpath(RES, "speed", "r.csv")
-  rrows = isfile(rfile) ? [split(l, ',') for l in eachline(rfile)] : []
+  rrows = csvlines("r_")
   getr(k) = (r = filter(x -> x[1] == "$(k[1])_p$(k[2])_n$(k[3])_s$(7 + k[2] + k[3])", rrows); isempty(r) ? nothing : r[end])
   fmt(t) = t < 0.01 ? @sprintf("%.4f", t) : t < 1 ? @sprintf("%.3f", t) : t < 100 ? @sprintf("%.2f", t) : @sprintf("%.0f", t)
   println("\n### Seconds for the whole estimate (relative to scaledlasso on one thread)\n")

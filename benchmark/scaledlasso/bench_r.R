@@ -6,7 +6,7 @@
 #
 # DIR holds X.bin (N × P doubles, column-major) and lambda0.txt. scalreg 1.0.1 is
 # archived on CRAN; install it from the archive (it needs lars), as in
-# ../clime/install_r.R. Appends DIR's name, the seconds and the largest
+# ../clime/install_r.R. Writes DIR's name, the seconds and the largest
 # difference to est.bin (relative to its largest entry) to OUT.csv.
 
 args <- commandArgs(trailingOnly = TRUE)

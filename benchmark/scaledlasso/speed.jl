@@ -5,11 +5,11 @@
 # The data X (n × p, mean zero) are drawn with the seed 7 + p + n, and S = X'X/n.
 # Times scaledlasso (λ₀ = :quantile, with and without the least squares refit) on
 # one thread, the best of up to 5 runs; with `threads`, on all of Julia's threads
-# instead. Without `threads`, also writes X.bin and the estimate est.bin for the
+# instead. Writes OUTDIR/julia_MODEL_pP_nN_MODE.csv. Without `threads`, also
+# writes X.bin and the estimate est.bin for the
 # R package scalreg (bench_r.R), when p ≤ RPMAX (default 1000), and times the
 # scaled lasso of CoordinateDescent column by column, when p ≤ CDPMAX (default
-# 1000). Appends a line to OUTDIR/julia.csv:
-# model,p,n,method,threads,seconds,nnz,maxdiff
+# 1000). One line per method: model,p,n,method,threads,seconds,nnz,maxdiff
 # where maxdiff is the largest difference to scaledlasso, relative to its largest
 # entry.
 
@@ -57,7 +57,7 @@ function main(model, p, n, outdir, mode)
   λ₀ = CovSel._penalty_level(:quantile, p, n)
   scaledlasso(S[1:10, 1:10], n)                      # compile
   mkpath(outdir)
-  io = open(joinpath(outdir, "julia.csv"), "a")
+  io = open(joinpath(outdir, "julia_$(model)_p$(p)_n$(n)_$(mode).csv"), "w")
   line(method, nt, t, nz, d) = (@printf(io, "%s,%d,%d,%s,%d,%.6g,%d,%.3g\n", model, p, n, method, nt, t, nz, d); flush(io))
   if mode == "threads"
     nt = Threads.nthreads()
