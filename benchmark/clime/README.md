@@ -36,10 +36,11 @@ simulation of Cai, Liu and Zhou (2016) for ACLIME.
 On the statistics side (the replication below): the penalty of CLIME is in the
 units of `SΩ`, so standardize the data, and choose λ by `climecv` with the
 likelihood loss; the trace loss of Cai, Liu and Luo (2011) chose penalties much
-too large. ACLIME's δ = 2 is conservative: choose δ by `aclimecv`. Its rule for
-large variances in step 1 matters: in the design of the paper it applies to
-most variables, and without it (`truncate=false`) ACLIME was the most accurate
-estimator for two of the three models.
+too large. ACLIME's δ = 2 is conservative: choose δ by `aclimecv`. The rule of
+the paper for large variances in step 1 (`truncate=true`) depends on the units
+of the variables and in the design of the paper applies to most variables; it
+is off by default. Without it ACLIME was more accurate for the band model and
+the Erdős–Rényi model with p ≤ 100, less for AR(1) and Erdős–Rényi with p = 200.
 
 ## Results
 
@@ -204,7 +205,7 @@ validation on the training sample, with the likelihood and with the trace loss
 replications (20 for p = 200), standard errors in parentheses, and the values
 of Table 1 of the paper (100 replications).
 
-| model | p | norm | paper: ACLIME | paper: CLIME | ACLIME | ACLIME, `truncate=false` | CLIME, likelihood CV | CLIME, trace CV |
+| model | p | norm | paper: ACLIME | paper: CLIME | ACLIME, `truncate=true` | ACLIME (default) | CLIME, likelihood CV | CLIME, trace CV |
 |---|---:|---|---:|---:|---:|---:|---:|---:|
 | band | 50 | spectral | 0.30 | 0.32 | 0.48 (0.02) | 0.24 (0.01) | 0.40 (0.02) | 0.94 (0.03) |
 | band | 50 | matrix ℓ1 | 0.62 | 0.65 | 0.99 (0.05) | 0.40 (0.01) | 0.71 (0.03) | 1.28 (0.03) |
@@ -236,7 +237,7 @@ of Table 1 of the paper (100 replications).
 
 Mean tuning parameters:
 
-| model | p | δ, ACLIME | δ, `truncate=false` | λ, likelihood CV | λ, trace CV |
+| model | p | δ, `truncate=true` | δ, default | λ, likelihood CV | λ, trace CV |
 |---|---:|---:|---:|---:|---:|
 | band | 50 | 0.13 | 0.43 | 0.034 | 0.333 |
 | band | 100 | 0.24 | 0.59 | 0.099 | 0.331 |
@@ -257,7 +258,7 @@ Mean tuning parameters:
   26 of the 27 cases. In this design most variances exceed `√(n/log p)` (at
   p = 100: 87%, 81% and 43% of the variables for the band, AR(1) and Erdős–Rényi
   models), so the rule replaces most of the estimated diagonal entries by
-  `√(log p/n)`, and it matters: without it (`truncate=false`) ACLIME is much more
+  `√(log p/n)`, and it matters: without it (the default) ACLIME is much more
   accurate for the band model and for the Erdős–Rényi model with p ≤ 100, with it
   for the AR(1) model, whose precision matrix is dense, and for the Erdős–Rényi
   model with p = 200.

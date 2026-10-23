@@ -64,7 +64,9 @@ report("CLIME, λ = $(round(λbest; digits=3)) by CV", rescale(bestestimate(cv))
 # standard deviation, estimated in a first step, so it adapts to the scales of
 # the variables. It takes the unbiased sample covariance and n; the theory's
 # universal constant δ = 2 gives a sparse, conservative estimate, and Cai, Liu
-# and Zhou choose δ by validation in their simulations.
+# and Zhou choose δ by validation in their simulations. Their rule for large
+# variances in the first step is off by default (truncate=true turns it on): it
+# depends on the units of the variables.
 report("ACLIME, δ = 2", aclime(S, n))
 cva = aclimecv(X, (1:40) ./ 20)
 report("ACLIME, δ = $(cva.λ[cva.best]) by CV", bestestimate(cva))

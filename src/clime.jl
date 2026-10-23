@@ -550,7 +550,7 @@ function clime(S::AbstractMatrix, λ::Union{Real,AbstractVector{<:Real}}, solver
 end
 
 """
-    aclime(S, n, solver=ParametricSimplex(); δ=2, δ₁=2, truncate=true, symmetrize=true, ntasks=Threads.nthreads())
+    aclime(S, n, solver=ParametricSimplex(); δ=2, δ₁=2, truncate=false, symmetrize=true, ntasks=Threads.nthreads())
 
 Adaptive CLIME (ACLIME) estimate of the precision matrix `Ω = Σ⁻¹` from the
 unbiased sample covariance matrix `S` of `n` observations (Cai, Liu and Zhou,
@@ -562,9 +562,8 @@ With `Ŝ = S + I/n`, `λₙ = δ √(log p / n)` and `λ₁ = δ₁ √(log p / 
 
 1. the diagonal of `Ω` is estimated first: `ω̂ᵢᵢ` is entry `i` of the solution of
 
-       minimize ‖b‖₁  subject to  |(Ŝ b - eᵢ)ⱼ| ≤ λ₁ (Sⱼⱼ ∨ Sᵢᵢ) bᵢ  for all j,
+       minimize ‖b‖₁  subject to  |(Ŝ b - eᵢ)ⱼ| ≤ λ₁ (Sⱼⱼ ∨ Sᵢᵢ) bᵢ  for all j;
 
-   replaced by `√(log p / n)` when `Sᵢᵢ > √(n / log p)` (unless `truncate=false`);
 2. column `i` of the estimate solves
 
        minimize ‖b‖₁  subject to  |(Ŝ b - eᵢ)ⱼ| ≤ λₙ √(Sⱼⱼ ω̂ᵢᵢ)  for all j,
@@ -577,16 +576,15 @@ Liu and Zhou (2016) choose `δ` from `(1:100)/50` by cross validation, which
 [`aclimecv`](@ref) does. Since `Ŝ` is positive definite, all the column problems
 are feasible.
 
-The rule of step 1 for large variances depends on the units of the variables:
-when the variances are large, whole columns of the estimate can be zero, and
-`aclime` warns. Rescaling the data, for example to unit variances (passing the
-correlation matrix as `S`), avoids it, and so does `truncate=false`, which uses
-the estimates of step 1 for all variables. In the simulation design of Cai, Liu
-and Zhou (2016) the rule applies to most variables; see `benchmark/clime` for
-its effect.
+`truncate=true` adds the rule of Cai, Liu and Zhou (2016) for large variances to
+step 1: `ω̂ᵢᵢ` is replaced by `√(log p / n)` when `Sᵢᵢ > √(n / log p)`. The rule
+is off by default because it depends on the units of the variables: when the
+variances are large, whole columns of the estimate can be zero (`aclime` warns),
+and in the simulation design of the paper it applies to most variables; see
+`benchmark/clime` for its effect.
 """
 function aclime(S::AbstractMatrix, n::Integer, solver::CLIMESolver=ParametricSimplex();
-                δ=2, δ₁::Real=2, truncate::Bool=true, symmetrize::Bool=true,
+                δ=2, δ₁::Real=2, truncate::Bool=false, symmetrize::Bool=true,
                 ntasks::Integer=Threads.nthreads())
   n > 0 || throw(ArgumentError("the number of observations n must be positive"))
   δ₁ >= 0 || throw(ArgumentError("δ₁ must be nonnegative"))
@@ -615,10 +613,10 @@ function aclime(S::AbstractMatrix, n::Integer, solver::CLIMESolver=ParametricSim
   spec = _CLIMESpec(sqrt.(σ), false, zero(T))
   path = _estimate(solver, Ŝ, spec, T.(δs) .* rate, sqrt.(ω), symmetrize, ntasks, δ isa Real)
   for Ω in path.Ω
-    any(i -> iszero(Ω[i, i]), 1:p) || continue
-    @warn "ACLIME: some diagonal entries of the estimate are zero. The variables with variance " *
-          "above √(n / log p) = $(round(1 / rate; sigdigits=3)) get √(log p / n) as their " *
-          "estimated diagonal in step 1; rescale the data, e.g. to unit variances, or pass truncate=false."
+    truncate && any(i -> iszero(Ω[i, i]), 1:p) || continue
+    @warn "ACLIME: some diagonal entries of the estimate are zero. With truncate=true, the variables " *
+          "with variance above √(n / log p) = $(round(1 / rate; sigdigits=3)) get √(log p / n) as " *
+          "their estimated diagonal in step 1; rescale the data, e.g. to unit variances, or use truncate=false."
     break
   end
   δ isa Real ? only(path.Ω) : CLIMEPath{T}(T.(δs), path.Ω)

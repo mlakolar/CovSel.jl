@@ -48,10 +48,10 @@ function replication(model, p, rng; n=200, ntest=200)
   Xtest = randn(rng, ntest, p) * U
   S, Stest = cov(X), cov(Xtest)
   # ACLIME, δ of step 2 by the validation likelihood, with the rule of step 1 for
-  # large variances (as in the paper) and without it (truncate=false)
+  # large variances (truncate=true, as in the paper) and without it (the default)
   δs = (1:100) ./ 50
   path = redirect_stderr(devnull) do        # warnings about zero diagonal entries
-    aclime(S, n; δ=δs)
+    aclime(S, n; δ=δs, truncate=true)
   end
   lik = [CovSel._cvloss(Stest, Ωh, :likelihood) for Ωh in path]
   Ωa = path[argmin(lik)]

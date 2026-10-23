@@ -263,9 +263,14 @@ l1cols(R) = [norm(R[:, i], 1) for i in 1:size(R, 2)]
     Ŝ = S + I / n
     spec = CovSel._CLIMESpec(σ, true, 2rate)
     ω = CovSel._solve_diagonal(ParametricSimplex(), Ŝ, spec, 1)
-    ω[σ .> 1 / rate] .= rate
     raw = aclime(S, n; symmetrize=false)
     @test all(certificate(Ŝ, Vector(raw[:, i]), i, 2rate * sqrt(ω[i]); c=sqrt.(σ)) < 1e-8 for i in 1:p)
+    # with the rule of step 1 for large variances
+    @test any(σ .> 1 / rate)
+    ωt = ifelse.(σ .> 1 / rate, rate, ω)
+    rawt = aclime(S, n; truncate=true, symmetrize=false)
+    @test all(certificate(Ŝ, Vector(rawt[:, i]), i, 2rate * sqrt(ωt[i]); c=sqrt.(σ)) < 1e-8 for i in 1:p)
+    @test aclime(S, n, LPSolver(HiGHS.Optimizer); truncate=true) ≈ aclime(S, n; truncate=true) atol=1e-7
     # a path over δ
     path = aclime(S, n; δ=[2.0, 1.0, 0.5])
     @test path.λ == [2.0, 1.0, 0.5]
@@ -273,13 +278,13 @@ l1cols(R) = [norm(R[:, i], 1) for i in 1:size(R, 2)]
     @test issorted(nnz.(path))
     @test_throws ArgumentError aclime(S, 0)
     @test_throws ArgumentError aclime(S, n; δ=-1)
-    # large variances: the rule of step 1 can zero whole columns, with a warning,
-    # and without the rule the estimate scales with the data
-    Ωbig = @test_logs (:warn, r"diagonal entries") aclime(1e4 * S, n)
+    # large variances: the rule of step 1 can zero whole columns, with a warning;
+    # without it (the default) the estimate scales with the data
+    Ωbig = @test_logs (:warn, r"diagonal entries") aclime(1e4 * S, n; truncate=true)
     @test any(iszero, diag(Ωbig))
-    Ωnt = aclime(1e4 * S, n; truncate=false)
+    Ωnt = @test_logs aclime(1e4 * S, n)
     @test all(>(0), diag(Ωnt))
-    @test aclime(S, n; truncate=false) ≈ 1e4 * Ωnt rtol=0.05
+    @test Ω ≈ 1e4 * Ωnt rtol=0.05
   end
 
   @testset "cross validation" begin
