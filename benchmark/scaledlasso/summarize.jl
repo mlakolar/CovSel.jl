@@ -57,8 +57,10 @@ end
 meanse(v) = isempty(v) ? (NaN, NaN, 0) : (mean(v), length(v) > 1 ? std(v) / sqrt(length(v)) : NaN, length(v))
 cell(v) = (m = meanse(v); m[3] == 0 ? "—" : @sprintf("%.2f (%.2f)", m[1], m[2]))
 
+# models in numeric order when they are numbers (the block sizes of hadamard)
 function cases(d, design)
-  sort(unique((k[2], k[3]) for k in keys(d) if k[1] == design); by=c -> (c[1], c[2]))
+  sort(unique((k[2], k[3]) for k in keys(d) if k[1] == design);
+       by=c -> (something(tryparse(Int, c[1]), typemax(Int)), c[1], c[2]))
 end
 
 values(d, design, model, p, method, i) =
