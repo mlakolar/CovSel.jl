@@ -90,6 +90,18 @@ penalty(λ₀, p, n) = CovSel._penalty_level(λ₀, p, n)
     @test all(certificate(S, R, j, λ₀) < 1e-12 for j in 1:2)
   end
 
+  @testset "ties" begin
+    # population matrices: the two neighbours of a variable of an AR(1) covariance
+    # have the same correlation with it, and join at the same λ
+    for (Σ, n) in ((ar1(12, 0.5), 100), ([1.0 0.5 0.5; 0.5 1.0 0.0; 0.5 0.0 1.0], 50),
+                   (Matrix(SymTridiagonal(fill(2.0, 10), fill(0.7, 9))), 200))
+      for λ₀ in (0.05, 0.1, :quantile)
+        R = scaledlasso(Σ, n; λ₀, symmetrize=false)
+        @test all(certificate(Σ, R, j, penalty(λ₀, size(Σ, 1), n)) < 1e-10 for j in axes(Σ, 1))
+      end
+    end
+  end
+
   @testset "least squares refit" begin
     S = samplecov(ar1(40, 0.6), 100)
     R = scaledlasso(S, 100; symmetrize=false)

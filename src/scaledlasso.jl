@@ -214,7 +214,8 @@ end
 
 _sl_singular(ws::_SLWorkspace) =
   throw(DomainError(ws.j, "the scaled lasso of column $(ws.j) needs more than $(ws.k) " *
-    "variables, and S restricted to them is singular: λ₀ is too small for this S (or n)"))
+    "variables, and S restricted to them is singular: λ₀ is too small for this S (or n), " *
+    "or some variables are exactly collinear"))
 
 # l joins A with sign s: N grows by a row and a column, in O(k²)
 function _sl_join!(ws::_SLWorkspace{T}, l::Int, s::T) where {T}
@@ -275,12 +276,15 @@ function _sl_leave!(ws::_SLWorkspace{T}, q::Int) where {T}
   ws
 end
 
-# The largest λ' < λ at which an active coefficient reaches zero (kind 1, its
+# The largest λ' ≤ λ at which an active coefficient reaches zero (kind 1, its
 # position in A) or the correlation of an inactive variable reaches ±λ'w (kind 2,
-# the variable, and the sign it joins with). The variable that just joined
-# cannot leave, nor the one that just left join, at the same λ.
+# the variable, and the sign it joins with). A coefficient must reach zero
+# strictly below λ, while a variable can join at λ itself, up to rounding: with
+# ties, as for the two neighbours of a variable of an AR(1) covariance, several
+# variables reach the bound at the same λ, and join one at a time. The variable
+# that just joined cannot leave, nor the one that just left join, at the same λ.
 function _sl_next_event(ws::_SLWorkspace{T}, λ::T, joined::Int, left::Int) where {T}
-  below = λ * (1 - 16eps(T))
+  below, above = λ * (1 - 16eps(T)), λ * (1 + 16eps(T))
   best, kind, idx, sgn = zero(T), 0, 0, zero(T)
   @inbounds for q in 1:ws.k
     ws.A[q] == joined && continue
@@ -295,12 +299,12 @@ function _sl_next_event(ws::_SLWorkspace{T}, λ::T, joined::Int, left::Int) wher
     (l == ws.j || ws.posA[l] != 0 || l == left) && continue
     ul, vl, wl = ws.u[l], ws.v[l], ws.w[l]
     t = ul / (vl + wl)              # c = +λ'w
-    if best < t < below
-      best, kind, idx, sgn = t, 2, l, one(T)
+    if 0 < t < above && min(t, λ) > best
+      best, kind, idx, sgn = min(t, λ), 2, l, one(T)
     end
     t = ul / (vl - wl)              # c = -λ'w
-    if best < t < below
-      best, kind, idx, sgn = t, 2, l, -one(T)
+    if 0 < t < above && min(t, λ) > best
+      best, kind, idx, sgn = min(t, λ), 2, l, -one(T)
     end
   end
   best, kind, idx, sgn
