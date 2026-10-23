@@ -64,7 +64,7 @@ end
   options=IHTOptions(; epsTol=1e-10, maxIter=10_000, checkEvery=10), callback=recordStep)
 # (differenceLatentPrecisionIHT(Sx, Sy, ηΔ, ηU, s, r) does both steps in one call)
 
-support = sort([ProximalBase.ind2subLowerTriangular(p, Δ.nzval2ind[k]) for k=1:nnz(Δ)])
+support = sort([(r, c) for c=1:p for r=c:p if Δ[r, c] != 0])
 u, û = eigvecs(Symmetric(L))[:, end], U[:, 1] / norm(U)
 println("sparse plus low rank, ", iter, " iterations")
 println("  support of Δ̂: ", support)
@@ -77,6 +77,6 @@ println(lineplot(1:length(steps), log10.(steps); xlabel="iteration", ylabel="log
 # The sparse estimator has no low rank part, so it either leaves L out or
 # spreads it over many small entries.
 λ = 2 * sqrt(log(p) / n)
-Δsparse = differencePrecisionActiveShooting(Sx, Sy, ProxL1(λ))
+Δsparse = differencePrecisionActiveShooting(Sx, Sy, NormL1(λ))
 @printf("\nsparse only (λ = %.3f): %d nonzero entries in the lower triangle, ‖Δ̂ - (S + L)‖_F = %.3f\n",
   λ, nnz(Δsparse), norm(Matrix(Δsparse) - S - L))

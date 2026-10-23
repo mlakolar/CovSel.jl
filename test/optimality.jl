@@ -3,7 +3,7 @@
 # proximal gradient step x ↦ prox_{tg}(x - t∇f(x)) for any t > 0.
 
 using LinearAlgebra
-using ProximalBase: shrink, proxL1Fused
+using ProximalBase: shrink, prox, NormL1Fused
 
 # soft thresholding of all entries (or only the off-diagonal ones)
 function softThreshold(X, τ, penalize_diag)
@@ -22,7 +22,7 @@ function fusedFixedPointResidual(X, Y, GX, GY, λ1, λ2; t=0.1, penalize_diag=tr
   r = zero(eltype(X))
   for i in CartesianIndices(X)
     l1 = (penalize_diag || ndims(X) == 1 || i[1] != i[2]) ? λ1 : zero(λ1)
-    u, v = proxL1Fused(X[i] - t * GX[i], Y[i] - t * GY[i], l1, λ2, t)
+    u, v = prox(NormL1Fused(l1, λ2), (X[i] - t * GX[i], Y[i] - t * GY[i]), t)
     r = max(r, abs(u - X[i]), abs(v - Y[i]))
   end
   r

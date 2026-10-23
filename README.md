@@ -23,13 +23,14 @@ Pkg.add("CovSel")   # or Pkg.add(url="https://github.com/mlakolar/CovSel.jl") un
 * Fused graphical lasso for two groups (Danaher, Wang and Witten, 2014): `fusedGraphicalLasso`, `fusedGraphicalLasso!`
 * Fused neighborhood selection: `fusedNeighborhoodSelection`
 * Direct estimation of the difference of two precision matrices `Ωx - Ωy` (Zhao, Cai and Li, 2014)
-  * ℓ1 penalized, by active shooting coordinate descent: `differencePrecisionActiveShooting`, `differencePrecisionRefit`
+  * ℓ1 penalized, by active shooting coordinate descent: `differencePrecisionActiveShooting`; the loss is `directDifferenceLoss`
+  * the exact refit on a support: `differencePrecisionRefit`
   * the residual of its estimating equation, a validation loss for choosing λ: `diffLoss`
   * sparsity constrained, by iterative hard thresholding: `differencePrecisionIHT`
   * sparse plus low rank: `differenceLatentPrecisionIHT`
 
 ```julia
-using CovSel, ProximalBase, LinearAlgebra, Statistics
+using CovSel, ProximalBase, ProximalSolvers, LinearAlgebra, Statistics
 
 p, n = 20, 1000
 Ωy = Matrix(1.0I, p, p)
@@ -43,9 +44,24 @@ Sx, Sy = cov(X), cov(Y)
 
 # direct difference estimation:
 # minimize tr(Sx⋅Δ⋅Sy⋅Δ)/2 - tr(Δ⋅(Sy - Sx)) + λ‖Δ‖₁
-Δ = differencePrecisionActiveShooting(Symmetric(Sx), Symmetric(Sy), ProxL1(0.1))
+Δ = differencePrecisionActiveShooting(Symmetric(Sx), Symmetric(Sy), NormL1(0.1))
 Matrix(Δ)
+
+# the same with ProximalSolvers' solver options, here a cyclic order, and along a
+# path of 20 penalties from λmax
+Δ = differencePrecisionActiveShooting(Symmetric(Sx), Symmetric(Sy), NormL1(0.1), CDSolver(; order=:cyclic))
+f = directDifferenceLoss(Symmetric(Sx), Symmetric(Sy))
+λs = lambda_max(f, NormL1(1.0), SymmetricSparseIterate(p)) .* 0.8 .^ (0:19)
+path = solve_path(f, NormL1(1.0), λs; x=SymmetricSparseIterate(p), screening=false)
 ```
+
+The losses and penalties are those of
+[ProximalBase.jl](https://github.com/mlakolar/ProximalBase.jl): a penalty is
+`NormL1(λ)`, or `NormL1(λ, W)` with a `p × p` matrix of weights `W`, and the
+direct difference loss is its `KronQuadratic`. The graphical lasso runs on the
+ADMM of [ProximalSolvers.jl](https://github.com/mlakolar/ProximalSolvers.jl), and the
+direct difference estimator on its coordinate descent, whose options are
+`CDSolver`'s.
 
 ### CLIME and ACLIME
 
@@ -97,7 +113,7 @@ Each column follows its lasso path exactly until the penalty of the scaled
 lasso; see [`benchmark/slassoinv`](benchmark/slassoinv) for its speed
 against the R package scalreg and its accuracy against CLIME and ACLIME.
 
-Package depends on [ProximalBase.jl](https://github.com/mlakolar/ProximalBase.jl) and [CoordinateDescent.jl](https://github.com/mlakolar/CoordinateDescent.jl).
+Package depends on [ProximalBase.jl](https://github.com/mlakolar/ProximalBase.jl) and [ProximalSolvers.jl](https://github.com/mlakolar/ProximalSolvers.jl).
 
 ## Examples
 
@@ -127,3 +143,10 @@ julia --project=benchmark benchmark/run.jl
 ```
 
 See [`benchmark/README.md`](benchmark/README.md) for details.
+
+## Related packages
+
+- [ProximalBase.jl](https://github.com/mlakolar/ProximalBase.jl): functions with gradients and proximal operators, and sparse iterates, with [documentation](https://mlakolar.github.io/ProximalBase.jl/dev/) of the closed forms.
+- [ProximalSolvers.jl](https://github.com/mlakolar/ProximalSolvers.jl): coordinate descent with penalty paths, screening and active sets, proximal gradient methods and ADMM.
+- [CoordinateDescent.jl](https://github.com/mlakolar/CoordinateDescent.jl): the lasso, group lasso, square-root and scaled lasso, and varying-coefficient models.
+- [DiffPrecTest.jl](https://github.com/mlakolar/DiffPrecTest.jl): confidence intervals and tests for the difference of two precision matrices.

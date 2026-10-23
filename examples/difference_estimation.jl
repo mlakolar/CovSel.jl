@@ -30,7 +30,7 @@ println("p = $p, n = $n per group, Δ = Ωx - Ωy has one nonzero entry, Δ[2, 1
 # loss is minimized at Ωx - Ωy, so Δ is estimated without estimating Ωx or Ωy,
 # which need not be sparse. The estimate is a SymmetricSparseIterate.
 λ = 0.1
-hΔ = differencePrecisionActiveShooting(Sx, Sy, ProxL1(λ))
+hΔ = differencePrecisionActiveShooting(Sx, Sy, NormL1(λ))
 c = CovSel.getConfusionMatrix(Δ, hΔ)
 @printf("\ndirect estimate (λ = %.2f): %d nonzero entries in the lower triangle, TPR = %.2f, FPR = %.3f\n",
   λ, nnz(hΔ), CovSel.tpr(c), CovSel.fpr(c))
@@ -43,7 +43,7 @@ c = CovSel.getConfusionMatrix(Δ, hΔ)
 #   ((Sy ⊗ Sx + Sx ⊗ Sy) / 2)[J, J] vec(Δ)[J] = vec(Sy - Sx)[J]
 #
 # where J holds the entries of the support in both triangles.
-support = [CartesianIndex(ProximalBase.ind2subLowerTriangular(p, hΔ.nzval2ind[k])) for k=1:nnz(hΔ)]
+support = [CartesianIndex(r, c) for c=1:p for r=c:p if hΔ[r, c] != 0]
 rΔ = differencePrecisionRefit(Sx, Sy, support)
 
 J = LinearIndices((p, p))[unique([support; [CartesianIndex(k[2], k[1]) for k in support]])]

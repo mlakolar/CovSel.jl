@@ -45,8 +45,11 @@ function fusedGraphicalLasso!(
     ρ = T(options.ρ * s^2)
     abstol_pri, abstol_dual = options.abstol / s, options.abstol * s
 
-    gx = ProxGaussLikelihood(Symmetric(Σx))
-    gy = ProxGaussLikelihood(Symmetric(Σy))
+    gx = LogDetLoss(Σx)
+    gy = LogDetLoss(Σy)
+    # the λ1 penalty is left off the diagonal when penalize_diag is false
+    hd = NormL1Fused(penalize_diag ? l1 : zero(T), l2)
+    ho = NormL1Fused(l1, l2)
 
     Tx = zeros(T, p, p)  # temp storage
     Ty = zeros(T, p, p)  # temp storage
@@ -64,9 +67,9 @@ function fusedGraphicalLasso!(
 
         # update Θx and Θy
         @. Tx = Zx - Ux
-        prox!(gx, Θx, Tx, nx * γ / n)
+        prox!(Θx, gx, Tx, nx * γ / n)
         @. Ty = Zy - Uy
-        prox!(gy, Θy, Ty, ny * γ / n)
+        prox!(Θy, gy, Ty, ny * γ / n)
 
         copyto!(Zxold, Zx)
         copyto!(Zyold, Zy)
@@ -77,11 +80,11 @@ function fusedGraphicalLasso!(
         for i=1:p
             for j=i:p
                 if i==j
-                    z1, z2 = proxL1Fused(Tx[i,i], Ty[i,i], penalize_diag ? l1 : zero(T), l2, γ)
+                    z1, z2 = prox(hd, (Tx[i,i], Ty[i,i]), γ)
                     Zx[i,i] = z1
                     Zy[i,i] = z2
                 else
-                    z1, z2 = proxL1Fused(Tx[i,j], Ty[i,j], l1, l2, γ)
+                    z1, z2 = prox(ho, (Tx[i,j], Ty[i,j]), γ)
                     Zx[i,j] = Zx[j,i] = z1
                     Zy[i,j] = Zy[j,i] = z2
                 end
@@ -186,7 +189,7 @@ function fusedNeighborhoodSelection(
     # x = V (D + ρI)⁻¹ Vᵀ v, so that ρ can change without a new factorization
     D1, V1 = eigen(Symmetric(A1'A1 / n1))
     D2, V2 = eigen(Symmetric(A2'A2 / n2))
-    solve!(x, V, D, v, w, ρ) = (mul!(w, V', v); w ./= D .+ ρ; mul!(x, V, w))
+    eigsolve!(x, V, D, v, w, ρ) = (mul!(w, V', v); w ./= D .+ ρ; mul!(x, V, w))
 
     Atb1 = A1'*b1 / n1
     Atb2 = A2'*b2 / n2
@@ -197,6 +200,8 @@ function fusedNeighborhoodSelection(
     sb = sqrt(_dataScale((sum(abs2, b1) / n1 + sum(abs2, b2) / n2) / 2))
     ρ = options.ρ * sa^2
     abstol_pri, abstol_dual = options.abstol * sb / sa, options.abstol * sa * sb
+
+    h = NormL1Fused(float(λ1), float(λ2))
 
     x1 = zeros(p)
     x2 = zeros(p)
@@ -222,18 +227,16 @@ function fusedNeighborhoodSelection(
 
         # update x1 and x2
         @. T1 = Atb1 + (z1 - u1) * ρ
-        solve!(x1, V1, D1, T1, w, ρ)
+        eigsolve!(x1, V1, D1, T1, w, ρ)
         @. T2 = Atb2 + (z2 - u2) * ρ
-        solve!(x2, V2, D2, T2, w, ρ)
+        eigsolve!(x2, V2, D2, T2, w, ρ)
 
         copyto!(z1old, z1)
         copyto!(z2old, z2)
         # update z1 and z2
         @. T1 = α*x1 + (1 - α)*z1 + u1
         @. T2 = α*x2 + (1 - α)*z2 + u2
-        for i=1:p
-            z1[i], z2[i] = proxL1Fused(T1[i], T2[i], float(λ1), float(λ2), γ)
-        end
+        prox!((z1, z2), h, (T1, T2), γ)
 
         # update U
         @. u1 = T1 - z1

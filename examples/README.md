@@ -34,6 +34,12 @@ repository, so add it explicitly:
 julia --project=examples -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
 ```
 
+Until ProximalSolvers 0.1.0 and CoordinateDescent 0.7 are registered,
+`[sources]` also takes them from GitHub, with ProximalOPT, the former name of
+ProximalSolvers, which CoordinateDescent's pull request still uses. On Julia 1.10
+they must be added in the same call:
+`Pkg.add([PackageSpec(url="https://github.com/mlakolar/ProximalSolvers.jl", rev="9cdd33c968f7f835743627f2c03114772e0ad068"), PackageSpec(url="https://github.com/mlakolar/ProximalOPT.jl", rev="aeed6002d0c791b086cc6da18c2f092f35af0439"), PackageSpec(url="https://github.com/mlakolar/CoordinateDescent.jl", rev="fd3f1da29b92982c1092d956d7b98f1f3a7b56b4")])`.
+
 ## Running
 
 ```sh

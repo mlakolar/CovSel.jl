@@ -1,9 +1,10 @@
 module DirectDiffTest
 
 using Test, Random, LinearAlgebra, SparseArrays, Statistics
-import CovSel, ProximalBase, CoordinateDescent
+import CovSel, ProximalBase, ProximalSolvers
 using CovSel: diffLoss
-using ProximalBase: SymmetricSparseIterate
+using ProximalBase: SymmetricSparseIterate, NormL1, coordinates, ncoordinates, tril_cartesian, tril_index
+using ProximalSolvers: CDSolver
 
 include("reference.jl")
 
@@ -28,7 +29,7 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
     tmp = ones(p,p)
     for i=1:5
       λ = 0.05 + 0.25 * rand()
-      g = ProximalBase.ProxL1(λ)
+      g = NormL1(λ)
 
       solShoot = Reference.differencePrecisionNaive(hSx, hSy, λ, tmp)
       solShoot1 = CovSel.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), g)
@@ -40,77 +41,74 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
       @test Matrix(x) ≈ solShoot atol=1e-5
     end
 
-    # KKT conditions: |gradient| ≤ λ, with equality and opposite sign on the support
+    # KKT conditions: |gradient| ≤ λ, with equality and opposite sign on the
+    # support; the gradient over symmetric matrices is (ΣxΔΣy + ΣyΔΣx)/2 - (Σy - Σx)
     λ = 0.1
-    f = CovSel.CDDirectDifferenceLoss(Symmetric(hSx), Symmetric(hSy))
-    x = CovSel.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), ProximalBase.ProxL1(λ),
-          CoordinateDescent.CDOptions(;optTol=1e-10))
-    CoordinateDescent.initialize!(f, x)
-    for j=1:CoordinateDescent.numCoordinates(f)
-      gj = CoordinateDescent.gradient(f, x, j)
-      if x[j] == 0
-        @test abs(gj) <= λ + 1e-6
+    x = CovSel.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), NormL1(λ), CDSolver(; tol=1e-10))
+    D = Matrix(x)
+    G = (hSx * D * hSy + hSy * D * hSx) / 2 - (hSy - hSx)
+    for c=1:p, r=c:p
+      if D[r, c] == 0
+        @test abs(G[r, c]) <= λ + 1e-6
       else
-        @test gj ≈ -λ * sign(x[j]) atol=1e-6
+        @test G[r, c] ≈ -λ * sign(D[r, c]) atol=1e-6
       end
     end
-    @test CoordinateDescent.numCoordinates(f) == div(p * (p + 1), 2)
+    @test ncoordinates(x) == div(p * (p + 1), 2)
 
-    # the loss keeps A = Σx⋅Δ⋅Σy up to date during the descent
-    f = CovSel.CDDirectDifferenceLoss(Symmetric(hSx), Symmetric(hSy))
+    # the loss is ProximalBase's KronQuadratic, whose value is the D-trace loss
+    f = CovSel.directDifferenceLoss(Symmetric(hSx), Symmetric(hSy))
+    @test f isa ProximalBase.KronQuadratic
+    @test f(x) ≈ denseLoss(hSx, hSy, D)
     x1 = SymmetricSparseIterate(p)
-    CoordinateDescent.coordinateDescent!(x1, f, ProximalBase.ProxL1(λ))
-    @test f.A ≈ hSx * Matrix(x1) * hSy
+    ProximalSolvers.solve!(x1, f, NormL1(λ), CDSolver())
+    @test Matrix(x1) ≈ D atol=1e-6
 
     # only the triangle that each Symmetric refers to is read
     Mx, My = copy(hSx), copy(hSy)
     Mx[2, 1] = My[1, 3] = 1e3
-    x2 = CovSel.differencePrecisionActiveShooting(Symmetric(Mx, :U), Symmetric(My, :L), ProximalBase.ProxL1(λ))
-    @test Matrix(x2) ≈ Matrix(x1) atol=1e-6   # random coordinate order, optTol = 1e-7
+    x2 = CovSel.differencePrecisionActiveShooting(Symmetric(Mx, :U), Symmetric(My, :L), NormL1(λ))
+    @test Matrix(x2) ≈ Matrix(x1) atol=1e-6   # random coordinate order, tol = 1e-7
 
     # Float32
-    x3 = CovSel.differencePrecisionActiveShooting(Symmetric(Float32.(hSx)), Symmetric(Float32.(hSy)), ProximalBase.ProxL1(Float32(λ)))
+    x3 = CovSel.differencePrecisionActiveShooting(Symmetric(Float32.(hSx)), Symmetric(Float32.(hSy)), NormL1(Float32(λ)))
     @test eltype(x3) == Float32
     @test Matrix(x3) ≈ Matrix(x1) atol=1e-4
 
-    # CoordinateDescent 0.5 and later measure convergence relative to scales of
-    # the loss; check them against the loss along the coordinate directions
-    if isdefined(CoordinateDescent, :coordinateScale)
-      f = CovSel.CDDirectDifferenceLoss(Symmetric(hSx), Symmetric(hSy))
-      E(r, c) = (M = zeros(p, p); M[r, c] = M[c, r] = 1; M)
-      curvature(r, c) = tr(hSx * E(r, c) * hSy * E(r, c))
-      for (r, c) in ((1, 1), (2, 1), (7, 3))
-        k = ProximalBase.sub2indLowerTriangular(p, r, c)
-        @test CoordinateDescent.coordinateScale(f, k) ≈ sqrt(curvature(r, c))
-      end
-      @test CoordinateDescent.responseScale(f) ≈
-        maximum(abs(tr(E(r, c) * (hSy - hSx))) / sqrt(curvature(r, c)) for c=1:p for r=c:p)
+    # weights on the p × p matrix: an entry with weight zero is not penalized,
+    # and weights λ⋅W give the same solution as the level λ
+    W = ones(p, p)
+    x4 = CovSel.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), NormL1(1.0, λ * W), CDSolver(; tol=1e-10))
+    @test Matrix(x4) ≈ D atol=1e-6
+    W[3, 2] = W[2, 3] = 0
+    x5 = CovSel.differencePrecisionActiveShooting(Symmetric(hSx), Symmetric(hSy), NormL1(λ, W), CDSolver(; tol=1e-10))
+    G5 = (hSx * Matrix(x5) * hSy + hSy * Matrix(x5) * hSx) / 2 - (hSy - hSx)
+    @test G5[3, 2] ≈ 0 atol=1e-6
 
-      # so multiplying the covariances and λ by a constant divides the solution
-      # by it and takes the same number of passes
-      passes, sols = Int[], Matrix{Float64}[]
-      for a in (1e-3, 1.0, 1e3)
-        info = CoordinateDescent.CDInfo()
-        x = SymmetricSparseIterate(p)
-        CoordinateDescent.coordinateDescent!(x, CovSel.CDDirectDifferenceLoss(Symmetric(a * hSx), Symmetric(a * hSy)),
-          ProximalBase.ProxL1(a * λ), CoordinateDescent.CDOptions(; randomize=false), info)
-        @test info.converged
-        push!(passes, info.iterations)
-        push!(sols, a * Matrix(x))
-      end
-      @test passes[1] == passes[2] == passes[3]
-      @test sols[1] ≈ sols[2] atol=1e-8
-      @test sols[3] ≈ sols[2] atol=1e-8
+    # the stopping rule is relative to the scales of the loss: multiplying the
+    # covariances and λ by a constant divides the solution by it and takes the
+    # same number of passes
+    passes, sols = Int[], Matrix{Float64}[]
+    for a in (1e-3, 1.0, 1e3)
+      x = SymmetricSparseIterate(p)
+      r = ProximalSolvers.solve!(x, CovSel.directDifferenceLoss(Symmetric(a * hSx), Symmetric(a * hSy)),
+        NormL1(a * λ), CDSolver(; order=:cyclic))
+      @test r.converged
+      push!(passes, r.passes)
+      push!(sols, a * Matrix(x))
     end
-    @test_throws DimensionMismatch CovSel.CDDirectDifferenceLoss(Symmetric(hSx), Symmetric(hSy[1:3, 1:3]))
+    @test passes[1] == passes[2] == passes[3]
+    @test sols[1] ≈ sols[2] atol=1e-8
+    @test sols[3] ≈ sols[2] atol=1e-8
+    @test_throws DimensionMismatch CovSel.directDifferenceLoss(Symmetric(hSx), Symmetric(hSy[1:3, 1:3]))
   end
 
   @testset "no penalty recovers the difference of precisions" begin
     p = 4
     Σx = [0.5^abs(i-j) for i=1:p, j=1:p]
     Σy = Matrix(1.0I, p, p) + 0.3 * ones(p, p)
-    x = CovSel.differencePrecisionActiveShooting(Symmetric(Σx), Symmetric(Σy), ProximalBase.ProxL1(0.0),
-          CoordinateDescent.CDOptions(;optTol=1e-12, maxIter=10000))
+    x = CovSel.differencePrecisionActiveShooting(Symmetric(Σx), Symmetric(Σy), NormL1(0.0),
+          CDSolver(; tol=1e-12, maxpasses=10000))
     @test Matrix(x) ≈ inv(Σx) - inv(Σy) atol=1e-6
   end
 
@@ -163,12 +161,15 @@ denseLoss(Sx, Sy, D) = tr(Sx*D*Sy*D) / 2 - tr(D*(Sy - Sx))
 
         x1 = spzeros(p, p)
         x1[ilin] = (0.5 * (kron(hSy, hSx)[ilin, ilin] + kron(hSx, hSy)[ilin, ilin])) \ (hSy - hSx)[ilin]
-        @test Matrix(x1) ≈ Matrix(x) atol = 1e-4
+        @test Matrix(x1) ≈ Matrix(x) atol = 1e-10
 
         # the support can be given by its upper triangle only, as linear indices
         iupper = [i for i in ilin if Tuple(CartesianIndices(S)[i])[1] <= Tuple(CartesianIndices(S)[i])[2]]
-        @test Matrix(CovSel.differencePrecisionRefit(Symmetric(hSx), Symmetric(hSy), iupper)) ≈ Matrix(x) atol=1e-6
+        @test Matrix(CovSel.differencePrecisionRefit(Symmetric(hSx), Symmetric(hSy), iupper)) ≈ Matrix(x) atol=1e-10
       end
+      # an empty support gives zero
+      hSx, hSy = genData(3)
+      @test iszero(Matrix(CovSel.differencePrecisionRefit(Symmetric(hSx), Symmetric(hSy), Int[])))
   end
 
   @testset "IHT" begin

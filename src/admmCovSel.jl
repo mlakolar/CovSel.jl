@@ -96,15 +96,20 @@ Graphical lasso by ADMM:
     minimize  tr(Σ Ω) - log det Ω + λ ‖Ω‖₁
 
 where the ℓ1 norm is over all entries, or only the off-diagonal ones when
-`penalize_diag=false`. `X`, `Z` and `U` are the ADMM iterates (the primal
-iterate, its sparse copy, and the scaled dual variable); pass zeros, or the
-iterates of a previous call together with its final `info.ρ` to warm start.
+`penalize_diag=false`. `Z` and `U` are the ADMM iterates (the sparse estimate
+and the scaled dual variable); pass zeros, or the iterates of a previous call
+together with its final `info.ρ` to warm start. `X`, the primal iterate, is
+overwritten with a copy of the estimate; its values on entry are not used.
 Returns `Z`, the sparse estimate; see [`ADMMInfo`](@ref) for `info`.
+
+This is ProximalSolvers' `ADMMSolver` on ProximalBase's `LogDetLoss(Σ)` and
+`NormL1(λ)`, with the options scaled by the data as described in
+[`ADMMOptions`](@ref).
 """
 function covsel!(
-  X::StridedMatrix{T},
-  Z::StridedMatrix{T},
-  U::StridedMatrix{T},
+  X::Matrix{T},
+  Z::Matrix{T},
+  U::Matrix{T},
   Σ::StridedMatrix{T},
   λ::Real;
   options::ADMMOptions = ADMMOptions(),
@@ -112,69 +117,17 @@ function covsel!(
   info::ADMMInfo=ADMMInfo()
   ) where {T<:AbstractFloat}
 
-  maxiter = options.maxiter
-  α = T(options.α)
-  reltol = options.reltol
-
   p = size(Σ, 1)
-  g = ProxGaussLikelihood(Symmetric(Σ))
+  size(X) == size(Z) == size(U) == size(Σ) == (p, p) || throw(DimensionMismatch("X, Z, U and Σ must be p × p matrices"))
+  g = penalize_diag ? NormL1(T(λ)) : NormL1(T(λ), ones(T, p, p) - I)
 
   # ρ has the units of Σ², the primal residual those of Ω and the dual one those of Σ
   s = _dataScale(tr(Σ) / p)
-  ρ = T(options.ρ * s^2)
-  abstol_pri, abstol_dual = options.abstol / s, options.abstol * s
-
-  tmpStorage = zeros(T, (p, p))
-  Zold = copy(Z)
-
-  converged = false
-  iter = changes = 0
-  r_norm = s_norm = T(NaN)
-  while iter < maxiter
-    iter += 1
-    γ = one(T) / ρ
-    λρ = T(λ) * γ
-
-    # x-update
-    @. tmpStorage = Z - U
-    prox!(g, X, tmpStorage, γ)
-
-    # z-update with relaxation
-    copyto!(Zold, Z)
-    @. tmpStorage = α*X + (one(T)-α)*Z + U
-    @inbounds for c=1:p
-      for r=1:c-1
-        t = shrink(tmpStorage[r, c], λρ)
-        Z[c, r] = t
-        Z[r, c] = t
-      end
-      Z[c, c] = penalize_diag ? shrink(tmpStorage[c, c], λρ) : tmpStorage[c, c]
-    end
-
-    # u-update
-    @. U = tmpStorage - Z
-
-    # check convergence
-    r_norm = norm_diff(X, Z, 2)
-    s_norm = ρ * norm_diff(Z, Zold, 2)
-    eps_pri = p*abstol_pri + reltol * max( norm(X), norm(Z) )
-    eps_dual = p*abstol_dual + reltol * ρ * norm(U)
-    if r_norm < eps_pri && s_norm < eps_dual
-      converged = true
-      break
-    end
-
-    # update ρ, and rescale the scaled dual variable
-    if options.adaptive
-      f = _penaltyFactor(r_norm, eps_pri, s_norm, eps_dual, changes)
-      if f != 1
-        ρ *= f
-        U ./= f
-        changes += 1
-      end
-    end
-  end
-  _finish!(info, "covsel!", iter, converged, ρ, s^2, r_norm, s_norm)
+  method = ADMMSolver(; ρ = T(options.ρ * s^2), α = T(options.α), adaptive = options.adaptive,
+                      abstol = T(options.abstol / s), abstol_dual = T(options.abstol * s), reltol = T(options.reltol))
+  r = solve!(Z, LogDetLoss(Σ), g, method, ProximalOptions(; maxiter = options.maxiter); u = U)
+  copyto!(X, Z)
+  _finish!(info, "covsel!", r.iterations, r.converged, r.ρ, s^2, r.r_norm, r.s_norm)
   Z
 end
 

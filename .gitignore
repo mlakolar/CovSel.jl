@@ -8,3 +8,5 @@
 /examples/Manifest*.toml
 /benchmark/Manifest*.toml
 /benchmark/*/Manifest*.toml
+/benchmark/compare/*/Manifest*.toml
+/benchmark/compare/results/
