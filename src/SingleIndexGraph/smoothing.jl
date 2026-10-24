@@ -28,8 +28,31 @@ function local_design(t::AbstractVector, point::Real, h::Real; degree::Integer=2
     isfinite(condition) && condition < 1e12 || throw(DomainError(condition,"singular local design"))
     C = cholesky(Symmetric(M)) \ (V' .* k')
     a = vec(C[1,:])
-    (weights=a, map=C, basis=V, condition=condition, local_n=count(>(0),k),
+    leverage = vec(sum(V .* C';dims=2))
+    (weights=a, map=C, basis=V, leverage=leverage, condition=condition, local_n=count(>(0),k),
      equivalent_n=1/sum(abs2,a), max_weight=maximum(abs,a))
+end
+
+# For a fixed selected support, WLS has residual maker I-H. Its row squared
+# norm is the exact residual variance factor under homoskedastic errors.
+# Compute it from small Gram matrices, without allocating an n by n hat matrix.
+function _residual_df(X,t,point,h,J,A,B,kernel)
+    selected = findall(vec(any(!iszero,B;dims=2)))
+    isempty(selected) && return (coefficients=zeros(length(A),length(J)),factor=ones(size(X,1)),df=0)
+    U = X[:,A[selected]]
+    w = Float64.(kernel.((t .- point)./h))
+    all(x -> isfinite(x) && x>=0,w) && sum(w)>0 || throw(DomainError(point,"invalid refit window"))
+    w ./= sum(w)
+    C = cholesky(Symmetric(U'*(w.*U)))
+    coefficients = zeros(length(A),length(J))
+    coefficients[selected,:] = C \ (U'*(w.*X[:,J]))
+    T = U / C
+    hii = w .* vec(sum(T.*U;dims=2))
+    hh = vec(sum((T*(U'*(w.^2 .* U))).*T;dims=2))
+    factor = 1 .- 2hii .+ hh
+    all(x -> isfinite(x) && x>sqrt(eps(Float64)),factor) ||
+        throw(DomainError(minimum(factor),"degenerate residual degrees of freedom"))
+    (coefficients=coefficients,factor=factor,df=length(selected))
 end
 
 """Nonnegative local second moments for a conditionally mean-zero response."""

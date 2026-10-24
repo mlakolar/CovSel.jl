@@ -93,6 +93,49 @@ const SIG = CovarianceSelection.SingleIndexGraph
         @test norms.max_entry == 4
         @test norms.spectral ≈ opnorm(P)
     end
+    @testset "Finite sample corrections" begin
+        J,A = [1,2],[3,4,5,6]
+        B = [0.4 0.3;zeros(3,2)]
+        d = SIG._residual_df(X,t,0.0,0.9,J,A,B,biweight)
+        w = biweight.(t./0.9)
+        U = X[:,[3]]
+        H = U*((U'*(w.*U)) \ (U'.*w'))
+        M = Matrix{Float64}(I,n,n)-H
+        @test d.df == 1
+        @test d.factor ≈ vec(sum(abs2,M;dims=2)) atol=1e-12
+        @test X[:,A]*d.coefficients ≈ H*X[:,J]
+        # A common union support gives the same residual maker for both responses.
+        D = local_design(t,0.0,0.8)
+        @test D.leverage ≈ diag(D.basis*D.map)
+        @test all(0 .<= D.leverage .< 1)
+        raw = fit_precision(X,t;points=[0.0],entries=[(1,1)],bandwidth=0.8,
+                            oracle_coefficients=(x,J,A)->reshape([0,0.4,0,0,0],5,1),
+                            studentization=:hc3)
+        bc = fit_precision(X,t;points=[0.0],entries=[(1,1)],bandwidth=0.8,
+                           oracle_coefficients=(x,J,A)->reshape([0,0.4,0,0,0],5,1),
+                           studentization=:hc3,inverse_bias=:secondorder)
+        @test all(isempty,bc.failure)
+        @test bc.estimate[1] ≈ raw.estimate[1]-raw.se[1]^2/raw.estimate[1]
+        @test bc.influence == raw.influence
+        adjusted = fit_precision(X,t;points=[0.0],entries=[(1,1),(1,2)],bandwidth=0.8,
+                                 pilot_bandwidth=0.9,multiplier=0.7,refit=true,
+                                 residual_adjustment=:df,studentization=:hc3,inverse_bias=:secondorder)
+        @test all(isempty,adjusted.failure)
+        @test all(isfinite,adjusted.estimate)
+        identity = confint(adjusted)
+        logs = confint(adjusted;diagonal_transform=:log)
+        @test logs.lower[1] ≈ adjusted.estimate[1]*exp(-logs.critical*adjusted.se[1]/adjusted.estimate[1])
+        @test logs.upper[1] ≈ adjusted.estimate[1]*exp(logs.critical*adjusted.se[1]/adjusted.estimate[1])
+        @test logs.lower[2] == identity.lower[2]
+        @test logs.upper[2] == identity.upper[2]
+        b0 = confband(adjusted;draws=199,rng=MersenneTwister(27))
+        bl = confband(adjusted;draws=199,rng=MersenneTwister(27),diagonal_transform=:log)
+        @test bl.critical == b0.critical
+        @test all(bl.lower[:,1] .> 0)
+        @test bl.lower[:,2] == b0.lower[:,2]
+        @test_throws ArgumentError fit_precision(X,t;points=[0.0],entries=[(1,1)],bandwidth=0.8,
+            pilot=:scaledlasso,correction=:onestep,residual_adjustment=:df)
+    end
     @testset "Truth-free tuning" begin
         s = select_tuning(X,t;points=[0.0],entries=[(1,2)],bandwidths=[0.6,0.9],
                           pilot_bandwidths=[0.8,1.0],multipliers=[0.6,1.0],rng=MersenneTwister(7))
@@ -101,5 +144,16 @@ const SIG = CovarianceSelection.SingleIndexGraph
         @test s.pilot_bandwidth in (0.8,1.0)
         @test length(s.pilot_scores) == 4
         @test all(isfinite,[v.loss for v in s.final_scores])
+        guarded = select_tuning(X,t;points=[0.0],entries=[(1,2)],bandwidths=[0.6,0.9],
+            pilot_bandwidths=[0.8,1.0,1.2],multipliers=[0.6,1.0],rng=MersenneTwister(7),
+            rule=:inference,refit=true)
+        @test guarded.bandwidth <= guarded.bandwidth_cap
+        @test guarded.pilot_bandwidth >= guarded.pilot_ratio*guarded.bandwidth
+        @test all(x -> x.complexity>=0 && x.standard_error>=0,guarded.pilot_scores)
+        minpilot = select_tuning(X,t;points=[0.0],entries=[(1,2)],bandwidths=[0.6,0.9],
+            pilot_bandwidths=[0.8,1.0,1.2],multipliers=[0.6,1.0],rng=MersenneTwister(7),
+            rule=:inference,refit=true,pilot_se=0)
+        winner = filter(x -> x.bandwidth==minpilot.pilot_bandwidth && x.multiplier==minpilot.multiplier,minpilot.pilot_scores)[1]
+        @test winner.loss == minimum(x.loss for x in minpilot.pilot_scores)
     end
 end

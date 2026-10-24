@@ -47,8 +47,13 @@ function runshard(planpath,taskid,outdir)
                     if get(c,"select_tuning",false) && isempty(tunefailure)
                         try
                             tune = select_tuning(D.X,ti;points=[-0.5,0.0,0.5],entries,
-                                bandwidths=[0.6,0.9,1.2],pilot_bandwidths=[0.6,0.9,1.2],
-                                multipliers=[0.4,0.7,1.0],undersmooth=Int(c["n"])^(-0.05),
+                                bandwidths=get(c,"cv_bandwidths",[0.6,0.9,1.2]),
+                                pilot_bandwidths=get(c,"cv_pilot_bandwidths",[0.6,0.9,1.2]),
+                                multipliers=get(c,"cv_multipliers",[0.4,0.7,1.0]),
+                                rule=Symbol(get(c,"tuning_rule","prediction")),refit=get(c,"tuning_refit",false),
+                                pilot_ratio=Float64(get(c,"pilot_ratio",1.5)),
+                                pilot_se=Float64(get(c,"pilot_se",1)),
+                                undersmooth=Float64(get(c,"undersmooth",Int(c["n"])^(-0.05))),
                                 rng=MersenneTwister(seed+700000000))
                             h,hb,pen_use = tune.bandwidth,tune.pilot_bandwidth,tune.multiplier
                         catch err
@@ -63,17 +68,30 @@ function runshard(planpath,taskid,outdir)
                         try
                             isempty(failure) || error(failure)
                             pil = startswith(method,"aclime") ? :aclime : startswith(method,"scaled") ? :scaledlasso : :sqrtlasso
-                            correction = endswith(method,"onestep") ? :onestep : :block
-                            oracle = method == "oracle" ? ((point,J,A)->D.truth(point)[A,A]\D.truth(point)[A,J]) : nothing
+                            correction = occursin("onestep",method) ? :onestep : :block
+                            oracle = startswith(method,"oracle") ? ((point,J,A)->D.truth(point)[A,A]\D.truth(point)[A,J]) : nothing
                             fit = fit_precision(D.X,ti;points=grid,entries,bandwidth=h,pilot_bandwidth=hb,
                                 pilot=pil,correction,multiplier=pen_use,delta=Float64(get(c,"aclime_delta",2)),
-                                degree=Int(get(c,"smooth_degree",2)),refit=occursin("refit",method),oracle_coefficients=oracle)
+                                degree=Int(get(c,"smooth_degree",2)),refit=occursin("refit",method),oracle_coefficients=oracle,
+                                residual_adjustment=occursin("_df",method) ? :df : :none,
+                                studentization=occursin("_hc3",method) ? :hc3 : :hc0,
+                                inverse_bias=occursin("_bc",method) ? :secondorder : :none)
                         catch err
                             err isa InterruptException && rethrow()
                             failure = sprint(showerror,err)
                         end
                         elapsed = time()-start
-                        ci = fit === nothing ? nothing : confint(fit)
+                        transform = occursin("_log",method) ? :log : :identity
+                        ci = nothing
+                        if fit !== nothing
+                            try
+                                ci = confint(fit;diagonal_transform=transform)
+                            catch err
+                                err isa InterruptException && rethrow()
+                                fit = nothing
+                                failure = sprint(showerror,err)
+                            end
+                        end
                         for (e,(a,b)) in enumerate(entries),(g,t) in enumerate(grid)
                             fail = fit === nothing ? failure : fit.failure[g,e]
                             valid = isempty(fail)
@@ -88,7 +106,7 @@ function runshard(planpath,taskid,outdir)
                                 fail = fit === nothing ? failure : ""
                                 try
                                     fit === nothing && error(failure)
-                                    band = confband(fit;draws=Int(c["draws"]),joint,rng=MersenneTwister(seed+800000000))
+                                    band = confband(fit;draws=Int(c["draws"]),joint,diagonal_transform=transform,rng=MersenneTwister(seed+800000000))
                                 catch err
                                     err isa InterruptException && rethrow()
                                     fail = sprint(showerror,err)

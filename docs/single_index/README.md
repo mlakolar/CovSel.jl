@@ -10,7 +10,8 @@ literally. Diagonal intervals, localized inverse pilots, matrix one-step
 corrections, tuning rules, and feasible multiplier bands are separately identified
 extensions. Simulation success is evidence about tested designs, not a general
 coverage theorem. See [METHODS.md](METHODS.md), [SIMULATIONS.md](SIMULATIONS.md), and
-[RESULTS.md](RESULTS.md).
+[RESULTS.md](RESULTS.md). Finite-sample corrections and the new CV rules are
+described in [DIAGONAL_TUNING.md](DIAGONAL_TUNING.md).
 
 ```julia
 using CovarianceSelection

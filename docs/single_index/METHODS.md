@@ -62,6 +62,10 @@ positive-weight observations, or a nonpositive final residual covariance.
 `degree=0`, `1`, and `3` are supported for explicit smoothing sensitivities;
 the manuscript's primary procedure uses degree 2.
 
+The optional residual-maker, HC3, and inverse-curvature corrections are derived
+in [DIAGONAL_TUNING.md](DIAGONAL_TUNING.md). They preserve the default estimator
+when disabled.
+
 ## Full inverse pilots and one-step correction
 
 `precision_pilot` localizes the package's scaled-lasso inverse or ACLIME. Both
@@ -142,7 +146,10 @@ this final bandwidth by a prespecified undersmoothing factor.
 The supplied index is held fixed in this cross-validation. A caller-supplied
 index estimated on all observations is not re-estimated within folds.
 
-These losses target prediction, not coverage error. The optional factor
+The default `rule=:prediction` targets prediction, not coverage error. The
+`rule=:onese` and `:inference` alternatives use support complexity, a final
+bandwidth cap, and a pilot bandwidth floor. They are defined in
+[DIAGONAL_TUNING.md](DIAGONAL_TUNING.md), with separate confirmation results. The optional factor
 `n^(-1/20)` is a prespecified sensitivity rule. Its exponent is not a theorem
 or universal recommendation. A simulation-based rule must be frozen after
 calibration and assessed on the separate confirmation seed namespace.

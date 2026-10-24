@@ -38,7 +38,8 @@ We do not use arbitrary marginal transformations, which would change it.
 
 Each dataset is shared across all methods, both index modes and tuning values
 within a scenario. Stable integer seeds are `seed_base + 100000*scenario_id +
-replication`. Multiplier seeds and tuning-fold seeds have separate fixed
+replication`; the new paired tuning studies can explicitly share a `seed_group`
+in place of the scenario ID. Multiplier seeds and tuning-fold seeds have separate fixed
 offsets. The confirmation and paper plans have separate seed bases from the
 development plan. The same selected entries include one diagonal, the active
 pair, and a nonedge. More entries can be added without fitting all entries.
@@ -52,6 +53,10 @@ pair, and a nonedge. More entries can be added without fitting all entries.
 | `confirmation.toml` | Independent distribution, dimension, graph and tuning checks | 200 | 399 |
 | `refinement.toml` | Support refits, fixed-window CV and nested 21/41/81-point grids | 200–300 | 399–999 |
 | `paper_confirmation.toml` | Independent wider-pilot/refit and difficult CV checks | 1000 | 1999 |
+| `diagonal_development.toml` | Paired residual, Studentization, inversion and CV-rule ablations | 200 | 499 |
+| `diagonal_refinement.toml` | Minimum refitted pilot loss, pilot floors, log diagonal endpoints | 200 | 499 |
+| `diagonal_confirmation.toml` | Frozen original/revised CV and fixed-pilot comparisons | 1000 | 1999 |
+| `diagonal_stress.toml` | Frozen graph, tail, curvature, boundary, dimension and weak-index checks | 500–1000 | 1999 |
 | `paper.toml` | Prespecified larger evidence after development is satisfactory | 500–2000 | 999–1999 |
 
 A prepared plan is not evidence that it was submitted or completed. See
