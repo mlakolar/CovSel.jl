@@ -67,8 +67,27 @@ function fusedGraphicalLasso!(
 end
 
 
-# the norm of a stacked pair of matrices: the sum of their Frobenius norms
-_pairnorm(x::AbstractArray{<:Any, 3}) = norm(view(x, :, :, 1)) + norm(view(x, :, :, 2))
+# the norm of a stacked pair of matrices, the sum of their Frobenius norms, and
+# that of the difference of two such pairs, each in one pass
+function _pairnorm(x::Array{T, 3}) where {T}
+  n = size(x, 1) * size(x, 2)
+  s1 = s2 = zero(T)
+  @inbounds @simd for i in 1:n
+    s1 += abs2(x[i])
+    s2 += abs2(x[n+i])
+  end
+  sqrt(s1) + sqrt(s2)
+end
+
+function _pairnorm(x::Array{T, 3}, y::Array{T, 3}) where {T}
+  n = size(x, 1) * size(x, 2)
+  s1 = s2 = zero(T)
+  @inbounds @simd for i in 1:n
+    s1 += abs2(x[i] - y[i])
+    s2 += abs2(x[n+i] - y[n+i])
+  end
+  sqrt(s1) + sqrt(s2)
+end
 
 function fusedGraphicalLasso(
     Σx::StridedMatrix{T}, nx::Int,
