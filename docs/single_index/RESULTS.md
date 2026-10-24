@@ -57,14 +57,19 @@ see [METHODS.md](METHODS.md). Multiplier resampling does not remove that bias.
 
 ## Larger studies and limits
 
-* `13382620`: development, 100–200 replications per scenario; final bandwidth,
+* `13382838` (recovery of `13382620`): development, 100–200 replications per scenario; final bandwidth,
   pilot bandwidth, penalty, varying nuisances and generated-index sensitivities.
-* `13382659`: independent fixed-baseline confirmation, 200 replications per
+* `13382839` (recovery of `13382659`): independent fixed-baseline confirmation, 200 replications per
   scenario; sample sizes, dimensions, block/chain/grid graphs, heavy tails,
   bump covariates, sparse generated indices and initial CV tuning.
-* `13382776`: refinement, 200–300 replications per scenario; support refits,
+* `13382840` (recovery of `13382776`): refinement, 200–300 replications per scenario; support refits,
   corrected fixed-window CV and nested 21/41/81-point grids with shared data
   and multiplier streams. It starts only after final software validation.
+
+The original allocations were cancelled to correct inherited per-step memory,
+which had serialized the workers. Completed shards, interrupted partial files,
+and original logs were preserved. The recovery jobs reuse the scientific source
+and seeds and run only missing final shards.
 
 These are submitted studies. Their completed-output validation and scientific
 findings will be recorded separately from submission and scheduler status.

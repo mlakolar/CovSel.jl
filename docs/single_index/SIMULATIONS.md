@@ -81,8 +81,10 @@ is not treated as permanent storage.
 `canary.sbatch` resolves the required unregistered solver dependencies and runs
 the numerical tests. The saved `Manifest.toml` pins the resolved environment.
 `campaign.sbatch` runs GNU Parallel inside one allocation and launches exclusive,
-exact, one-CPU `srun` steps. BLAS and OpenMP threads are one. A shard contains
+exact, one-CPU `srun` steps with an explicit 2048 MB per-step memory request. BLAS and OpenMP threads are one. A shard contains
 several replications in one Julia process; there is no scheduler job per seed.
+A compact source/configuration fingerprint prevents reusing final shards after
+scientific inputs change. Atomic final shards are skipped on recovery.
 The launcher stops scheduling after a worker failure and retains partial
 outputs and the GNU Parallel job log. It does not automatically resubmit or
 reuse possibly invalid shards.
@@ -97,8 +99,10 @@ sbatch --parsable --job-name=sig-<unique-run-tag> \
 The default request is 32 CPUs, 64 GB, four hours. Command-line sbatch options
 can reduce it. Actual submitted requests and IDs belong in the registry.
 Resolve scheduler uncertainty before retrying any ambiguous submission.
-For partial recovery, use the Parallel log and final shard filenames to create
-an explicit missing-task list; do not overwrite valid final shards.
+For partial recovery, reconcile exact job IDs and preserve interrupted `.partial`
+files before submission. The launcher writes an explicit missing-task list and
+retains a separate GNU Parallel log for each attempt. It never overwrites a
+valid final shard.
 
 ## Outputs and validation
 
@@ -139,3 +143,14 @@ Nested-grid refinement shares each simulated dataset and multiplier stream
 across 21, 41 and 81 grid points, using an explicit common `seed_group`. It
 assesses numerical stability of critical values and coverage. It does not
 supply a grid-to-continuum theorem.
+
+## Worker-memory recovery
+
+The first development, confirmation and refinement allocations exposed a
+launcher error: their single-CPU steps inherited the entire job memory request,
+which serialized the workers. `scontrol show step` confirmed this directly.
+Those exact allocations were cancelled after recording their IDs. Final shards
+were retained; interrupted partial files and original logs were preserved.
+The corrected launcher requests 2048 MB for each one-CPU step and resumes only
+missing final shards with the same scientific source, plans and seeds. This is
+a scheduling repair, not a change to the experiments.
