@@ -44,6 +44,7 @@ pair, and a nonedge. More entries can be added without fitting all entries.
 | `development.toml` | Final/pilot bandwidth, penalty, varying nuisances, index error, data-driven tuning | 100–200 | 399 |
 | `confirmation.toml` | Independent distribution, dimension, graph and tuning checks | 200 | 399 |
 | `refinement.toml` | Support refits, fixed-window CV and nested 21/41/81-point grids | 200–300 | 399–999 |
+| `paper_confirmation.toml` | Independent wider-pilot/refit and difficult CV checks | 1000 | 1999 |
 | `paper.toml` | Prespecified larger evidence after development is satisfactory | 500–2000 | 999–1999 |
 
 A prepared plan is not evidence that it was submitted or completed. See

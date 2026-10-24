@@ -16,6 +16,18 @@ def wilson(k,n):
     half=z*math.sqrt(p*(1-p)/n+z*z/(4*n*n))/d
     return center-half,center+half
 
+def read_results(stream):
+    for row in csv.DictReader(stream):
+        # Early frozen workers recorded one matrix-failure row, rather than
+        # one NaN row for every requested norm. Restore the full denominator
+        # while retaining the original failure message and raw source file.
+        if row['kind']=='norm' and row['metric']=='failed':
+            for suffix in ('_pilot','_onestep'):
+                for metric in ('max_entry','entry_l1','frobenius','spectral','induced_l1','induced_linf','relative_frobenius'):
+                    yield dict(row,method=row['method']+suffix,metric=metric)
+        else:
+            yield row
+
 def main(plan,out):
     root=Path(out)
     # Avoid requiring Python 3.11 on Discovery; the saved task count is authoritative
@@ -29,7 +41,7 @@ def main(plan,out):
     unique=set()
     for path in paths:
         with path.open() as stream:
-            for row in csv.DictReader(stream):
+            for row in read_results(stream):
                 identity=tuple(row[k] for k in ['scenario','rep','method','index_mode','h_factor','pilot_factor','penalty','kind','entry_a','entry_b','point','metric'])
                 if identity in unique:raise RuntimeError(f'duplicate row: {identity}')
                 unique.add(identity)
@@ -42,13 +54,13 @@ def main(plan,out):
         expected_rows=int((root/'expected-pointwise-count.txt').read_text())
         if len(pointwise)!=expected_rows:raise RuntimeError(f'expected {expected_rows} pointwise rows, found {len(pointwise)}')
     with (root/'selected_tuning.csv').open('w') as stream:
-        w=csv.writer(stream);w.writerow(['scenario','rep','index_mode','h_factor','pilot_factor','penalty','selected_h','selected_pilot_h','selected_penalty'])
+        w=csv.writer(stream,lineterminator="\n");w.writerow(['scenario','rep','index_mode','h_factor','pilot_factor','penalty','selected_h','selected_pilot_h','selected_penalty'])
         for key,value in sorted(selected.items()):w.writerow(list(key)+list(value))
     # Oracle comparisons share the realized dataset and exactly the same final h.
     oracles={tuple(r[k] for k in ['scenario','rep','h_factor','pilot_factor','penalty','entry_a','entry_b','point']):r
              for r in pointwise if r['method']=='oracle' and r['index_mode']=='known'}
     with (root/'oracle_gap.csv').open('w') as stream:
-        w=csv.writer(stream);w.writerow(['scenario','rep','method','index_mode','entry_a','entry_b','point','gap','gap_over_oracle_se'])
+        w=csv.writer(stream,lineterminator="\n");w.writerow(['scenario','rep','method','index_mode','entry_a','entry_b','point','gap','gap_over_oracle_se'])
         for r in pointwise:
             key=tuple(r[k] for k in ['scenario','rep','h_factor','pilot_factor','penalty','entry_a','entry_b','point'])
             o=oracles.get(key)
@@ -68,7 +80,7 @@ def main(plan,out):
         infer=key[6]!='norm'
         output.append(list(key)+[n,n-len(valid),coverage if infer else '',math.sqrt(coverage*(1-coverage)/n) if infer else '',lo if infer else '',hi if infer else '',k/len(valid) if infer and valid else '',mean(finite([float(r['length']) for r in valid])),mean(errors),sd(estimates),math.sqrt(mean([x*x for x in ses])),mean(finite([float(r['value']) for r in valid]))])
     with (root/'summary.csv').open('w') as stream:
-        w=csv.writer(stream);w.writerow(columns);w.writerows(output)
+        w=csv.writer(stream,lineterminator="\n");w.writerow(columns);w.writerows(output)
     # Paired coverage differences: align shared datasets across methods, including failures.
     paired=defaultdict(lambda:defaultdict(dict))
     for key,rows in groups.items():
@@ -76,7 +88,7 @@ def main(plan,out):
         comparison=(key[0],)+key[2:]
         for row in rows:paired[comparison][key[1]][row['rep']]=int(row['covered'])
     with (root/'paired.csv').open('w') as stream:
-        w=csv.writer(stream);w.writerow(['comparison','method','reference','n','coverage_difference','mcse'])
+        w=csv.writer(stream,lineterminator="\n");w.writerow(['comparison','method','reference','n','coverage_difference','mcse'])
         for key,methods in sorted(paired.items()):
             reference='oracle' if 'oracle' in methods else sorted(methods)[0]
             for method,values in sorted(methods.items()):

@@ -59,3 +59,18 @@ write('refinement',[
     dict(name=f'grid_{g}',grid_n=g,n=1000,seed_group=40,methods=['oracle','sqrtlasso','scaled_refit_block'],replicates=200,draws=999,norms=False)
     for g in [21,41,81]
 ],187000000)
+# Paper-focused holdout after development/refinement; these outcomes do not
+# choose the rule being tested. Full broad paper.toml remains conditional.
+write('paper_confirmation',[
+    dict(name='block_wide_pilot',n=600,p=40,pilot_factors=[1.6],penalties=[0.35,0.7],
+         methods=['oracle','sqrtlasso','scaled_refit_block','aclime_refit_block'],
+         replicates=1000,draws=1999,grid_n=21,norm_refits=[False,True]),
+    dict(name='varying_wide_pilot',n=1200,p=80,varying=True,pilot_factors=[1.6],penalties=[0.35,0.7],
+         methods=['oracle','sqrtlasso','scaled_refit_block','aclime_refit_block'],
+         replicates=1000,draws=1999,grid_n=21,norm_refits=[False,True]),
+    dict(name='cv_high_dimensional',n=400,p=160,select_tuning=True,methods=['sqrtlasso'],
+         replicates=1000,draws=1999,grid_n=21,norms=False),
+    dict(name='cv_generated_index',n=1200,p=80,d=100,index_sparsity=4,select_tuning=True,
+         methods=['sqrtlasso'],index_modes=['known','estimated'],
+         replicates=1000,draws=1999,grid_n=21,norms=False),
+],317000000,10)
