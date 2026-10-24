@@ -1,7 +1,7 @@
 name = "CovarianceSelection"
 uuid = "fb9f034c-9bf8-4e47-a0a4-723273363029"
-authors = ["Mladen Kolar <mkolar@chicagobooth.edu>"]
 version = "0.1.0"
+authors = ["Mladen Kolar <mkolar@chicagobooth.edu>"]
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -12,12 +12,16 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
-[sources]
-ProximalBase = {url = "https://github.com/mlakolar/ProximalBase.jl", rev = "master"}
-ProximalSolvers = {url = "https://github.com/mlakolar/ProximalSolvers.jl", rev = "master"}
-
 [weakdeps]
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+
+[sources.ProximalBase]
+rev = "master"
+url = "https://github.com/mlakolar/ProximalBase.jl"
+
+[sources.ProximalSolvers]
+rev = "master"
+url = "https://github.com/mlakolar/ProximalSolvers.jl"
 
 [extensions]
 CovarianceSelectionMathOptInterfaceExt = "MathOptInterface"
@@ -28,7 +32,7 @@ HiGHS = "1"
 LinearAlgebra = "1"
 MathOptInterface = "1"
 PrecompileTools = "1"
-ProximalBase = "0.5.3"
+ProximalBase = "0.5.3, 0.5"
 ProximalSolvers = "0.1"
 Random = "1"
 SparseArrays = "1"
