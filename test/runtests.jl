@@ -12,7 +12,8 @@ tests = [
   "iht_solvers",
   "generate",
   "clime",
-  "slassoinv"
+  "slassoinv",
+  "single_index"
 ]
 
 @testset "CovarianceSelection" begin
