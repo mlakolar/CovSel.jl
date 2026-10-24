@@ -1,0 +1,38 @@
+{
+  "authorization": "User authorizes needed Discovery simulation resources.",
+  "created_utc": "2026-10-24T19:24:59.860702Z",
+  "jobs": [
+    {
+      "elapsed": "00:04:33",
+      "exit_code": "0:0",
+      "job_id": "13382679",
+      "scheduler_state": "COMPLETED"
+    }
+  ],
+  "kind": "exploration",
+  "purpose": "Independent 30-replication backfill scout of the six development scenarios while larger studies are queued. Exploratory, not definitive coverage evidence.",
+  "recreation": {
+    "command": "sbatch --parsable --ntasks=4 --mem=16G --time=00:30:00 --job-name=sig-20261024-scout experiments/single_index/campaign.sbatch experiments/single_index/scout.toml results",
+    "config": "experiments/single_index/scout.toml",
+    "seed_base": 143000000,
+    "sha256": "15b20d79f0826b7112ce34b3aace82b87b619e268f3aaf6a9e045b8188f612d0",
+    "source_snapshot": "source.tar.gz",
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261024-sig-scout"
+  },
+  "resources": {
+    "cpus": 4,
+    "memory_gb": 16,
+    "wall_minutes": 30
+  },
+  "revision": 3,
+  "run_id": "20261024-sig-scout",
+  "schema_version": 1,
+  "status": "validated",
+  "updated_utc": "2026-10-24T20:00:26.760301Z",
+  "validation": {
+    "duplicates": 0,
+    "repetitions_per_scenario": 30,
+    "rows": 105000,
+    "shards": 18
+  }
+}

@@ -105,19 +105,62 @@ in the high-dimensional baseline the mean spectral error was 0.573 for the
 scaled-lasso pilot and 4.433 for its full one-step matrix. Norm tables, lengths,
 Wilson intervals and adverse findings are retained in the full assessment.
 
-## Paper-focused confirmation and remaining limits
+## Independent 1000-replication confirmation
 
-Job `13383011` runs 1000 independent replications per scenario with 1999
-multipliers and 21 grid points. It tests wider pilots, the two prespecified
-penalty multipliers 0.35 and 0.7, promising support-refit block constructions,
-and the corrected CV selector in high dimension and with a generated sparse
-index. Its seed namespace is independent of all development and refinement
-studies. It is submitted evidence until outputs pass their completion checks.
+Job `13383047` completed all 400 shards and 1554000 output rows. It used
+1000 replications per scenario, 1999 multipliers and 21 grid points, with an
+independent seed namespace. Its 32 CPUs and 64 GB were spread over two nodes.
+The earlier single-node job `13383011` was cancelled before execution to improve
+scheduling. Reporting job `13383088` completed; `13383160` corrected the wider-pilot
+figure selection and clarified nominal versus selected tuning labels. No
+simulation refits were needed for that reporting correction.
 
-The broader `paper.toml` plan remains prepared and unsubmitted. The initial CV
-runs changed the validation window with the candidate bandwidth; they do not
-validate the corrected selector. No general feasible continuum-band or
-diagonal-coverage theorem is claimed.
+See the [full confirmation report](../../experiments/single_index/results/paper_confirmation/PAPER_CONFIRMATION.md).
+The fixed-rule cases use a final bandwidth of 2.5*n^(-1/5), pilot bandwidth
+1.6 times as large, and prespecified penalty multipliers 0.35 and 0.7.
+
+| Method and multiplier | Constant nuisance, n=600, p=40 | Varying nuisance, n=1200, p=80 |
+|---|---:|---:|
+| Scaled-lasso-refit block, 0.7 | 95.7% | 95.0% |
+| Scaled-lasso-refit block, 0.35 | 94.3% | 83.8% |
+| ACLIME-refit block, 0.7 | 93.4% | 93.6% |
+| ACLIME-refit block, 0.35 | 95.3% | 91.5% |
+| Square-root-lasso block, 0.7 | 91.8% | 93.4% |
+| Square-root-lasso block, 0.35 | 96.7% | 93.2% |
+
+These are joint grid coverages at nominal 95%, not pointwise diagonal
+coverages. The scaled-lasso-refit rule with multiplier 0.7 is a promising
+candidate within these two designs. Its diagonal pointwise coverage at zero
+was 94.4% and 93.1%, while edge/null-edge coverage was 94.9%/95.5% and
+95.6%/95.1%. Thus satisfactory family-band coverage does not establish accurate
+pointwise diagonal intervals.
+
+The corrected data-driven selector gave 89.3% joint coverage in the
+high-dimensional case and 90.7% with a generated sparse index, compared with
+92.8% for the matching known-index case. At zero, high-dimensional diagonal
+coverage was 92.2%; generated-index diagonal coverage was 93.3%. All these
+configurations had zero numerical failures. Their undercoverage is statistical,
+not a consequence of dropping failed fits.
+
+Practical conclusions from the tested designs:
+
+* Prefer common-complement block inversion over an uncalibrated direct
+  ACLIME one-step correction.
+* Evaluate a support-refitted scaled-lasso inverse and a pilot bandwidth larger
+  than the final bandwidth. Multiplier 0.7 performed well for joint grid bands
+  in the two independent fixed-rule designs above.
+* Smaller penalties are not uniformly better: multiplier 0.35 degraded the
+  varying-nuisance refit example substantially.
+* Prediction CV alone is insufficient for reliable simultaneous coverage in
+  the difficult cases tested. No generally valid data-driven tuning rule has
+  been established by these experiments.
+* Treat pointwise diagonals and continuum bands as separate remaining
+  inferential issues. Numerical grid stability is not a continuum theorem.
+
+The broader `paper.toml` suite remains prepared and unsubmitted. Its execution
+condition is not yet met across the full design range. The submodule provides
+reproducible development and paper-focused evidence, not a claim that the
+manuscript is ready for an AoS submission.
 
 Run records are in the SingleIndexGraph project's `.slurm/runs/`. Source
 snapshots, locked environments, raw compact shards, job logs and reporting

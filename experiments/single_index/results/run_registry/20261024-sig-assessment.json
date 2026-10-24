@@ -1,0 +1,36 @@
+{
+  "authorization": "User authorizes necessary Discovery computation.",
+  "created_utc": "2026-10-24T19:48:13.666296Z",
+  "jobs": [
+    {
+      "elapsed": "00:00:40",
+      "exit_code": "0:0",
+      "job_id": "13382956",
+      "scheduler_state": "COMPLETED"
+    }
+  ],
+  "kind": "development",
+  "purpose": "Final failure-inclusive coverage, refit, tuning and nested-grid assessment from saved outputs; no scientific refits.",
+  "recreation": {
+    "command": "sbatch --parsable --dependency=afterok:13382838:13382839:13382840 --job-name=sig-20261024-assess experiments/single_index/assessment.sbatch",
+    "environment": "Python plotting environment from 20261024-sig-finalvalidation/report-environment.txt",
+    "source_snapshot": "source-v2.tar.gz",
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261024-sig-assessment"
+  },
+  "resources": {
+    "cpus": 1,
+    "memory_gb": 8,
+    "wall_minutes": 15
+  },
+  "revision": 3,
+  "run_id": "20261024-sig-assessment",
+  "schema_version": 1,
+  "source_sha256": "195967c43b6272f636202f02ba918f7f4a8f0e4b34cb18341cc73eac9e05fe44",
+  "status": "validated",
+  "updated_utc": "2026-10-24T20:11:49.500652Z",
+  "validation": {
+    "all_three_summaries": "expected counts and no duplicate identities",
+    "grid_monotonicity_violations": 0,
+    "outputs": "/project2/mkolar_1314/SingleIndexGraph/20261024-sig-assessment/results/ASSESSMENT.md"
+  }
+}

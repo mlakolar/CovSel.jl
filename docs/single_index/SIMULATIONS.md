@@ -14,6 +14,13 @@ bounded bump covariates are also implemented, with its stated variance scaling,
 score, and rejection sampler. This Gaussian default is a documented departure
 from that protocol, not an exact reproduction of its entire simulation suite.
 
+The studies use the biweight kernel, final/pilot bandwidth anchors
+2.5*n^(-1/5), and the practical five-block Stein calibration. The manuscript
+protocol specifies an Epanechnikov kernel and separate bandwidth anchors.
+These are explicit calibration choices for the present experiments. They do
+not constitute completion of every prespecified experiment in that protocol.
+Both kernels satisfy the manuscript's stated Lipschitz kernel condition.
+
 The target pair shares sparse nuisance variables. Its structural residual
 variances are 1-0.35^2 and its residual covariance is 0.20*tanh(2*curvature*t).
 A separate last-coordinate probe pair has correlation signal*tanh(2*t). The

@@ -1,0 +1,71 @@
+{
+  "authorization": "User authorizes needed Discovery simulation resources.",
+  "created_utc": "2026-10-24T19:34:38.806227Z",
+  "jobs": [
+    {
+      "job_id": "13382776",
+      "reason": "Memory inheritance serialized worker steps; completed shards preserved.",
+      "stage": "refinement",
+      "status": "CANCELLED"
+    },
+    {
+      "elapsed": "00:04:45",
+      "exit_code": "0:0",
+      "job_id": "13382840",
+      "launch": "campaign-recovery.sbatch; same plan and source; skip completed final shards",
+      "per_worker_memory_mb": 2048,
+      "scheduler_state": "COMPLETED",
+      "stage": "refinement_recovery",
+      "status": "submitted"
+    }
+  ],
+  "kind": "development",
+  "outputs": [
+    "results/summary.csv",
+    "results/paired.csv",
+    "results/selected_tuning.csv",
+    "results/receipt.json",
+    "results/REPORT.md"
+  ],
+  "purpose": "Independent support-refit, corrected tuning, and nested-grid calibration after adverse ACLIME scout findings.",
+  "recovery": {
+    "new_launcher": "campaign-recovery.sbatch",
+    "new_submission_resources": [
+      8,
+      16,
+      30
+    ],
+    "owned_job_to_cancel": "13382776",
+    "reason": "scontrol confirmed 1-CPU steps inherited all allocation memory and serialized workers. Correct to explicit 2048 MB per step. Scientific source/config/seeds unchanged.",
+    "retention": "Keep final shards and original logs. Move interrupted .partial files to a cancellation-specific directory before resuming missing final shards."
+  },
+  "recreation": {
+    "command": "sbatch --parsable --dependency=afterok:VALIDATION_JOB_ID --ntasks=8 --mem=16G --time=00:45:00 --job-name=sig-20261024-refine experiments/single_index/campaign.sbatch experiments/single_index/refinement.toml results",
+    "config": "experiments/single_index/refinement.toml",
+    "seed_base": 187000000,
+    "sha256": "8bd19372ad1d6731fd3dcc20a35a4c578840908503b9217d593fe094786c83bf",
+    "source_snapshot": "source.tar.gz plus finalcheck.sbatch",
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261024-sig-refinement"
+  },
+  "resources": {
+    "cpus": 8,
+    "memory_gb": 16,
+    "wall_minutes": 45
+  },
+  "revision": 6,
+  "run_id": "20261024-sig-refinement",
+  "schema_version": 1,
+  "status": "validated",
+  "submission_intent": "sbatch --parsable --dependency=afterok:13382773 --ntasks=8 --mem=16G --time=00:45:00 --job-name=sig-20261024-refine experiments/single_index/campaign.sbatch experiments/single_index/refinement.toml results",
+  "updated_utc": "2026-10-24T20:00:27.445133Z",
+  "validation": {
+    "duplicate_identities": 0,
+    "expected_shards": 140,
+    "independent_refit": false,
+    "norm_failures_retained": true,
+    "pointwise_count_checked": true,
+    "reporting_checked_by_job": "13382956",
+    "rows": 581200,
+    "shards": 140
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "authorization": "User authorizes needed Discovery simulation resources.",
+  "created_utc": "2026-10-24T19:34:38.707163Z",
+  "finalcheck_sha256": "e7b79054fc30f7ef6ac6c315343305858e756eaa48e5fcd2368372189d830592",
+  "jobs": [
+    {
+      "exit_code": "0:0",
+      "job_id": "13382773",
+      "scheduler_state": "COMPLETED"
+    }
+  ],
+  "kind": "development",
+  "purpose": "Final package tests after support-refit and fixed-validation-window changes; Julia 1.13/1.10.",
+  "recreation": {
+    "command": "sbatch --parsable --job-name=sig-20261024-refit-test experiments/single_index/finalcheck.sbatch",
+    "config": "experiments/single_index/refinement.toml",
+    "seed_base": 187000000,
+    "sha256": "8bd19372ad1d6731fd3dcc20a35a4c578840908503b9217d593fe094786c83bf",
+    "source_snapshot": "source.tar.gz plus finalcheck.sbatch",
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261024-sig-refinement"
+  },
+  "resources": {
+    "cpus": 2,
+    "memory_gb": 8,
+    "wall_minutes": 30
+  },
+  "revision": 4,
+  "run_id": "20261024-sig-refinement-validation",
+  "schema_version": 1,
+  "source_sha256": "8bd19372ad1d6731fd3dcc20a35a4c578840908503b9217d593fe094786c83bf",
+  "status": "validated",
+  "updated_utc": "2026-10-24T20:11:49.317379Z",
+  "validation": {
+    "Julia1.10": {
+      "DGP": 68,
+      "focused": 62
+    },
+    "Julia1.13": {
+      "DGP": 68,
+      "package_tests": 1388
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "authorized_resources": {
+    "authorization": "User explicitly permits as much Discovery allocation as needed for this simulation task.",
+    "canary": {
+      "cpus": 2,
+      "memory_gb": 8,
+      "wall_minutes": 30
+    }
+  },
+  "cluster": {
+    "account": "mkolar_1314",
+    "host": "discovery",
+    "partition": "main",
+    "root": "/project2/mkolar_1314/SingleIndexGraph/20261024-sig-dev-canary"
+  },
+  "created_utc": "2026-10-24T19:11:51.402203Z",
+  "jobs": [
+    {
+      "elapsed": "00:01:12",
+      "exit_code": "0:0",
+      "job_id": "13382591",
+      "scheduler_state": "COMPLETED",
+      "stage": "canary"
+    }
+  ],
+  "kind": "development",
+  "outputs": [
+    "slurm-<jobid>.out",
+    "Manifest.toml"
+  ],
+  "purpose": "Implement and validate single-index precision inference in CovarianceSelection.jl; bounded solver and inference canary before coverage simulations.",
+  "recreation": {
+    "base_commit": "dbf3b5f2fb99a73feb67d5a1d7b64b7b38397020",
+    "command": "sbatch --parsable --job-name=sig-20261024-canary experiments/single_index/canary.sbatch",
+    "environment": "Julia 1.13.2; task depot layered on cached /home1/mkolar/juliaPkg/depot; Manifest saved after resolution",
+    "sha256": "f598bc5fcb98f55a2aa6d430cd975045862f6b5c987eb9a52d45c9930d2f36f1",
+    "source_snapshot": "source-canary.tar.gz",
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261024-sig-dev-canary"
+  },
+  "retention": "Source snapshot, environment manifest, logs and final reporting inputs in project storage. Scratch retention not relied upon.",
+  "revision": 3,
+  "run_id": "20261024-sig-dev-canary",
+  "schema_version": 1,
+  "status": "validated",
+  "updated_utc": "2026-10-24T19:20:31.325526Z",
+  "validation": {
+    "focused_tests": 53,
+    "status": "passed"
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "authorization": "User explicitly authorized required Discovery allocation for these simulations.",
+  "checks_before_submission": [
+    "53 focused numerical tests passed in job 13382591",
+    "496 smoke-test output rows summarized with no duplicate identities in job 13382607",
+    "Python and shell syntax checked"
+  ],
+  "cluster": "Discovery; account mkolar_1314; main; epyc-7513",
+  "created_utc": "2026-10-24T19:18:28.109746Z",
+  "jobs": [
+    {
+      "job_id": "13382620",
+      "reason": "Memory inheritance serialized worker steps; completed shards preserved.",
+      "scheduler_state": "PENDING",
+      "stage": "development",
+      "status": "CANCELLED"
+    },
+    {
+      "elapsed": "00:01:57",
+      "exit_code": "0:0",
+      "job_id": "13382838",
+      "launch": "campaign-recovery.sbatch; same plan and source; skip completed final shards",
+      "per_worker_memory_mb": 2048,
+      "scheduler_state": "COMPLETED",
+      "stage": "development_recovery",
+      "status": "submitted"
+    }
+  ],
+  "kind": "development",
+  "outputs": [
+    "results/summary.csv",
+    "results/paired.csv",
+    "results/selected_tuning.csv",
+    "results/receipt.json",
+    "results/REPORT.md"
+  ],
+  "purpose": "Independent bandwidth/pilot/penalty coverage exploration; generated-index and data-driven tuning diagnostics.",
+  "recovery": {
+    "new_launcher": "campaign-recovery.sbatch",
+    "new_submission_resources": [
+      8,
+      16,
+      30
+    ],
+    "owned_job_to_cancel": "13382620",
+    "reason": "scontrol confirmed 1-CPU steps inherited all allocation memory and serialized workers. Correct to explicit 2048 MB per step. Scientific source/config/seeds unchanged.",
+    "retention": "Keep final shards and original logs. Move interrupted .partial files to a cancellation-specific directory before resuming missing final shards."
+  },
+  "recreation": {
+    "command": "sbatch --parsable --job-name=sig-20261024-dev experiments/single_index/campaign.sbatch experiments/single_index/development.toml results",
+    "config": "experiments/single_index/development.toml",
+    "environment": "Julia 1.13.2; saved canary Manifest.toml; cached installed solver dependencies",
+    "seed_base": 23000000,
+    "sha256": "f2d4851a954a15b46285086e9134f1a36a1bca21776d3c44776e7a7417a23f58",
+    "source_snapshot": "source.tar.gz",
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261024-sig-development"
+  },
+  "resources": {
+    "cpus": 8,
+    "memory_gb": 16,
+    "wall_minutes": 45
+  },
+  "revision": 7,
+  "run_id": "20261024-sig-development",
+  "scheduling_changes": [
+    "Initial 32 CPUs/64 GB/4 h request reduced first to 16 CPUs/32 GB/1 h, then 8 CPUs/16 GB/45 min for backfill. Scientific settings and job ID unchanged."
+  ],
+  "schema_version": 1,
+  "status": "validated",
+  "updated_utc": "2026-10-24T20:00:27.228591Z",
+  "validation": {
+    "duplicate_identities": 0,
+    "expected_shards": 110,
+    "independent_refit": false,
+    "norm_failures_retained": true,
+    "pointwise_count_checked": true,
+    "reporting_checked_by_job": "13382956",
+    "rows": 693200,
+    "shards": 110
+  }
+}

@@ -27,16 +27,20 @@ def main(out):
     scenarios=sorted({r['scenario'] for r in rows})
     for scenario in scenarios:
         subset=[r for r in rows if r['scenario']==scenario and r['kind']=='pointwise' and r['entry_a']=='1' and r['entry_b']=='1' and r['index_mode']=='known']
+        if not subset:continue
+        settings=sorted({(r['h_factor'],r['pilot_factor'],r['penalty']) for r in subset},
+                        key=lambda q:abs(float(q[0])-1)+abs(float(q[1])-1)+abs(float(q[2])-0.7))
+        setting=settings[0]
         fig,ax=plt.subplots(figsize=(9,4.5))
-        for method in methods:
-            data=[r for r in subset if r['method']==method and r['h_factor']=='1.0' and r['pilot_factor']=='1.0' and r['penalty']=='0.7']
+        for mi,method in enumerate(methods):
+            data=[r for r in subset if r['method']==method and (r['h_factor'],r['pilot_factor'],r['penalty'])==setting]
             data.sort(key=lambda r:float(r['point']))
             if not data:continue
             x=[float(r['point']) for r in data];y=[float(r['coverage']) for r in data]
             se=[[float(r['coverage'])-float(r['wilson_lower']) for r in data],[float(r['wilson_upper'])-float(r['coverage']) for r in data]]
-            ax.errorbar(x,y,yerr=se,label=method,marker='o',markersize=3,capsize=2)
+            ax.errorbar(x,y,yerr=se,label=method,color=plt.get_cmap('tab20')(mi%20),marker='o',markersize=3,capsize=2)
         ax.axhline(.95,color='black',linestyle='--',linewidth=1)
-        ax.set(xlabel='Index value',ylabel='Diagonal pointwise coverage',ylim=(0.0,1.01),title=scenario)
+        ax.set(xlabel='Index value',ylabel='Diagonal pointwise coverage',ylim=(0.0,1.01),title=scenario+f"\nNominal factors: h={setting[0]}, pilot={setting[1]}, penalty={setting[2]}")
         ax.legend(fontsize=8,loc="upper left",bbox_to_anchor=(1.02,1))
         fig.tight_layout();fig.savefig(root/(scenario+'-diagonal-coverage.pdf'));fig.savefig(root/(scenario+'-diagonal-coverage.png'),dpi=150);plt.close(fig)
     (root/'plot-status.txt').write_text('Figures rendered from summary.csv with matplotlib.\n')
