@@ -1,0 +1,19 @@
+{
+  "status": "outputs_present_and_summarized",
+  "plan": "/project2/mkolar_1314/SingleIndexGraph/20261024-sig-paper-confirmation/experiments/single_index/paper_confirmation.toml",
+  "shards": 400,
+  "expected_shards": 400,
+  "rows": 1554000,
+  "summary_groups": 1554,
+  "checks": [
+    "expected shard count",
+    "no duplicate result identities",
+    "failed fits retained as noncoverage",
+    "Wilson intervals and Monte Carlo standard errors",
+    "paired method comparisons on common seeds"
+  ],
+  "limitations": [
+    "No independent scientific refit is implied by these aggregation checks.",
+    "Finite-grid bands do not certify continuum coverage."
+  ]
+}

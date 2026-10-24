@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "run_id": "20261025-sig-diagonal-validation",
+  "status": "validated",
+  "purpose": "Full package tests on Julia 1.13; focused inference and DGP tests on Julia 1.10.",
+  "authorization": "User requests fixes and Discovery validation.",
+  "resources": {
+    "cpus": 2,
+    "memory_gb": 8,
+    "wall_minutes": 20
+  },
+  "recreation": {
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261025-sig-diagonal-development",
+    "command": "sbatch --parsable --job-name=sig-20261025-dtest experiments/single_index/diagonal_validation.sbatch",
+    "source_snapshot": "source.tar.gz plus diagonal_validation.sbatch"
+  },
+  "jobs": [
+    {
+      "job_id": "13383308",
+      "scheduler_state": "COMPLETED",
+      "exit_code": "0:0",
+      "elapsed": "00:05:15"
+    }
+  ],
+  "validation": {
+    "Julia1.13": {
+      "package": 1402,
+      "DGP": 68
+    },
+    "Julia1.10": {
+      "focused": 76,
+      "DGP": 68
+    },
+    "scope": "Residual/HC3/curvature and one-SE/inference tuning; before later log endpoints and pilot_se option."
+  }
+}

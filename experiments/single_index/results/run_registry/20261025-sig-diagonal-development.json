@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "run_id": "20261025-sig-diagonal-development",
+  "status": "validated",
+  "purpose": "Paired comparison of residual-maker normalization, smoothing HC3, inverse-curvature correction, and CV selection rules across block, varying nuisance, high dimension, generated index, chain, and grid designs.",
+  "authorization": "User explicitly authorizes resources needed on Discovery.",
+  "resources": {
+    "nodes": 2,
+    "cpus": 32,
+    "memory_gb": 64,
+    "wall_minutes": 30,
+    "per_worker_memory_mb": 2048
+  },
+  "recreation": {
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261025-sig-diagonal-development",
+    "command": "sbatch --parsable --nodes=2 --ntasks=32 --ntasks-per-node=16 --mem=32G --time=00:30:00 --job-name=sig-20261025-ddev experiments/single_index/campaign.sbatch experiments/single_index/diagonal_development.toml results",
+    "source_snapshot": "source.tar.gz",
+    "seed_base": 431000000
+  },
+  "jobs": [
+    {
+      "job_id": "13383291",
+      "scheduler_state": "COMPLETED",
+      "exit_code": "0:0",
+      "elapsed": "00:04:00"
+    },
+    {
+      "job_id": "13383326",
+      "scheduler_state": "COMPLETED",
+      "exit_code": "0:0",
+      "purpose": "saved-output reporting"
+    }
+  ],
+  "source_sha256": "23c294eb23e9876a5719a07da0385a3dd456e5facc43bcbbe4c621a1415810e6",
+  "validation": {
+    "focused_canary": 76,
+    "DGP": 68,
+    "shards": 200,
+    "rows": 994000,
+    "duplicate_identities": 0,
+    "failed_fits_retained": true
+  },
+  "outputs": [
+    "results/summary.csv",
+    "results/DIAGONAL_TUNING.md",
+    "results/paired_rules.csv",
+    "results/selected_tuning.csv"
+  ]
+}

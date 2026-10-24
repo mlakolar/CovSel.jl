@@ -1,0 +1,39 @@
+{
+  "authorization": "User authorizes required Discovery simulation resources.",
+  "cluster": "Discovery; account mkolar_1314; partition main; epyc-7513",
+  "created_utc": "2026-10-24T19:14:57.549103Z",
+  "jobs": [
+    {
+      "elapsed": "00:00:33",
+      "exit_code": "0:0",
+      "job_id": "13382607",
+      "scheduler_state": "COMPLETED",
+      "stage": "smoke"
+    }
+  ],
+  "kind": "development",
+  "purpose": "End-to-end inference and simulation-output canary after 53 numerical unit tests passed.",
+  "recreation": {
+    "command": "sbatch --parsable --ntasks=2 --mem=8G --time=00:15:00 --job-name=sig-20261024-smoke experiments/single_index/campaign.sbatch experiments/single_index/smoke.toml results",
+    "environment": "copy of canary Manifest.toml; read-only canary depot layered under task depot",
+    "sha256": "b641a3ce75ace07813be2d81e09f8df872061efb240b49aecc66eef9229d6da7",
+    "source": "source.tar.gz",
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261024-sig-smoke"
+  },
+  "resources": {
+    "cpus": 2,
+    "memory_gb": 8,
+    "wall_minutes": 15
+  },
+  "revision": 2,
+  "run_id": "20261024-sig-smoke",
+  "schema_version": 1,
+  "status": "validated",
+  "updated_utc": "2026-10-24T19:20:31.445811Z",
+  "validation": {
+    "expected_shards": 1,
+    "replications": 2,
+    "rows": 496,
+    "status": "passed"
+  }
+}

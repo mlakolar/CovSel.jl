@@ -1,0 +1,28 @@
+seed_base = 17000000
+shard_size = 2
+
+[[scenario]]
+n = 160
+p = 10
+d = 10
+index_sparsity = 2
+graph_degree = 4
+design = "gaussian"
+graph = "block"
+varying = false
+curvature = 1.0
+signal = 0.7
+noise = "gaussian"
+grid_min = -0.75
+grid_max = 0.75
+grid_n = 3
+h_factors = [1.0]
+pilot_factors = [1.0]
+penalties = [0.7]
+index_modes = ["known", "estimated"]
+methods = ["oracle", "sqrtlasso", "scaled_block", "scaled_onestep", "aclime_block", "aclime_onestep"]
+draws = 199
+norms = true
+replicates = 2
+name = "smoke"
+id = 1

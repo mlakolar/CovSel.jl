@@ -6,6 +6,12 @@
 
 Various methods for learning high-dimensional Gaussian graphical models.
 
+The research submodule [`SingleIndexGraph`](docs/single_index/README.md) adds
+selected precision-entry intervals and multiplier bands along a scalar index,
+with local square-root-lasso, scaled-lasso inverse and ACLIME pilots.
+Its [validation status](docs/single_index/RESULTS.md) separates tested behavior
+from proposed inference extensions.
+
 ```julia
 using Pkg
 # not registered yet, and neither are the versions of ProximalBase and

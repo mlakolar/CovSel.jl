@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "run_id": "20261025-sig-index-confirmation",
+  "status": "validated",
+  "purpose": "Independent frozen confirmation of ordinary/MOM block-count, threshold and unshrinking CV for the remaining generated-index gap; all index modes share datasets and second-stage rule.",
+  "authorization": "User explicitly authorizes resources necessary for Discovery coverage development.",
+  "resources": {
+    "nodes": 2,
+    "cpus": 32,
+    "memory_gb": 64,
+    "wall_minutes": 45
+  },
+  "recreation": {
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261025-sig-index-confirmation",
+    "command": "sbatch --parsable --nodes=2 --ntasks=32 --ntasks-per-node=16 --mem=32G --time=00:45:00 --job-name=sig-20261025-iconfirm experiments/single_index/campaign.sbatch experiments/single_index/index_confirmation.toml results",
+    "source_snapshot": "source.tar.gz",
+    "seed_base": 751000000,
+    "protocol": "docs/single_index/INDEX_CONFIRMATION_PROTOCOL.md"
+  },
+  "jobs": [
+    {
+      "job_id": "13383781",
+      "scheduler_state": "COMPLETED",
+      "elapsed": "00:10:36",
+      "exit_code": "0:0"
+    },
+    {
+      "job_id": "13383792",
+      "scheduler_state": "COMPLETED",
+      "elapsed": "00:00:12",
+      "exit_code": "0:0",
+      "purpose": "report"
+    }
+  ],
+  "source_sha256": "c4bc7868c98556e33a4b17a5495bcff0f02f1dcb64752ba1831d39e88dd081e9",
+  "report_sha256": "b76d84cb538a0b2db0aecbb568b659f6693b99b3404d80c1098aabf8497b9221",
+  "validation": {
+    "shards": 400,
+    "rows": 1680000,
+    "expected_pointwise_count_checked": true,
+    "duplicate_identities": 0,
+    "failures_retained": true,
+    "replications": 1000,
+    "multiplier_draws": 1999,
+    "grid_points": 21
+  },
+  "outputs": [
+    "results/summary.csv",
+    "results/INDEX_TUNING.md",
+    "results/paired_index.csv",
+    "results/selected_tuning.csv",
+    "results/receipt.json",
+    "results/index_coverage.pdf"
+  ]
+}

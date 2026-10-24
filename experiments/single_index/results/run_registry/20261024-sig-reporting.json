@@ -1,0 +1,34 @@
+{
+  "authorization": "User authorizes necessary Discovery computation.",
+  "created_utc": "2026-10-24T19:27:57.846834Z",
+  "jobs": [
+    {
+      "exit_code": "0:0",
+      "job_id": "13382691",
+      "scheduler_state": "COMPLETED"
+    }
+  ],
+  "kind": "development",
+  "purpose": "Aggregate saved scout outputs and render scientific plots after its exact job succeeds.",
+  "recreation": {
+    "command": "sbatch --parsable --dependency=afterok:13382679 --job-name=sig-20261024-report experiments/single_index/report.sbatch /project2/mkolar_1314/SingleIndexGraph/20261024-sig-scout/results experiments/single_index/scout.toml",
+    "sha256": "recorded in submission transcript",
+    "source_snapshot": "source.tar.gz",
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261024-sig-finalvalidation"
+  },
+  "resources": {
+    "cpus": 1,
+    "memory_gb": 4,
+    "wall_minutes": 15
+  },
+  "revision": 3,
+  "run_id": "20261024-sig-reporting",
+  "schema_version": 1,
+  "status": "validated",
+  "updated_utc": "2026-10-24T20:00:26.934600Z",
+  "validation": {
+    "environment": "/project2/mkolar_1314/SingleIndexGraph/20261024-sig-finalvalidation/report-environment.txt",
+    "figures": "PDF and PNG generated later by assessment job",
+    "scout_summary": "completed"
+  }
+}

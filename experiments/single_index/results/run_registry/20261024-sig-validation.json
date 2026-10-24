@@ -1,0 +1,42 @@
+{
+  "authorization": "User authorizes necessary Discovery computation.",
+  "created_utc": "2026-10-24T19:20:37.896007Z",
+  "jobs": [
+    {
+      "job_id": "13382633",
+      "reason": "ext/ omitted from source staging",
+      "status": "failed"
+    },
+    {
+      "generator_checks_passed": 64,
+      "generator_fixture_error": "Dict inferred Integer values; assigning a String design raised conversion error. Fixed in later validation snapshot.",
+      "job_id": "13382675",
+      "package_tests": 1379,
+      "package_tests_status": "passed",
+      "status": "failed_after_package_tests"
+    }
+  ],
+  "kind": "development",
+  "purpose": "Full package tests and independent DGP algebra/moment checks after focused tests passed.",
+  "recreation": {
+    "command": "sbatch --parsable --job-name=sig-20261024-validation experiments/single_index/validate.sbatch",
+    "source": "source-canary.tar.gz plus validation-source.tar.gz",
+    "validation_snapshot_sha256": "recorded in submission log",
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261024-sig-dev-canary"
+  },
+  "repair": "Restore ext/ from unchanged base repository and rerun full tests; core estimator unchanged.",
+  "resources": {
+    "cpus": 2,
+    "memory_gb": 8,
+    "wall_minutes": 45
+  },
+  "revision": 4,
+  "run_id": "20261024-sig-validation",
+  "schema_version": 1,
+  "source_hashes": {
+    "extension-source.tar.gz": "5c006e92bac8ffe0e8ccc7bd18c8b4789790cb1c5b216b5b9e48610b56dad3ba",
+    "validation-source.tar.gz": "7fba85dd64cd053e3018c69e8331fe0313b9041ac1251159b464a51a25bdc48c"
+  },
+  "status": "partial_validation",
+  "updated_utc": "2026-10-24T20:11:49.058555Z"
+}

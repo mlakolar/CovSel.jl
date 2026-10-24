@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "run_id": "20261025-sig-diagonal-refinement",
+  "status": "validated",
+  "purpose": "Refine CV pilot selection to minimum refitted prediction loss; compare pilot floors and log-scale diagonal intervals on independent development seeds.",
+  "authorization": "User explicitly permits necessary Discovery resources.",
+  "resources": {
+    "nodes": 2,
+    "cpus": 32,
+    "memory_gb": 64,
+    "wall_minutes": 30,
+    "per_worker_memory_mb": 2048
+  },
+  "recreation": {
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261025-sig-diagonal-refinement",
+    "command": "sbatch --parsable --nodes=2 --ntasks=32 --ntasks-per-node=16 --mem=32G --time=00:30:00 --job-name=sig-20261025-drefine experiments/single_index/campaign.sbatch experiments/single_index/diagonal_refinement.toml results",
+    "source_snapshot": "source.tar.gz",
+    "seed_base": 463000000
+  },
+  "jobs": [
+    {
+      "job_id": "13383392",
+      "scheduler_state": "COMPLETED",
+      "purpose": "84 focused and 68 DGP checks"
+    },
+    {
+      "job_id": "13383397",
+      "scheduler_state": "COMPLETED",
+      "exit_code": "0:0",
+      "elapsed": "00:03:55"
+    },
+    {
+      "job_id": "13383401",
+      "scheduler_state": "COMPLETED",
+      "exit_code": "0:0",
+      "purpose": "report"
+    }
+  ],
+  "source_sha256": "f1ab7161e2e083d180adedac0cc0612e7b52dd30f1298568a63c0e5c0d406b25",
+  "validation": {
+    "shards": 240,
+    "rows": 1176000,
+    "failed_fits_retained": true,
+    "duplicate_identities": 0
+  }
+}

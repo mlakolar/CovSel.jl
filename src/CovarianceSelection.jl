@@ -80,6 +80,8 @@ include("slassoinv.jl")
 include("generate.jl")
 include("evaluation.jl")
 
+include("SingleIndexGraph/SingleIndexGraph.jl")
+
 include("precompile.jl")
 
 end

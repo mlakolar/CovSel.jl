@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "run_id": "20261025-sig-diagonal-worker-validation",
+  "status": "validated",
+  "purpose": "End-to-end method-label regression check: adding _log must preserve one-step correction and multiplier critical values. No active confirmation method uses onestep.",
+  "authorization": "User requests Discovery-only validation.",
+  "resources": {
+    "cpus": 1,
+    "memory_gb": 4,
+    "wall_minutes": 10
+  },
+  "recreation": {
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261025-sig-diagonal-worker-validation",
+    "command": "sbatch --parsable --job-name=sig-20261025-dworker experiments/single_index/diagonal_worker.sbatch",
+    "source_snapshot": "source.tar.gz"
+  },
+  "jobs": [
+    {
+      "job_id": "13383554",
+      "scheduler_state": "COMPLETED",
+      "elapsed": "00:00:28",
+      "exit_code": "0:0"
+    }
+  ],
+  "source_sha256": "e683cc15c44b4601acd9130ae0b9d58f627b0af3c7ddd840371bbd2c12455f42",
+  "validation": {
+    "worker_integration_checks": 51,
+    "rows": 32,
+    "correction_preserved_with_log_label": true,
+    "identical_multiplier_critical_values": true
+  }
+}
