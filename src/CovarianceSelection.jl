@@ -78,4 +78,6 @@ include("slassoinv.jl")
 include("generate.jl")
 include("evaluation.jl")
 
+include("precompile.jl")
+
 end
