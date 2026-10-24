@@ -123,6 +123,10 @@ operator through `FiberSum`, together with `SliceSum(LogDetLoss(...))` and
 ProximalSolvers' ADMM. See
 [`examples/fused_graphical_lasso.jl`](examples/fused_graphical_lasso.jl) for
 fits with two and three groups.
+[`examples/danaher2014.jl`](examples/danaher2014.jl) recreates the paper's
+three-group simulation design, with small demonstration and full 100-replicate
+profiles, saved metrics and Figure 2-style plots; see its
+[reproduction protocol](examples/danaher2014/README.md) for the exact scope.
 
 ### CLIME and ACLIME
 

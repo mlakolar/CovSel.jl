@@ -10,3 +10,4 @@
 /benchmark/*/Manifest*.toml
 /benchmark/compare/*/Manifest*.toml
 /benchmark/compare/results/
+/examples/danaher2014/output/
