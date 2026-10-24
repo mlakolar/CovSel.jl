@@ -54,7 +54,8 @@ fold assignment. Simulation CSVs retain selected index multiplier, support
 size, unshrinking flag, and block count, in addition to direction error.
 
 The 701000000 namespace develops five-block alignment CV. The separate
-719000000 namespace compares one- and five-block candidates. Any independent
-confirmation must use a fresh namespace and freeze the candidate class before
-its outcomes. Weak identification, high-dimensional index estimation error,
+719000000 namespace compares one- and five-block candidates. The independent
+751000000 confirmation freezes this candidate class before its outcomes; see
+[INDEX_CONFIRMATION_PROTOCOL.md](INDEX_CONFIRMATION_PROTOCOL.md) and
+[RESULTS.md](RESULTS.md) for the completed assessment. Weak identification, high-dimensional index estimation error,
 and heavy-tailed validation remain explicit limitations.

@@ -1,6 +1,7 @@
 # Validation and findings
 
-The module is implemented and tested. Coverage selection and paper-scale
+The module is implemented and tested. The latest diagonal/CV findings,
+independent stress results, and first-stage confirmation are reported below. Coverage selection and paper-scale
 validation remain an active numerical investigation. The large `paper.toml`
 suite is prepared but has not been submitted: the exploratory results do not
 yet justify declaring every inference variant satisfactory.
@@ -105,7 +106,7 @@ in the high-dimensional baseline the mean spectral error was 0.573 for the
 scaled-lasso pilot and 4.433 for its full one-step matrix. Norm tables, lengths,
 Wilson intervals and adverse findings are retained in the full assessment.
 
-## Independent 1000-replication confirmation
+## Initial independent 1000-replication confirmation
 
 Job `13383047` completed all 400 shards and 1554000 output rows. It used
 1000 replications per scenario, 1999 multipliers and 21 grid points, with an
@@ -167,3 +168,143 @@ snapshots, locked environments, raw compact shards, job logs and reporting
 inputs are under `/project2/mkolar_1314/SingleIndexGraph/`. No numerical work
 has been run locally. GitHub CI is skipped for this task's commits so that
 numerical validation remains on Discovery, as requested.
+
+## Diagonal corrections and guarded CV: new independent confirmation
+
+The new options and their limits are derived in
+[DIAGONAL_TUNING.md](DIAGONAL_TUNING.md). The rule was frozen in
+[CONFIRMATION_PROTOCOL.md](CONFIRMATION_PROTOCOL.md) before the new confirmation
+outcomes. Development used separate 431000000 and 463000000 seed namespaces.
+The 587000000 confirmation and 617000000 stress namespaces were held out.
+
+Job `13383502` completed 600 shards and 1,960,000 result rows. Job `13383503`
+completed 800 shards and 1,680,000 rows. The main scenarios used 1000
+replications, 1999 observation multipliers, three selected entries and a
+21-point grid. The dimension and weak-index stress cases used 500 replications.
+Reports `13383505` and `13383506` completed. Job `13383756` corrected a figure
+label overlap using saved results. No simulation fits changed for that edit.
+All expected counts and duplicate-identity checks passed. Failures were retained.
+
+The revised CV rule scores support-refitted nuisance regressions, minimizes
+pilot prediction loss, imposes a broader pilot floor, and selects the largest
+near-minimum-loss final bandwidth below a shrinking cap. Inference refits the
+union support, normalizes residual-maker row variance, uses HC3 scores,
+subtracts inverse curvature bias, and uses log-scale diagonal endpoints.
+All components are explicit options. Existing defaults remain unchanged.
+
+| Setting | Original prediction CV: joint coverage | Revised rule: joint coverage | Original diagonal at zero | Revised diagonal at zero | Joint mean-width ratio |
+|---|---:|---:|---:|---:|---:|
+| n=400, p=160, known index | 90.4% | 95.2% | 91.2% | 94.0% | 1.099 |
+| n=1200, p=80, known index | 93.1% | 94.7% | 93.8% | 95.3% | 1.182 |
+| n=1200, p=80, estimated index | 89.4% | 92.2% | 92.7% | 94.4% | 1.183 |
+
+The paired joint-coverage gains were 4.8, 1.6 and 2.8 percentage points, with
+Monte Carlo standard errors 0.97, 0.66 and 0.83 points. Thus the improvement
+has a measurable width cost and does not fully resolve the generated-index
+case. Its oracle nuisance benchmark reached only 92.5%, versus 95.3% with
+the known index. This motivates separate first-stage development, rather than
+claiming that a second-stage CV rule repairs index estimation error.
+
+For a scaled-lasso support-refit pilot with fixed multiplier 0.7 and pilot
+factor 1.6, the additive finite-sample corrections reduced diagonal bias at
+zero from 0.0757 to 0.0374 in the constant-nuisance case and from 0.0604 to
+0.0382 in the varying-nuisance case. Diagonal coverage increased from 93.9%
+to 94.6% and from 92.7% to 94.3%. Joint coverage was 95.6% and 95.0%.
+Log endpoints were not uniformly better: their varying-nuisance scaled-pilot
+joint coverage was 93.0%. The corrections do not justify a universal log rule
+for every pilot or a claim of exact pointwise diagonal calibration.
+
+![Independent CV comparison](../../experiments/single_index/results/diagonal_confirmation/cv_confirmation.png)
+
+See the [full confirmation report](../../experiments/single_index/results/diagonal_confirmation/DIAGONAL_TUNING.md)
+for Wilson intervals, entrywise and curvewise results, tuning frequencies,
+paired differences and widths.
+
+## Independent stress findings
+
+The same primary revised CV rule was used in every stress case.
+
+| Stress setting | Replications | Joint grid coverage |
+|---|---:|---:|
+| Varying nuisances | 1000 | 95.9% |
+| Chain graph | 1000 | 95.9% |
+| Grid graph | 1000 | 95.7% |
+| Uniform-index support boundaries | 1000 | 95.6% |
+| Stronger curvature | 1000 | 94.1% |
+| n=800, p=320 | 500 | 94.6% |
+| Covariance-standardized t8 errors | 1000 | 91.0% |
+| Covariance-standardized scale mixture | 1000 | 71.8% |
+| Weak estimated index | 500 | 82.8% |
+
+The weak-index case had three first-stage failures, included as noncoverage.
+The heavy-tail failures were statistical. Oracle nuisance log bands also
+undercovered: 89.1% for t8 and 75.2% for the scale mixture. The prespecified
+additive corrected comparator reached 93.2% and 87.6%. Neither comparator
+supports a general heavy-tail coverage claim. In particular, a Gaussian
+multiplier approximation and log transformation are insufficient at these
+sample sizes. Better nuisance tuning alone does not repair this failure.
+
+These adverse results remain in the [stress report](../../experiments/single_index/results/diagonal_stress/DIAGONAL_TUNING.md)
+and CSV summaries. The broader paper plan remains conditional. The Gaussian
+results support a useful empirical rule; they do not establish continuum
+coverage, weak-identification validity, or AoS readiness across distributions.
+The existing matrix-norm studies are retained. These new targeted-entry
+corrections were not evaluated as an assembled full-matrix estimator.
+
+## Current software validation
+
+All numerical work ran under Slurm on Discovery. Job `13383753` passed 1418
+package tests and 68 independent DGP checks on Julia 1.13.2, then 92 focused
+inference tests and 68 DGP checks on Julia 1.10.12. Job `13383709` passed
+92 focused checks and 55 end-to-end worker checks, including correction labels,
+log endpoints, and first-stage metadata. Earlier validation and development
+records remain available. No independent full-study numerical refit audit or
+general coverage-optimal tuning theorem is claimed.
+
+## First-stage tuning: separate independent confirmation
+
+`select_index_tuning` and support unshrinking are documented in
+[INDEX_TUNING.md](INDEX_TUNING.md). The candidate class was frozen in
+[INDEX_CONFIRMATION_PROTOCOL.md](INDEX_CONFIRMATION_PROTOCOL.md). Development
+used the 701000000 and 719000000 namespaces. Job `13383781` tested the
+751000000 namespace with 1000 replications per scenario, 1999 multipliers,
+and the same 21-point grid. It completed all 400 shards and 1,680,000 rows;
+report `13383792` completed. Counts, uniqueness and failure-retention checks
+passed. No truth entered alignment CV.
+
+This study holds the second-stage rule fixed and changes the index estimator.
+It is separate from the preceding comparison of second-stage CV procedures.
+The response dimension is 80 and the true index sparsity is four throughout.
+
+| Index setting | Fixed five-block MOM: joint coverage | Alignment CV: joint coverage | Known index: joint coverage |
+|---|---:|---:|---:|
+| Strong signal, n=1200, d=100 | 90.8% | 93.1% | 93.1% |
+| Strong signal, n=1200, d=200 | 92.2% | 94.6% | 94.1% |
+| Weak signal, n=1200, d=100 | 83.4% | 84.1% | 94.5% |
+| Weak signal, n=2400, d=100 | 86.0% | 89.4% | 95.8% |
+
+In the strong-signal settings, mean direction error fell from 0.321 to 0.171
+and from 0.385 to 0.180. Mean band width decreased slightly. Paired joint
+coverage improved by 2.3 and 2.4 percentage points, with Monte Carlo standard
+errors 1.12 and 1.07 points. Diagonal coverage at zero changed from 94.4% to
+95.4% in the d=100 case, and from 94.9% to 94.1% in the d=200 case. Improved
+index accuracy does not make every coverage criterion nominal.
+
+The fixed MOM estimator had four first-stage failures in the weak n=1200
+case; the selected estimator had none. All failures remain in denominators.
+Weak-signal joint coverage remains inadequate, including at n=2400. The
+strong d=100 known-index benchmark also undercovered in this confirmation,
+so an index correction alone cannot certify the final band approximation.
+
+![Independent first-stage comparison](../../experiments/single_index/results/index_confirmation/index_coverage.png)
+
+The [full first-stage report](../../experiments/single_index/results/index_confirmation/INDEX_TUNING.md)
+contains Wilson intervals, pointwise results, selected settings, support sizes,
+paired Monte Carlo errors and widths. This optional selector improves direction
+estimation in the tested Gaussian settings. It remains an empirical tool.
+The next methodological issues are nonlinear/Studentized bootstrap calibration
+and propagation of index uncertainty, with explicit weak-signal conditions.
+The PR remains draft while these coverage gaps persist.
+
+Compact run records, source hashes, job IDs and recreation commands are
+versioned in [the run registry](../../experiments/single_index/results/run_registry/).

@@ -141,7 +141,7 @@ def main(out, phase='development', reference=None):
                 ax.set_ylim(.83,1.)
                 if col==0:ax.set_ylabel('Diagonal at zero' if kind=='pointwise' else 'Joint grid coverage')
                 if row==0:ax.set_title(case+' / '+mode,fontsize=10)
-                for x,y in enumerate(yy):ax.annotate(f'{y:.3f}',(x,y),xytext=(0,8),textcoords='offset points',ha='center',fontsize=9)
+                for x,y in enumerate(yy):ax.annotate(f'{y:.3f}',(x,y),xytext=(0,8),textcoords='offset points',ha='center',fontsize=9,bbox=dict(facecolor='white',edgecolor='none',pad=.6))
         fig.savefig(out/'cv_confirmation.png',dpi=180)
         fig.savefig(out/'cv_confirmation.pdf')
         plt.close(fig)

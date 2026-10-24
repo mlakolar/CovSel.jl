@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "run_id": "20261025-sig-diagonal-stress",
+  "status": "validated",
+  "purpose": "Frozen independent stress of diagonal corrections and guarded CV; no truth enters selection.",
+  "authorization": "User explicitly permits Discovery resources required to run these studies quickly.",
+  "resources": {
+    "nodes": 2,
+    "cpus": 32,
+    "memory_gb": 64,
+    "wall_minutes": 45,
+    "per_worker_memory_mb": 2048
+  },
+  "recreation": {
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261025-sig-diagonal-stress",
+    "command": "sbatch --parsable --nodes=2 --ntasks=32 --ntasks-per-node=16 --mem=32G --time=00:45:00 --job-name=sig-20261025-dstress experiments/single_index/campaign.sbatch experiments/single_index/diagonal_stress.toml results",
+    "source_snapshot": "source.tar.gz",
+    "seed_base": 617000000,
+    "protocol": "docs/single_index/CONFIRMATION_PROTOCOL.md"
+  },
+  "jobs": [
+    {
+      "job_id": "13383503",
+      "scheduler_state": "COMPLETED",
+      "exit_code": "0:0",
+      "elapsed": "00:11:58"
+    },
+    {
+      "job_id": "13383506",
+      "scheduler_state": "COMPLETED",
+      "exit_code": "0:0",
+      "purpose": "report"
+    }
+  ],
+  "source_sha256": "8c4495f1d451c00c1e312d0572a2bd889e5ba72dc7f9f2d5afe753b9040adf5d",
+  "report_sha256": "01d66ededad448243b8c7d8643a4a6f6553d6cf99d84a21c488526263fbe5e0e",
+  "validation": {
+    "shards": 800,
+    "rows": 1680000,
+    "expected_pointwise_count_checked": true,
+    "duplicate_identities": 0,
+    "failures_retained": true,
+    "grid_points": 21,
+    "multiplier_draws": 1999
+  },
+  "outputs": [
+    "results/summary.csv",
+    "results/DIAGONAL_TUNING.md",
+    "results/paired_rules.csv",
+    "results/selected_tuning.csv",
+    "results/receipt.json"
+  ]
+}

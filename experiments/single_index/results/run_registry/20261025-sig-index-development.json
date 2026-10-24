@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "run_id": "20261025-sig-index-development",
+  "status": "validated",
+  "purpose": "Address residual generated-index undercoverage by CV Stein alignment and support unshrinking, without truth-based tuning; compare known, fixed-threshold and tuned indices on shared datasets.",
+  "authorization": "User requests continuing coverage fixes and explicitly authorizes required Discovery resources.",
+  "resources": {
+    "nodes": 2,
+    "cpus": 32,
+    "memory_gb": 64,
+    "wall_minutes": 30
+  },
+  "recreation": {
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261025-sig-index-development",
+    "command": "sbatch --parsable --nodes=2 --ntasks=32 --ntasks-per-node=16 --mem=32G --time=00:30:00 --job-name=sig-20261025-idev experiments/single_index/campaign.sbatch experiments/single_index/index_development.toml results",
+    "source_snapshot": "source.tar.gz",
+    "seed_base": 701000000
+  },
+  "jobs": [
+    {
+      "job_id": "13383640",
+      "scheduler_state": "COMPLETED",
+      "purpose": "canary"
+    },
+    {
+      "job_id": "13383644",
+      "scheduler_state": "COMPLETED",
+      "purpose": "development",
+      "exit_code": "0:0"
+    },
+    {
+      "job_id": "13383660",
+      "scheduler_state": "COMPLETED",
+      "purpose": "report",
+      "exit_code": "0:0"
+    },
+    {
+      "job_id": "13383661",
+      "scheduler_state": "COMPLETED",
+      "purpose": "full/cross-version checks",
+      "exit_code": "0:0"
+    }
+  ],
+  "source_sha256": "b400c5bf8cf6171f5c92c7439492cb25fea2ffd5a83caf51f859d8e5b8da3df5",
+  "validation": {
+    "shards": 120,
+    "rows": 504000,
+    "focused": 91,
+    "worker": 55,
+    "Julia1.10_focused": 91,
+    "DGP": 68,
+    "failed_fits_retained": true
+  }
+}

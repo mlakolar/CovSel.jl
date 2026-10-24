@@ -1,0 +1,17 @@
+scenario,method,kind,entry_a,entry_b,n,coverage_difference,mcse
+cv_larger_index,oracle_hc3_log,family,0,0,300,-0.0033333333333333335,0.023371524724914737
+cv_larger_index,oracle_hc3_log,pointwise,1,1,300,-0.023333333333333334,0.01595585698045311
+cv_larger_index,sqrt_refit_df_hc3_bc_log,family,0,0,300,-0.01,0.02239057374526485
+cv_larger_index,sqrt_refit_df_hc3_bc_log,pointwise,1,1,300,-0.02,0.014118466760910353
+cv_strong_index,oracle_hc3_log,family,0,0,300,0.02666666666666667,0.014081569454098424
+cv_strong_index,oracle_hc3_log,pointwise,1,1,300,-0.016666666666666666,0.011999938064995604
+cv_strong_index,sqrt_refit_df_hc3_bc_log,family,0,0,300,0.0033333333333333335,0.01669340107764752
+cv_strong_index,sqrt_refit_df_hc3_bc_log,pointwise,1,1,300,-0.013333333333333334,0.011540567131056808
+cv_weak_index,oracle_hc3_log,family,0,0,300,-0.05,0.027583864218368486
+cv_weak_index,oracle_hc3_log,pointwise,1,1,300,-0.016666666666666666,0.017322653428775082
+cv_weak_index,sqrt_refit_df_hc3_bc_log,family,0,0,300,-0.02666666666666667,0.026245277043221205
+cv_weak_index,sqrt_refit_df_hc3_bc_log,pointwise,1,1,300,-0.02,0.016985796414111028
+cv_weak_index_larger_n,oracle_hc3_log,family,0,0,300,0.03,0.024245584824882233
+cv_weak_index_larger_n,oracle_hc3_log,pointwise,1,1,300,0.013333333333333334,0.01414476305257364
+cv_weak_index_larger_n,sqrt_refit_df_hc3_bc_log,family,0,0,300,0.016666666666666666,0.02382504669967183
+cv_weak_index_larger_n,sqrt_refit_df_hc3_bc_log,pointwise,1,1,300,0.016666666666666666,0.014521988351143723

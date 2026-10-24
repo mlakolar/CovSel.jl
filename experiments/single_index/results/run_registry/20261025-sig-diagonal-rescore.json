@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "run_id": "20261025-sig-diagonal-rescore",
+  "status": "validated",
+  "purpose": "Evaluate log-scale diagonal intervals/bands by exact endpoint rescoring of saved development fits and multiplier critical values, without refitting.",
+  "authorization": "User requests further coverage fixes on Discovery.",
+  "resources": {
+    "cpus": 1,
+    "memory_gb": 12,
+    "wall_minutes": 10
+  },
+  "recreation": {
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261025-sig-diagonal-development",
+    "command": "sbatch --parsable --job-name=sig-20261025-dlog experiments/single_index/diagonal_rescore.sbatch",
+    "inputs": "results/shard-*.csv",
+    "output": "results_log"
+  },
+  "jobs": [
+    {
+      "job_id": "13383381",
+      "scheduler_state": "COMPLETED",
+      "exit_code": "0:0"
+    }
+  ],
+  "source_sha256": "bb47e12e4edfce4952fa5bf846b70be5d8d0b016c189c80c75306b6639bf3fb2",
+  "validation": {
+    "shards": 200,
+    "rows": 994000,
+    "new_fits": 0,
+    "new_bootstrap_draws": 0,
+    "endpoints": "log-diagonal endpoints from saved estimates/SE/criticals"
+  }
+}

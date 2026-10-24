@@ -1,0 +1,19 @@
+{
+  "status": "outputs_present_and_summarized",
+  "plan": "experiments/single_index/diagonal_development.toml",
+  "shards": 200,
+  "expected_shards": 200,
+  "rows": 994000,
+  "summary_groups": 4970,
+  "checks": [
+    "expected shard count",
+    "no duplicate result identities",
+    "failed fits retained as noncoverage",
+    "Wilson intervals and Monte Carlo standard errors",
+    "paired method comparisons on common seeds"
+  ],
+  "limitations": [
+    "No independent scientific refit is implied by these aggregation checks.",
+    "Finite-grid bands do not certify continuum coverage."
+  ]
+}

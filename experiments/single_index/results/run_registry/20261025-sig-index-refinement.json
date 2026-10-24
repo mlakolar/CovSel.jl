@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "run_id": "20261025-sig-index-refinement",
+  "status": "validated",
+  "purpose": "Prespecified first-stage CV expanded to compare ordinary moments (blocks=1) and five-block MOM, with thresholding/unshrinking; independent development seeds.",
+  "authorization": "User authorizes continued Discovery coverage development.",
+  "resources": {
+    "nodes": 2,
+    "cpus": 32,
+    "memory_gb": 64,
+    "wall_minutes": 30
+  },
+  "recreation": {
+    "working_directory": "/project2/mkolar_1314/SingleIndexGraph/20261025-sig-index-refinement",
+    "command": "sbatch --parsable --nodes=2 --ntasks=32 --ntasks-per-node=16 --mem=32G --time=00:30:00 --job-name=sig-20261025-irefine experiments/single_index/campaign.sbatch experiments/single_index/index_refinement.toml results",
+    "source_snapshot": "source.tar.gz",
+    "seed_base": 719000000
+  },
+  "jobs": [
+    {
+      "job_id": "13383709",
+      "scheduler_state": "COMPLETED",
+      "purpose": "canary"
+    },
+    {
+      "job_id": "13383720",
+      "scheduler_state": "COMPLETED",
+      "elapsed": "00:03:04",
+      "exit_code": "0:0"
+    },
+    {
+      "job_id": "13383752",
+      "scheduler_state": "COMPLETED",
+      "purpose": "report",
+      "exit_code": "0:0"
+    },
+    {
+      "job_id": "13383753",
+      "scheduler_state": "COMPLETED",
+      "elapsed": "00:02:35",
+      "purpose": "full/cross-version checks",
+      "exit_code": "0:0"
+    }
+  ],
+  "source_sha256": "86a2187e07b3e931ee2aa26b8a493fb0aacfae6d12bbf8b35d020bbaa4fab728",
+  "validation": {
+    "focused_Julia1.13": 92,
+    "worker_integration": 55,
+    "package_Julia1.13": 1418,
+    "DGP_Julia1.13": 68,
+    "focused_Julia1.10": 92,
+    "DGP_Julia1.10": 68,
+    "shards": 120,
+    "rows": 504000,
+    "failures_retained": true
+  }
+}
