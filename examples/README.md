@@ -53,3 +53,9 @@ Each script takes a few seconds. With the environment variable
 `COVSEL_EXAMPLES_QUICK=1`, `inference.jl` uses a smaller setting than its
 default (p = 500, n = 400, 500 replications); CI runs all the examples this
 way.
+
+The inference example uses CoordinateDescent 0.8's `sqrt_lasso`. The source
+override temporarily tracks the branch for
+[CoordinateDescent #40](https://github.com/mlakolar/CoordinateDescent.jl/issues/40);
+merge that update first, then switch the override to master or a registered
+0.8 release.

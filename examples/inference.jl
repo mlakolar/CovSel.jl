@@ -38,7 +38,7 @@ function generatePrecision(p)
   D * Ωstar * D
 end
 
-# Estimate Ω[a, b] and its variance from the rows of Z. sqrtLasso minimizes
+# Estimate Ω[a, b] and its variance from the rows of Z. sqrt_lasso minimizes
 # ‖y - Xβ‖ + λ ∑ⱼ ωⱼ|βⱼ|, with ωⱼ the root mean square of column j. Belloni,
 # Chernozhukov and Wang (2011) take λ = 1.1 Φ⁻¹(1 - α / (2p)) on this scale;
 # sqrt(2 log(2p / α)) is a slightly larger bound on the normal quantile.
@@ -48,7 +48,7 @@ function edgeInference(Z, a, b; λ = 1.1 * sqrt(2 * log(2 * size(Z, 2) / 0.05)))
   X = Z[:, others]
   S = Int[]
   for j in (a, b)
-    sol = sqrtLasso(X, Z[:, j], λ)
+    sol = sqrt_lasso(X, Z[:, j], λ)
     append!(S, others[findall(x -> abs(x) > 1e-4, sol.x)])
   end
   unique!(S)
