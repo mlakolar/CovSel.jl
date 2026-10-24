@@ -26,10 +26,8 @@ This is ProximalSolvers' `ADMMSolver` on the stacked `p × p × 2` array
 `(Ωx, Ωy)`, with ProximalBase's `SliceSum` of the two weighted `LogDetLoss`es
 and the penalty `FiberSum(NormL1Fused(λ1, λ2))` on the pairs of entries. The
 options are scaled by the data as in [`covsel!`](@ref), with `s` the average of
-the two average variances. The residuals of the stacked array are measured with
-one norm, where those of the two matrices used to be added; the absolute
-tolerances are divided by √2 and the relative one multiplied by √2, so that the
-test is never stricter than that sum, and looser by at most √2.
+the two average variances, and the residuals are those of the two matrices
+added.
 """
 function fusedGraphicalLasso!(
     Θx::StridedMatrix{T}, Θy::StridedMatrix{T},
@@ -51,15 +49,14 @@ function fusedGraphicalLasso!(
     # the λ1 penalty is left off the diagonal when penalize_diag is false
     g = FiberSum(NormL1Fused(l1, l2); diagonal = NormL1Fused(penalize_diag ? l1 : zero(T), l2), symmetric = true)
 
-    # the scale of the data, as in covsel!. The two matrices used to add the
-    # norms of their residuals, ‖a‖₁ ≤ p abstol + reltol ‖b‖₁ for a, b the
-    # pairs of norms; ADMMSolver takes the norm of the stack, ‖a‖₂ ≤ √2 p
-    # abstol' + reltol' ‖b‖₂. With abstol' = abstol/√2 and reltol' = √2 reltol
-    # the test is never stricter, and looser by at most √2.
+    # the scale of the data, as in covsel!. The residuals and the norms of the
+    # iterates are those of the two matrices added, the stopping test
+    # ‖r_x‖ + ‖r_y‖ ≤ p abstol + reltol (…), as ADMMSolver's √n abstol is
+    # √2 p abstol for the 2p² entries
     s = _dataScale((tr(Σx) + tr(Σy)) / (2p))
     method = ADMMSolver(; ρ = T(options.ρ * s^2), α = T(options.α), adaptive = options.adaptive,
                         abstol = T(options.abstol / (sqrt(2) * s)), abstol_dual = T(options.abstol * s / sqrt(2)),
-                        reltol = T(sqrt(2) * options.reltol))
+                        reltol = T(options.reltol), norm = _pairnorm)
     Z, U = cat(Zx, Zy; dims = 3), cat(Ux, Uy; dims = 3)
     r = solve!(Z, f, g, method, ProximalOptions(; maxiter = options.maxiter); u = U)
     copyto!(Zx, view(Z, :, :, 1)); copyto!(Zy, view(Z, :, :, 2))
@@ -69,6 +66,9 @@ function fusedGraphicalLasso!(
     (Zx, Zy)
 end
 
+
+# the norm of a stacked pair of matrices: the sum of their Frobenius norms
+_pairnorm(x::AbstractArray{<:Any, 3}) = norm(view(x, :, :, 1)) + norm(view(x, :, :, 2))
 
 function fusedGraphicalLasso(
     Σx::StridedMatrix{T}, nx::Int,
