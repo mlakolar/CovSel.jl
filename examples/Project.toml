@@ -9,7 +9,7 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
 
-# CoordinateDescent 0.7, ProximalBase 0.5.3 and ProximalSolvers 0.1.1 come from
+# CoordinateDescent 0.8, ProximalBase 0.5.3 and ProximalSolvers 0.1.1 come from
 # their masters until they are registered
 [sources]
 CoordinateDescent = {url = "https://github.com/mlakolar/CoordinateDescent.jl", rev = "master"}
@@ -18,7 +18,7 @@ ProximalBase = {url = "https://github.com/mlakolar/ProximalBase.jl", rev = "mast
 ProximalSolvers = {url = "https://github.com/mlakolar/ProximalSolvers.jl", rev = "master"}
 
 [compat]
-CoordinateDescent = "0.7"
+CoordinateDescent = "0.8"
 CovarianceSelection = "0.1"
 LinearAlgebra = "1"
 Printf = "1"
