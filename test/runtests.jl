@@ -9,6 +9,7 @@ tests = [
   "fusedDifference",
   "groupGraphicalLasso",
   "latent",
+  "iht_solvers",
   "generate",
   "clime",
   "slassoinv"

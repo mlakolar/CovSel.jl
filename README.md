@@ -166,3 +166,31 @@ julia --project=benchmark benchmark/run.jl
 ```
 
 See [`benchmark/README.md`](benchmark/README.md) for details.
+
+### IHT with automatic step sizes
+
+Omit the step-size arguments to use ProximalSolvers' backtracking methods:
+
+```julia
+using LinearAlgebra, ProximalSolvers
+Δ, objectives = differencePrecisionIHT(Symmetric(Σx), Symmetric(Σy), s)
+Δ, L, U, objectives, iterations = differenceLatentPrecisionIHT(
+    Symmetric(Σx), Symmetric(Σy), s, r;
+    method = MonotoneAccProxGradDescent())
+S, L, U, objectives, iterations = covselLatentIHT!(Σ, s, r;
+    method = ProximalGradientDescent(; normalized = true))
+```
+
+The latent models use `S + U*U'` (or `Δ + U*U'`) and one step size for both
+blocks. The log-det loss checks a Cholesky factorization before taking an
+inverse, and the line search rejects points outside the positive definite
+cone. `init=(S,U)` supplies a copied feasible starting point. The latent
+D-trace in-place overload updates existing `Δ,L,U` buffers.
+
+`options=ProximalOptions(...)` controls stopping and callbacks. The returned
+objective vector contains the initial value and each accepted iteration.
+These are nonconvex local methods; different initializations can lead to
+different supports and objectives. Calls with explicit step-size arguments
+retain their original fixed-step behavior. Automatic steps use the exact
+Frobenius projection from ProximalBase 0.5.3, which can differ from the legacy
+magnitude threshold when diagonal entries count toward the sparsity budget.

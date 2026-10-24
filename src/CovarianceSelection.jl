@@ -37,6 +37,7 @@ using SpecialFunctions: erfcinv
 export
   ADMMOptions, ADMMInfo, IHTOptions,
   covsel!, covselpath,
+  covselLatentIHT!,
 
   # difference estimation
   #
@@ -66,6 +67,7 @@ include("admmCovarianceSelection.jl")
 include("LatentCovarianceSelection_IHT.jl")
 
 include("directDifference.jl")
+include("automaticIHT.jl")
 include("fusedDifference.jl")
 include("groupGraphicalLasso.jl")
 
