@@ -35,7 +35,7 @@ repository, so add it explicitly:
 julia --project=examples -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
 ```
 
-Until ProximalBase 0.5.3, ProximalSolvers 0.1.1 and CoordinateDescent 0.7 are
+Until ProximalBase 0.5.3, ProximalSolvers 0.1.1 and CoordinateDescent 0.8 are
 registered, `[sources]` also takes them from their masters on GitHub. On Julia
 1.10 they must be added in the same call:
 `Pkg.add([PackageSpec(url="https://github.com/mlakolar/ProximalBase.jl", rev="master"), PackageSpec(url="https://github.com/mlakolar/ProximalSolvers.jl", rev="master"), PackageSpec(url="https://github.com/mlakolar/CoordinateDescent.jl", rev="master")])`.
@@ -54,8 +54,4 @@ Each script takes a few seconds. With the environment variable
 default (p = 500, n = 400, 500 replications); CI runs all the examples this
 way.
 
-The inference example uses CoordinateDescent 0.8's `sqrt_lasso`. The source
-override temporarily tracks the branch for
-[CoordinateDescent #40](https://github.com/mlakolar/CoordinateDescent.jl/issues/40);
-merge that update first, then switch the override to master or a registered
-0.8 release.
+The inference example uses CoordinateDescent 0.8's `sqrt_lasso`.

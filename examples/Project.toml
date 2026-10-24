@@ -12,7 +12,7 @@ UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
 # CoordinateDescent 0.8, ProximalBase 0.5.3 and ProximalSolvers 0.1.1 come from
 # their masters until they are registered
 [sources]
-CoordinateDescent = {url = "https://github.com/mlakolar/CoordinateDescent.jl", rev = "codex/issue-40-julia-naming"}
+CoordinateDescent = {url = "https://github.com/mlakolar/CoordinateDescent.jl", rev = "master"}
 CovarianceSelection = {path = ".."}
 ProximalBase = {url = "https://github.com/mlakolar/ProximalBase.jl", rev = "master"}
 ProximalSolvers = {url = "https://github.com/mlakolar/ProximalSolvers.jl", rev = "master"}
