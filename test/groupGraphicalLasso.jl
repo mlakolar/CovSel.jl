@@ -3,7 +3,7 @@ module GroupGraphicalLassoTest
 using Test, Random, LinearAlgebra, Statistics
 import CovarianceSelection
 using CovarianceSelection: ADMMOptions, ADMMInfo, groupGraphicalLasso, groupGraphicalLasso!, kernelCovariances, tvCovSel
-using ProximalBase: FiberSum, NormL2, prox
+using ProximalBase: FiberSum, NormL2, SparseGroupNormL2, prox
 
 Random.seed!(7)
 
@@ -12,12 +12,13 @@ const tight = ADMMOptions(; abstol = 1e-12, reltol = 1e-12, maxiter = 20_000)
 # the residual of the fixed point Ω = prox_{tg}(Ω - t∇f(Ω)), which holds exactly
 # at the minimizer: f is the weighted sum of the log-likelihoods, g the group
 # penalty on every fiber Ω[i, j, :]
-function gglResidual(Z, S, λ, w; t = 0.1, penalize_diag = true)
+function gglResidual(Z, S, λ, w; λ1 = 0.0, t = 0.1, penalize_diag = true)
   G = similar(Z)
   for k in axes(Z, 3)
     G[:, :, k] = w[k] * (S[:, :, k] - inv(Z[:, :, k]))
   end
-  g = FiberSum(NormL2(λ); diagonal = penalize_diag ? NormL2(λ) : nothing)
+  h = SparseGroupNormL2(λ1, λ, [1:size(Z, 3)], [1.0])
+  g = FiberSum(h; diagonal = penalize_diag ? h : nothing)
   maximum(abs, prox(g, Z - t * G, t) - Z)
 end
 
@@ -63,6 +64,24 @@ end
   @test Zv ≈ groupGraphicalLasso(S, λ; weights = w, options = tight) atol = 1e-10
   # equal weights by default
   @test gglResidual(groupGraphicalLasso(S, λ; options = tight), S, λ, fill(1 / K, K)) < 1e-6
+
+  # the ℓ1 term of Danaher, Wang and Witten: with one matrix, the graphical lasso
+  # with the penalty λ + λ1; with K, the optimality conditions of the sparse
+  # group penalty, and entries that are zero in some of the matrices only
+  Z = groupGraphicalLasso(S1, 0.04; λ1 = 0.06, options = tight)
+  Zc = zeros(p, p)
+  CovarianceSelection.covsel!(zeros(p, p), Zc, zeros(p, p), S1[:, :, 1], 0.1; options = tight)
+  @test Z[:, :, 1] ≈ Zc atol = 1e-6
+  for pd in (true, false)
+    Z = groupGraphicalLasso(S, λ; λ1 = 0.03, weights = w, penalize_diag = pd, options = tight)
+    @test gglResidual(Z, S, λ, w; λ1 = 0.03, penalize_diag = pd) < 1e-6
+    @test all(issymmetric(Z[:, :, k]) && isposdef(Z[:, :, k]) for k in 1:K)
+  end
+  Z = groupGraphicalLasso(S, 0.01; λ1 = 0.05, weights = w, options = tight)
+  zeros_in = [count(iszero, Z[i, j, :]) for i in 1:p, j in 1:p]
+  @test any(0 .< zeros_in .< K)
+  @test groupGraphicalLasso(S, λ; λ1 = 0.0, options = tight) == groupGraphicalLasso(S, λ; options = tight)
+  @test_throws ArgumentError groupGraphicalLasso(S, λ; λ1 = -1.0)
 
   # a large penalty leaves the diagonal only
   Z = groupGraphicalLasso(S, 10.0; options = tight)
@@ -128,6 +147,8 @@ end
   # tvCovSel is the group graphical lasso of the kernel-weighted covariances
   Z = tvCovSel(X, t, τ, h, 0.05; options = tight)
   @test Z ≈ groupGraphicalLasso(kernelCovariances(X, t, τ, h), 0.05; options = tight)
+  @test tvCovSel(X, t, τ, h, 0.05; λ1 = 0.02, options = tight) ≈
+        groupGraphicalLasso(kernelCovariances(X, t, τ, h), 0.05; λ1 = 0.02, options = tight)
 
   # a chain graph whose edges weaken over time: the edges are found at every time point
   n, p = 3000, 6

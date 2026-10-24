@@ -6,20 +6,21 @@
 ####################################
 
 """
-    groupGraphicalLasso(S, λ; weights=fill(1/K, K), penalize_diag=true, options=ADMMOptions(), info=ADMMInfo())
-    groupGraphicalLasso!(Z, U, S, λ; weights=fill(1/K, K), penalize_diag=true, options=ADMMOptions(), info=ADMMInfo())
+    groupGraphicalLasso(S, λ; λ1=0, weights=fill(1/K, K), penalize_diag=true, options=ADMMOptions(), info=ADMMInfo())
+    groupGraphicalLasso!(Z, U, S, λ; λ1=0, weights=fill(1/K, K), penalize_diag=true, options=ADMMOptions(), info=ADMMInfo())
 
 K precision matrices that share their sparsity pattern, by ADMM:
 
-    minimize  Σₖ wₖ (tr(Sₖ Ωₖ) - log det Ωₖ) + λ Σᵢⱼ ‖(Ω₁[i,j], …, Ω_K[i,j])‖₂
+    minimize  Σₖ wₖ (tr(Sₖ Ωₖ) - log det Ωₖ) + λ1 Σₖ Σᵢⱼ |Ωₖ[i,j]| + λ Σᵢⱼ ‖(Ω₁[i,j], …, Ω_K[i,j])‖₂
 
 for the covariance matrices `S₁, …, S_K` of K classes or time points, given
 as a `p × p × K` array or a vector of matrices, and positive weights `wₖ`,
-such as the shares `nₖ/n` of the observations. The ℓ2 norm of each entry
-across the K matrices, the group penalty of the group graphical lasso
-(Danaher, Wang and Witten, 2014), sets an entry to zero in all the matrices
-at once. With `penalize_diag=false` the diagonal is not penalized. With K = 1
-this is the graphical lasso of [`covsel!`](@ref). With equal weights `1/K`, an
+such as the shares `nₖ/n` of the observations. This is the group graphical
+lasso of Danaher, Wang and Witten (2014), with their λ₂ as `λ`. The ℓ2 norm
+of each entry across the K matrices sets an entry to zero in all the matrices
+at once; the ℓ1 term, off by default, also sets entries to zero in some of
+them. With `penalize_diag=false` the diagonal is not penalized. With K = 1
+this is the graphical lasso of [`covsel!`](@ref) with the penalty `λ + λ1`. With equal weights `1/K`, an
 entry equal to `a` in all K matrices has the penalty `λ √K |a|`, √K times its
 average over K separate graphical lassos with the same `λ`; `λ/√K` penalizes
 it as they do.
@@ -31,7 +32,8 @@ together with its final `info.ρ` to warm start. See [`ADMMInfo`](@ref) for
 `info`.
 
 This is ProximalSolvers' `ADMMSolver` on ProximalBase's `SliceSum` of the K
-weighted `LogDetLoss`es and the penalty `FiberSum(NormL2(λ))`. The options are
+weighted `LogDetLoss`es and the penalty `FiberSum(NormL2(λ))`, or
+`FiberSum(SparseGroupNormL2(λ1, λ, [1:K], [1.0]))` with `λ1 > 0`. The options are
 scaled by the data as in [`covsel!`](@ref), with `s` the average of the
 `tr(Sₖ)/p`, and by the average weight `w̄`: the penalty parameter is
 `ρ s² w̄`, so that each slice sees the penalty parameter of the graphical lasso
@@ -45,6 +47,7 @@ function groupGraphicalLasso!(
   U::Array{T, 3},
   S::Union{AbstractArray{<:Real, 3}, AbstractVector{<:AbstractMatrix}},
   λ::Real;
+  λ1::Real = 0,
   weights::AbstractVector{<:Real} = fill(one(T) / _nslices(S), _nslices(S)),
   penalize_diag::Bool = true,
   options::ADMMOptions = ADMMOptions(),
@@ -58,9 +61,11 @@ function groupGraphicalLasso!(
   length(weights) == K || throw(DimensionMismatch("$(length(weights)) weights for $K covariance matrices"))
   all(w -> w > 0, weights) || throw(ArgumentError("the weights must be positive"))
   λ >= 0 || throw(ArgumentError("λ must be nonnegative, got $λ"))
+  λ1 >= 0 || throw(ArgumentError("λ1 must be nonnegative, got $λ1"))
 
   f = SliceSum([LogDetLoss(_covslice(S, k), T(weights[k])) for k in 1:K])
-  g = FiberSum(NormL2(T(λ)); diagonal = penalize_diag ? NormL2(T(λ)) : nothing, symmetric = true)
+  h = iszero(λ1) ? NormL2(T(λ)) : SparseGroupNormL2(T(λ1), T(λ), [1:K], [one(T)])
+  g = FiberSum(h; diagonal = penalize_diag ? h : nothing, symmetric = true)
 
   # ρ has the units of the weighted Σ², the primal residual those of Ω and the
   # dual one those of the weighted Σ
