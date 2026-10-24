@@ -1,4 +1,4 @@
-# The fused graphical lasso for two groups whose graphs differ in a few edges,
+# The fused graphical lasso for two and three groups whose graphs differ in a few edges,
 # and what the fusion penalty λ2 does. Then fused neighborhood selection, the
 # regression analogue for a single node.
 #
@@ -56,6 +56,26 @@ println("""
 entries. A larger λ2 removes the spurious differences first; when it is
 too large the two estimates are equal and the real differences are lost.
 """)
+
+# Three groups: the likelihood weights are their shares of the observations,
+# and the fusion penalty includes x-y, x-z and y-z.
+Ωz = copy(Ωx)
+Ωz[6, 5] = Ωz[5, 6] = 0.0
+Ωz[15, 1] = Ωz[1, 15] = 0.3
+nz = 400
+Sz = cov(CovarianceSelection.generateData(Ωz, nz))
+ns = [nx, ny, nz]
+S = [Sx, Sy, Sz]                         # a p × p × 3 array also works
+println("three groups, sample sizes = $ns; every pair fused")
+for λ2 in (0.0, 0.02, 0.1)
+  info = ADMMInfo()
+  Z = fusedGraphicalLasso(S, ns, λ1, λ2; penalize_diag=false, info)
+  differences = [count(v -> abs(v) > 1e-4, tril(Z[:, :, k] - Z[:, :, l], -1))
+                 for (k, l) in ((1, 2), (1, 3), (2, 3))]
+  @printf("λ2 = %.2f: differing edges (x-y, x-z, y-z) = %s; converged = %s\n",
+          λ2, string(differences), string(info.converged))
+end
+println()
 
 # fusedNeighborhoodSelection solves, for one node a,
 #

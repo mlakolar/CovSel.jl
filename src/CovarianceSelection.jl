@@ -10,7 +10,7 @@ Methods for learning high-dimensional Gaussian graphical models:
 * the precision matrix by the scaled lasso of each column, which needs no
   tuning ([`slassoinv`](@ref));
 * the graphical lasso by ADMM ([`covsel!`](@ref), [`covselpath`](@ref));
-* the fused graphical lasso for two groups ([`fusedGraphicalLasso`](@ref)) and
+* the fused graphical lasso for K groups ([`fusedGraphicalLasso`](@ref)) and
   fused neighborhood selection ([`fusedNeighborhoodSelection`](@ref));
 * K precision matrices with a shared sparsity pattern, the group graphical
   lasso ([`groupGraphicalLasso`](@ref)), and graphs that vary over time by
