@@ -26,7 +26,7 @@ CovarianceSelection was called CovSel before its first release.
 * Sparse matrix inversion with the scaled lasso of each column (Sun and Zhang,
   2013), which needs no tuning: `slassoinv`
 * Graphical lasso by ADMM: `covsel!`, `covselpath`
-* Fused graphical lasso for two groups (Danaher, Wang and Witten, 2014): `fusedGraphicalLasso`, `fusedGraphicalLasso!`
+* Fused graphical lasso for K groups (Danaher, Wang and Witten, 2014), with all pairs fused: `fusedGraphicalLasso`, `fusedGraphicalLasso!`
 * K precision matrices with a shared sparsity pattern, the group graphical lasso (Danaher, Wang and Witten, 2014): `groupGraphicalLasso`, `groupGraphicalLasso!`
 * Graphs that vary over time (Zhou, Lafferty and Wasserman, 2010), the group graphical lasso of kernel-weighted covariances: `tvCovSel`, `kernelCovariances`
 * Fused neighborhood selection: `fusedNeighborhoodSelection`
@@ -87,6 +87,42 @@ direct difference loss is its `KronQuadratic`. The graphical lasso runs on the
 ADMM of [ProximalSolvers.jl](https://github.com/mlakolar/ProximalSolvers.jl), and the
 direct difference estimator on its coordinate descent, whose options are
 `CDSolver`'s.
+
+### Fused graphical lasso for multiple groups
+
+Pass a vector of covariance matrices or a `p × p × K` array. The fusion
+penalty couples every pair of groups, as in
+[Danaher, Wang and Witten (2014)](https://doi.org/10.1111/rssb.12033).
+
+```julia
+S = [S1, S2, S3]                               # sample covariances
+ns = [200, 300, 500]                           # observations in each group
+Z = fusedGraphicalLasso(S, ns, 0.02, 0.05; penalize_diag=false)
+Ω1, Ω2, Ω3 = eachslice(Z; dims=3)
+
+# Equal likelihood weights by default, or supply positive weights explicitly.
+Z = fusedGraphicalLasso(S, 0.02, 0.05; weights=ns/sum(ns))
+
+# Warm start: retain both the estimates and scaled dual variables.
+Z, U = zeros(size(Z)), zeros(size(Z))
+info = ADMMInfo()
+fusedGraphicalLasso!(Z, U, S, ns, 0.02, 0.05; info)
+fusedGraphicalLasso!(Z, U, S, ns, 0.02, 0.04;
+                    options=ADMMOptions(; ρ=info.ρ), info)
+```
+
+The objective is `Σₖ wₖ (tr(SₖΩₖ) - logdet(Ωₖ)) + λ1 Σₖ ‖Ωₖ‖₁ +
+λ2 Σₖ<ₗ ‖Ωₖ - Ωₗ‖₁`. Sample sizes set `wₖ = nₖ / sum(ns)`; to use
+penalties from the paper's objective with unnormalized sample-size weights,
+divide both by `sum(ns)`. `penalize_diag=false` omits the diagonal from the
+ℓ1 term while retaining its fusion. The existing two-matrix call
+`fusedGraphicalLasso(Sx, nx, Sy, ny, λ1, λ2)` still returns `(Zx, Zy)`.
+
+The implementation uses ProximalBase's all-pairs `NormL1Fused` proximal
+operator through `FiberSum`, together with `SliceSum(LogDetLoss(...))` and
+ProximalSolvers' ADMM. See
+[`examples/fused_graphical_lasso.jl`](examples/fused_graphical_lasso.jl) for
+fits with two and three groups.
 
 ### CLIME and ACLIME
 

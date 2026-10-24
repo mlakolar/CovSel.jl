@@ -8,7 +8,7 @@ estimators, and prints what it found; plots are drawn in the terminal with
 |---|---|
 | [`graphical_lasso.jl`](graphical_lasso.jl) | The graphical lasso with `covsel!` and `covselpath`, and edge recovery (TPR, FPR, precision) along a path of penalties. |
 | [`difference_estimation.jl`](difference_estimation.jl) | Direct estimation of `Ωx - Ωy` with `differencePrecisionActiveShooting`, refitting with `differencePrecisionRefit` (checked against the closed form), `differencePrecisionIHT`, and the indirect approaches. |
-| [`fused_graphical_lasso.jl`](fused_graphical_lasso.jl) | `fusedGraphicalLasso` for two groups and the effect of the fusion penalty λ2; `fusedNeighborhoodSelection` for a single node. |
+| [`fused_graphical_lasso.jl`](fused_graphical_lasso.jl) | `fusedGraphicalLasso` for two and three groups, with all pairs fused, and the effect of the fusion penalty λ2; `fusedNeighborhoodSelection` for a single node. |
 | [`time_varying_graphs.jl`](time_varying_graphs.jl) | Graphs that change over time with `tvCovSel`: kernel-weighted covariances from `kernelCovariances`, and the group penalty that makes the graphs at several time points share their edges, against the graphical lasso of each time point alone. |
 | [`latent_difference.jl`](latent_difference.jl) | A sparse plus low rank difference with `differenceLatentPrecisionIHT!`: choosing the step sizes, monitoring convergence with a callback, and the comparison with the sparse estimator. |
 | [`clime.jl`](clime.jl) | CLIME and ACLIME with `clime` and `aclime`: a path of penalties, cross validation with `climecv` and `aclimecv`, edge recovery, and the solvers. |

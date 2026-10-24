@@ -7,6 +7,7 @@ tests = [
   "covsel",
   "directDifference",
   "fusedDifference",
+  "multigroupFusedGraphicalLasso",
   "groupGraphicalLasso",
   "latent",
   "iht_solvers",

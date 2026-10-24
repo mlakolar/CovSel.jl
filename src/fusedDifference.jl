@@ -3,7 +3,7 @@
 #
 # FGL from Danaher et al.
 #
-# currently implements only two groups
+# all pairs of groups are fused
 ###############################
 
 """
@@ -114,6 +114,118 @@ function fusedGraphicalLasso(
     λ1, λ2; options=options, penalize_diag=penalize_diag, info=info)
 end
 
+
+
+"""
+    fusedGraphicalLasso(S, λ1, λ2; weights=fill(1/K, K), penalize_diag=true, options=ADMMOptions(), info=ADMMInfo())
+    fusedGraphicalLasso(S, ns, λ1, λ2; kwargs...)
+    fusedGraphicalLasso!(Z, U, S, λ1, λ2; kwargs...)
+    fusedGraphicalLasso!(Z, U, S, ns, λ1, λ2; kwargs...)
+
+Fused graphical lasso of K groups (Danaher, Wang and Witten, 2014), by ADMM:
+
+    minimize  Σₖ wₖ (tr(Sₖ Ωₖ) - log det Ωₖ)
+                + λ1 Σₖ ‖Ωₖ‖₁ + λ2 Σₖ<ₗ ‖Ωₖ - Ωₗ‖₁
+
+`S` is a `p × p × K` array or a vector of K covariance matrices of the same
+size. Every pair of groups is fused. The positive likelihood `weights` default
+to `1/K`; passing the sample sizes `ns` instead sets them to `ns / sum(ns)`.
+Weights supplied explicitly are used as given, without normalization. With
+these normalized weights, divide the penalties in Danaher et al.'s
+sample-size-weighted objective by `sum(ns)`. With `penalize_diag=false`, only
+the λ1 term is omitted from the diagonal; the diagonal entries are still fused.
+
+Returns a `p × p × K` array with the estimates in `Z[:, :, k]`. The in-place
+method updates `Z` and the scaled dual variables `U`, dense arrays of that
+size. Start them at zero, or reuse both together with
+`options=ADMMOptions(; ρ=info.ρ)` from a previous fit to warm start. `Z` and
+`U` must not alias. See [`ADMMInfo`](@ref) for convergence information.
+
+With K = 1 the fusion term vanishes, giving [`covsel!`](@ref) with penalty
+`λ1 / weights[1]`. With K = 2 the objective agrees with the two-matrix method
+when `weights = [nx, ny] / (nx + ny)`. The two-matrix method returns a tuple;
+these collection methods always return a stacked array.
+
+The solver uses ProximalBase's `SliceSum` of weighted `LogDetLoss`es and
+`FiberSum(NormL1Fused(λ1, λ2); symmetric=true)`. `NormL1Fused` computes the
+all-pairs proximal operator by sorting and pooling, in O(K log K) per fiber.
+As in [`groupGraphicalLasso`](@ref), the ADMM penalty parameter is
+`ρ s² w̄`, where `s` is the average variance across the groups and `w̄` the
+average likelihood weight. See [`groupGraphicalLasso`](@ref) for joint
+estimation with a group penalty that encourages shared sparsity.
+"""
+function fusedGraphicalLasso!(
+    Z::Array{T, 3}, U::Array{T, 3},
+    S::Union{AbstractArray{<:Real, 3}, AbstractVector{<:AbstractMatrix}},
+    λ1::Real, λ2::Real;
+    weights::AbstractVector{<:Real} = fill(one(T) / _nslices(S), _nslices(S)),
+    penalize_diag::Bool = true,
+    options::ADMMOptions = ADMMOptions(),
+    info::ADMMInfo = ADMMInfo()) where {T<:AbstractFloat}
+
+    p, K = _fglsize(S)
+    size(Z) == size(U) == (p, p, K) ||
+      throw(DimensionMismatch("Z and U must be p × p × K arrays, here $p × $p × $K"))
+    Base.mightalias(Z, U) && throw(ArgumentError("Z and U must not alias"))
+    length(weights) == K || throw(DimensionMismatch("$(length(weights)) weights for $K covariance matrices"))
+    w = T.(weights)
+    all(v -> isfinite(v) && v > 0, w) || throw(ArgumentError("the weights must be finite and positive"))
+    l1, l2 = T(λ1), T(λ2)
+    isfinite(l1) && l1 >= 0 || throw(ArgumentError("λ1 must be finite and nonnegative, got $λ1"))
+    isfinite(l2) && l2 >= 0 || throw(ArgumentError("λ2 must be finite and nonnegative, got $λ2"))
+
+    f = SliceSum([LogDetLoss(Matrix{T}(_covslice(S, k)), w[k]) for k in 1:K])
+    h = NormL1Fused(l1, l2)
+    g = FiberSum(h; diagonal = penalize_diag ? h : NormL1Fused(zero(T), l2), symmetric = true)
+
+    s = _dataScale(sum(k -> tr(_covslice(S, k)), 1:K) / (p * K))
+    w̄ = sum(w) / K
+    method = ADMMSolver(; ρ = T(options.ρ * s^2 * w̄), α = T(options.α), adaptive = options.adaptive,
+                        abstol = T(options.abstol / s), abstol_dual = T(options.abstol * s * w̄),
+                        reltol = T(options.reltol))
+    r = solve!(Z, f, g, method, ProximalOptions(; maxiter = options.maxiter); u = U)
+    _finish!(info, "fusedGraphicalLasso!", r.iterations, r.converged, r.ρ, s^2 * w̄, r.r_norm, r.s_norm)
+    Z
+end
+
+function fusedGraphicalLasso(
+    S::Union{AbstractArray{<:Real, 3}, AbstractVector{<:AbstractMatrix}},
+    λ1::Real, λ2::Real; kwargs...)
+    p, K = _fglsize(S)
+    T = float(eltype(_covslice(S, 1)))
+    fusedGraphicalLasso!(zeros(T, p, p, K), zeros(T, p, p, K), S, λ1, λ2; kwargs...)
+end
+
+function _fglsize(S)
+    K = _nslices(S)
+    K > 0 || throw(ArgumentError("at least one covariance matrix is required"))
+    p = size(_covslice(S, 1), 1)
+    p > 0 || throw(ArgumentError("the covariance matrices must be nonempty"))
+    all(k -> size(_covslice(S, k)) == (p, p), 1:K) ||
+      throw(DimensionMismatch("the covariance matrices must all be p × p"))
+    p, K
+end
+
+function _fglweights(S, ns)
+    length(ns) == _nslices(S) || throw(DimensionMismatch("$(length(ns)) sample sizes for $(_nslices(S)) covariance matrices"))
+    all(n -> n > 0, ns) || throw(ArgumentError("the sample sizes must be positive"))
+    # Convert before summing so that integer sample sizes cannot overflow.
+    n = Float64.(ns)
+    n ./ sum(n)
+end
+
+function fusedGraphicalLasso(
+    S::Union{AbstractArray{<:Real, 3}, AbstractVector{<:AbstractMatrix}},
+    ns::AbstractVector{<:Integer}, λ1::Real, λ2::Real; kwargs...)
+    fusedGraphicalLasso(S, λ1, λ2; weights = _fglweights(S, ns), kwargs...)
+end
+
+function fusedGraphicalLasso!(
+    Z::Array{T, 3}, U::Array{T, 3},
+    S::Union{AbstractArray{<:Real, 3}, AbstractVector{<:AbstractMatrix}},
+    ns::AbstractVector{<:Integer}, λ1::Real, λ2::Real; kwargs...) where {T<:AbstractFloat}
+    fusedGraphicalLasso!(Z, U, S, λ1, λ2; weights = _fglweights(S, ns), kwargs...)
+end
 
 
 ####################################
