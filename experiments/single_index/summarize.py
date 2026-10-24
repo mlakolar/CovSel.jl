@@ -47,14 +47,14 @@ def main(plan,out):
                 unique.add(identity)
                 if row['kind']=='pointwise':
                     pointwise.append(row)
-                    selected[tuple(row[k] for k in ['scenario','rep','index_mode','h_factor','pilot_factor','penalty'])]=tuple(row[k] for k in ['selected_h','selected_pilot_h','selected_penalty'])
+                    selected[tuple(row[k] for k in ['scenario','rep','index_mode','h_factor','pilot_factor','penalty'])]=tuple(row[k] for k in ['selected_h','selected_pilot_h','selected_penalty'])+tuple(row.get(k,'') for k in ['selected_index_penalty','index_support','index_unshrink','index_blocks'])
                 key=tuple(row[k] for k in ['scenario','method','index_mode','h_factor','pilot_factor','penalty','kind','entry_a','entry_b','point','metric'])
                 groups[key].append(row)
     if (root/'expected-pointwise-count.txt').exists():
         expected_rows=int((root/'expected-pointwise-count.txt').read_text())
         if len(pointwise)!=expected_rows:raise RuntimeError(f'expected {expected_rows} pointwise rows, found {len(pointwise)}')
     with (root/'selected_tuning.csv').open('w') as stream:
-        w=csv.writer(stream,lineterminator="\n");w.writerow(['scenario','rep','index_mode','h_factor','pilot_factor','penalty','selected_h','selected_pilot_h','selected_penalty'])
+        w=csv.writer(stream,lineterminator="\n");w.writerow(['scenario','rep','index_mode','h_factor','pilot_factor','penalty','selected_h','selected_pilot_h','selected_penalty','selected_index_penalty','index_support','index_unshrink','index_blocks'])
         for key,value in sorted(selected.items()):w.writerow(list(key)+list(value))
     # Oracle comparisons share the realized dataset and exactly the same final h.
     oracles={tuple(r[k] for k in ['scenario','rep','h_factor','pilot_factor','penalty','entry_a','entry_b','point']):r

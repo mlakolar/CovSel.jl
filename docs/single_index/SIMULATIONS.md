@@ -57,6 +57,9 @@ pair, and a nonedge. More entries can be added without fitting all entries.
 | `diagonal_refinement.toml` | Minimum refitted pilot loss, pilot floors, log diagonal endpoints | 200 | 499 |
 | `diagonal_confirmation.toml` | Frozen original/revised CV and fixed-pilot comparisons | 1000 | 1999 |
 | `diagonal_stress.toml` | Frozen graph, tail, curvature, boundary, dimension and weak-index checks | 500–1000 | 1999 |
+| `index_development.toml` | Stein-alignment CV and support unshrinking | 300 | 499 |
+| `index_refinement.toml` | Ordinary versus MOM candidates in first-stage CV | 300 | 499 |
+| `index_confirmation.toml` | Independent frozen first-stage comparison | 1000 | 1999 |
 | `paper.toml` | Prespecified larger evidence after development is satisfactory | 500–2000 | 999–1999 |
 
 A prepared plan is not evidence that it was submitted or completed. See

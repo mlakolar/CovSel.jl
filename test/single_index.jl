@@ -85,6 +85,23 @@ const SIG = CovarianceSelection.SingleIndexGraph
         q = estimate_index(XP,score;probe=(1,2),blocks=5,threshold=0)
         @test q.direction == [1.0]
         @test q.discarded == 0
+        two = hcat(score,score.^3)
+        unshrunk = estimate_index(XP,two;probe=(1,2),blocks=5,threshold=0.02,unshrink=true)
+        active = unshrunk.moment .* (abs.(unshrunk.moment).>unshrunk.threshold)
+        @test unshrunk.direction ≈ active/norm(active)
+        tuned = select_index_tuning(XP,two;probe=(1,2),blocks=5,multipliers=[0.0,0.5],
+                                    unshrink_options=[false,true],block_options=[1,5],rng=MersenneTwister(19))
+        @test length(tuned.scores)==8
+        @test tuned.multiplier in (0.0,0.5)
+        @test tuned.blocks in (1,5)
+        @test norm(tuned.estimate.direction) ≈ 1
+        @test all(x -> x.alignment>0,tuned.scores)
+        negative = copy(XP)
+        negative[:,2] .*= -1
+        oriented = select_index_tuning(negative,score;probe=(1,2),blocks=5,multipliers=[0.0],
+                                       unshrink_options=[true],rng=MersenneTwister(19))
+        @test oriented.estimate.direction == [1.0]
+        @test oriented.scores[1].alignment>0
         @test_throws DomainError estimate_index(zeros(n,2),score;probe=(1,2),threshold=0)
         P = [2.0 1;1 4]
         norms = precision_errors(P,zeros(2,2))

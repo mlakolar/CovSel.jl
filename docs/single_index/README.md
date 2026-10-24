@@ -11,7 +11,8 @@ corrections, tuning rules, and feasible multiplier bands are separately identifi
 extensions. Simulation success is evidence about tested designs, not a general
 coverage theorem. See [METHODS.md](METHODS.md), [SIMULATIONS.md](SIMULATIONS.md), and
 [RESULTS.md](RESULTS.md). Finite-sample corrections and the new CV rules are
-described in [DIAGONAL_TUNING.md](DIAGONAL_TUNING.md).
+described in [DIAGONAL_TUNING.md](DIAGONAL_TUNING.md). First-stage selection is
+described in [INDEX_TUNING.md](INDEX_TUNING.md).
 
 ```julia
 using CovarianceSelection
@@ -52,6 +53,7 @@ threshold, sparsity, discarded observations, and index sensitivity.
 | Function | Result |
 |---|---|
 | `estimate_index` | Median-of-means Stein moment, soft threshold, oriented unit direction |
+| `select_index_tuning` | Held-out Stein alignment, threshold/support and block-count selection |
 | `local_covariance` | Nonnegative local second moments, weights, realized effective sample size |
 | `local_design` | Polynomial coefficient map, intercept weights, conditioning and local size |
 | `precision_pilot` | Local scaled-lasso/ACLIME inverse and inverse-equation residual |

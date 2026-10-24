@@ -16,7 +16,9 @@ function runshard(planpath,taskid,outdir)
     isfile(path) && error("refusing to overwrite completed shard")
     tmp = path*".partial"
     open(tmp,"w") do io
-        csvrow(io,["scenario","rep","method","index_mode","h_factor","pilot_factor","penalty","kind","entry_a","entry_b","point","estimate","se","truth","covered","length","failure","metric","value","seed","seconds","selected_h","selected_pilot_h","selected_penalty"])
+        csvrow(io,["scenario","rep","method","index_mode","h_factor","pilot_factor","penalty","kind","entry_a","entry_b","point","estimate","se","truth","covered","length","failure","metric","value","seed","seconds","selected_h","selected_pilot_h","selected_penalty","selected_index_penalty","index_support","index_unshrink","index_blocks"])
+        index_penalty_use,index_support,index_unshrink,index_blocks = NaN,0,false,0
+        write_result(items) = csvrow(io,[items;index_penalty_use;index_support;index_unshrink;index_blocks])
         for rep in reps
             seed = Int(plan["seed_base"])+Int(get(c,"seed_group",c["id"]))*100000+rep
             D = generate_data(seed,c)
@@ -27,10 +29,22 @@ function runshard(planpath,taskid,outdir)
                 ti = D.t
                 indexerror = 0.0
                 indexfailure = ""
-                if mode == "estimated"
+                index_penalty_use,index_support,index_unshrink,index_blocks = NaN,0,false,0
+                if mode in ("estimated","estimated_cv")
                     try
-                        idx = estimate_index(D.X,D.score;blocks=Int(get(c,"mom_blocks",5)),
-                                             multiplier=Float64(get(c,"index_penalty",0.5)))
+                        if mode == "estimated_cv"
+                            itune = select_index_tuning(D.X,D.score;blocks=Int(get(c,"mom_blocks",5)),
+                                multipliers=get(c,"index_multipliers",[0.25,0.5,0.75,1.0,1.25]),
+                                unshrink_options=get(c,"index_unshrink_options",[false,true]),
+                                block_options=get(c,"index_blocks",[Int(get(c,"mom_blocks",5))]),
+                                rng=MersenneTwister(seed+900000000))
+                            idx,index_penalty_use,index_unshrink = itune.estimate,itune.multiplier,itune.unshrink
+                        else
+                            index_penalty_use = Float64(get(c,"index_penalty",0.5))
+                            idx = estimate_index(D.X,D.score;blocks=Int(get(c,"mom_blocks",5)),
+                                                 multiplier=index_penalty_use)
+                        end
+                        index_support,index_blocks = count(!iszero,idx.direction),idx.blocks
                         ti = D.Z*idx.direction
                         indexerror = norm(idx.direction-D.gamma)
                     catch err
@@ -98,7 +112,7 @@ function runshard(planpath,taskid,outdir)
                             value = valid ? fit.estimate[g,e] : NaN
                             se = valid ? fit.se[g,e] : NaN
                             cover = valid && ci.lower[g,e] <= truths[g,e] <= ci.upper[g,e]
-                            csvrow(io,[c["name"],rep,method,mode,hf,pf,pen,"pointwise",a,b,t,value,se,truths[g,e],Int(cover),valid ? ci.upper[g,e]-ci.lower[g,e] : NaN,fail,"index_error",indexerror,seed,elapsed,h,hb,pen_use])
+                            write_result([c["name"],rep,method,mode,hf,pf,pen,"pointwise",a,b,t,value,se,truths[g,e],Int(cover),valid ? ci.upper[g,e]-ci.lower[g,e] : NaN,fail,"index_error",indexerror,seed,elapsed,h,hb,pen_use])
                         end
                         if Int(c["draws"]) >= 100
                             for joint in (false,true)
@@ -114,11 +128,11 @@ function runshard(planpath,taskid,outdir)
                                 for (e,(a,b)) in enumerate(entries)
                                     cover = band !== nothing && all(band.lower[:,e] .<= truths[:,e] .<= band.upper[:,e])
                                     width = band === nothing ? NaN : sum(band.upper[:,e]-band.lower[:,e])/length(grid)
-                                    csvrow(io,[c["name"],rep,method,mode,hf,pf,pen,joint ? "family_component" : "curve",a,b,NaN,NaN,NaN,NaN,Int(cover),width,fail,"critical",band === nothing ? NaN : band.critical[e],seed,elapsed,h,hb,pen_use])
+                                    write_result([c["name"],rep,method,mode,hf,pf,pen,joint ? "family_component" : "curve",a,b,NaN,NaN,NaN,NaN,Int(cover),width,fail,"critical",band === nothing ? NaN : band.critical[e],seed,elapsed,h,hb,pen_use])
                                 end
                                 if joint
                                     cover = band !== nothing && all(band.lower .<= truths .<= band.upper)
-                                    csvrow(io,[c["name"],rep,method,mode,hf,pf,pen,"family",0,0,NaN,NaN,NaN,NaN,Int(cover),band === nothing ? NaN : sum(band.upper-band.lower)/length(truths),fail,"critical",band === nothing ? NaN : band.critical[1],seed,elapsed,h,hb,pen_use])
+                                    write_result([c["name"],rep,method,mode,hf,pf,pen,"family",0,0,NaN,NaN,NaN,NaN,Int(cover),band === nothing ? NaN : sum(band.upper-band.lower)/length(truths),fail,"critical",band === nothing ? NaN : band.critical[1],seed,elapsed,h,hb,pen_use])
                                 end
                             end
                         end
@@ -137,14 +151,14 @@ function runshard(planpath,taskid,outdir)
                                 for (method,Q) in ((basename*"_pilot",P),(basename*"_onestep",P+P'-P'*S*P))
                                     errors = precision_errors(Q,inv(Symmetric(D.truth(0.0))))
                                     for (key,value) in pairs(errors)
-                                        csvrow(io,[c["name"],rep,method,mode,hf,pf,pen,"norm",0,0,0.0,NaN,NaN,NaN,0,NaN,"",string(key),value,seed,0,h,hb,pen_use])
+                                        write_result([c["name"],rep,method,mode,hf,pf,pen,"norm",0,0,0.0,NaN,NaN,NaN,0,NaN,"",string(key),value,seed,0,h,hb,pen_use])
                                     end
                                 end
                             catch err
                                 err isa InterruptException && rethrow()
                                 for method in (basename*"_pilot",basename*"_onestep"), metric in
                                     ("max_entry","entry_l1","frobenius","spectral","induced_l1","induced_linf","relative_frobenius")
-                                    csvrow(io,[c["name"],rep,method,mode,hf,pf,pen,"norm",0,0,0.0,NaN,NaN,NaN,0,NaN,sprint(showerror,err),metric,NaN,seed,0,h,hb,pen_use])
+                                    write_result([c["name"],rep,method,mode,hf,pf,pen,"norm",0,0,0.0,NaN,NaN,NaN,0,NaN,sprint(showerror,err),metric,NaN,seed,0,h,hb,pen_use])
                                 end
                             end
                         end

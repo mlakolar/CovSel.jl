@@ -17,6 +17,7 @@ include("../experiments/single_index/worker.jl")
     normal = filter(r -> r[3]=="\"scaled_onestep\"",rows)
     logs = filter(r -> r[3]=="\"scaled_onestep_log\"",rows)
     @test length(normal)==length(logs)==16
+    @test all(length(r)==28 for r in rows)
     for (a,b) in zip(normal,logs)
         @test a[8:11]==b[8:11]
         @test a[12:14]==b[12:14]
@@ -30,4 +31,16 @@ include("../experiments/single_index/worker.jl")
             @test a[19]==b[19] # identical standardized multiplier critical value
         end
     end
+    c = config["scenario"][1]
+    c["index_modes"] = ["estimated_cv"]
+    c["index_multipliers"] = [0.0]
+    c["index_unshrink_options"] = [true]
+    c["methods"] = ["sqrt_refit_df_hc3_bc_log"]
+    c["draws"] = 0
+    open(io -> TOML.print(io,config),path,"w")
+    runshard(path,1,joinpath(root,"index"))
+    rr = [split(line,',') for line in readlines(joinpath(root,"index","shard-00001.csv"))[2:end]]
+    @test length(rr)==9
+    @test all(r -> r[17]=="\"\"",rr)
+    @test all(r -> parse(Float64,r[25])==0 && parse(Int,r[26])==4 && r[27]=="true" && parse(Int,r[28])==5,rr)
 end
