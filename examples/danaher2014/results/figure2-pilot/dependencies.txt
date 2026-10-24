@@ -1,0 +1,16 @@
+simulation_source_commit = 52298c1e3bad66a28f04e9dfba9de4d07f51a9c1
+julia_version = 1.13.2
+ProximalBase.version = 0.5.3
+ProximalBase.repo-url = https://github.com/mlakolar/ProximalBase.jl
+ProximalBase.repo-rev = master
+ProximalBase.git-tree-sha1 = f850eade014987a249aab79fdb83180e3270f88f
+ProximalSolvers.version = 0.1.1
+ProximalSolvers.repo-url = https://github.com/mlakolar/ProximalSolvers.jl
+ProximalSolvers.repo-rev = master
+ProximalSolvers.git-tree-sha1 = ab37180596cd68404256eba92468ff2016322398
+matplotlib = 3.11.2
+numpy = 2.5.4
+R = 4.5.1
+JGL_reference_commit = 52fc1717ad075c0478330b029d005eaaf1f52690
+ProximalBase.commit = c2c917db9b952c3f6b5d508e127dce009fd12b5a
+ProximalSolvers.commit = 34f26a8037cf4cb9f1b0ae277ebdc73101188623

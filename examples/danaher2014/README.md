@@ -12,6 +12,9 @@ reproduction of the published numerical values. The GGL and Guo et al.
 curves, the two-group experiments, and the lung-cancer analysis are outside
 this example's scope.
 
+[Saved results](results/README.md) include a completed five-replicate pilot
+at the paper's dimensions, raw metrics, the plots and a six-fit R/JGL check.
+
 ## Run
 
 Use the example environment described in [../README.md](../README.md).

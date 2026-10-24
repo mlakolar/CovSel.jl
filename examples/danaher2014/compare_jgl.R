@@ -4,7 +4,7 @@
 #
 # Rscript examples/danaher2014/compare_jgl.R OUTPUT_DIRECTORY
 #
-# The Julia run must have --export-data=true. The first invocation downloads
+# The Julia run must have --export-data=true. Each invocation downloads
 # the MIT-licensed source files into tempdir(), pinned to the CRAN release.
 args <- commandArgs(trailingOnly=TRUE)
 stopifnot(length(args) == 1)
