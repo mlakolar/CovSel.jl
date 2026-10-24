@@ -21,6 +21,7 @@ using PrecompileTools: @setup_workload, @compile_workload
     covselpath(Matrix(Sy), [0.2, 0.1])
     fusedGraphicalLasso(Matrix(Sx), n, Matrix(Sy), n, 0.05, 0.05)
     tvCovSel(Y, t, [0.3, 0.7], 0.3, 0.1)
+    tvCovSel(Y, t, [0.3, 0.7], 0.3, 0.1; λ1 = 0.05)
     clime(Matrix(Sy), 0.2)
     aclime(Matrix(Sy), n)
     slassoinv(Matrix(Sy), n)
