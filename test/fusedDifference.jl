@@ -104,6 +104,19 @@ const tight = CovarianceSelection.ADMMOptions(;abstol=1e-12, reltol=1e-12, maxit
     @test_logs (:warn, r"fusedGraphicalLasso! stopped after 2 iterations") CovarianceSelection.fusedGraphicalLasso(Sx, n, Sy, n, 0.05, 0.05;
         options=CovarianceSelection.ADMMOptions(; maxiter=2))
 
+    # a warm start from the iterates and the final ρ of a converged run stops at once
+    θx, θy, Zx, Zy, Ux, Uy = (zeros(p, p) for _ in 1:6)
+    info = ADMMInfo()
+    CovarianceSelection.fusedGraphicalLasso!(θx, θy, Zx, Zy, Ux, Uy, Sx, n, Sy, n, 0.05, 0.05; info)
+    @test θx == Zx && θy == Zy
+    info2 = ADMMInfo()
+    CovarianceSelection.fusedGraphicalLasso!(θx, θy, Zx, Zy, Ux, Uy, Sx, n, Sy, n, 0.05, 0.05;
+        options=CovarianceSelection.ADMMOptions(; ρ=info.ρ), info=info2)
+    @test info2.converged && info2.iterations <= 2
+    @test Zx ≈ Zx1 atol=1e-3
+    @test_throws DimensionMismatch CovarianceSelection.fusedGraphicalLasso!(θx, θy, Zx, Zy, Ux, zeros(p + 1, p + 1),
+        Sx, n, Sy, n, 0.05, 0.05)
+
     # Float32
     Zx32, Zy32 = CovarianceSelection.fusedGraphicalLasso(Float32.(Sx), n, Float32.(Sy), n, 0.05, 0.05;
         options=CovarianceSelection.ADMMOptions(;abstol=1e-6,reltol=1e-6))

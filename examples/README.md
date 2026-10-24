@@ -34,10 +34,10 @@ repository, so add it explicitly:
 julia --project=examples -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
 ```
 
-Until ProximalSolvers 0.1.1 and CoordinateDescent 0.7 are registered,
-`[sources]` also takes them from their masters on GitHub. On Julia 1.10 they
-must be added in the same call:
-`Pkg.add([PackageSpec(url="https://github.com/mlakolar/ProximalSolvers.jl", rev="master"), PackageSpec(url="https://github.com/mlakolar/CoordinateDescent.jl", rev="master")])`.
+Until ProximalBase 0.5.3, ProximalSolvers 0.1.1 and CoordinateDescent 0.7 are
+registered, `[sources]` also takes them from their masters on GitHub. On Julia
+1.10 they must be added in the same call:
+`Pkg.add([PackageSpec(url="https://github.com/mlakolar/ProximalBase.jl", rev="master"), PackageSpec(url="https://github.com/mlakolar/ProximalSolvers.jl", rev="master"), PackageSpec(url="https://github.com/mlakolar/CoordinateDescent.jl", rev="master")])`.
 
 ## Running
 
